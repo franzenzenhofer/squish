@@ -2,7 +2,8 @@
 export type Dir4 = 'up' | 'down' | 'left' | 'right';
 
 export type Mood =
-  | 'happy' | 'joy' | 'sleepy' | 'dizzy' | 'wink' | 'look' | 'idle' | 'feed' | 'zzz';
+  | 'happy' | 'joy' | 'sleepy' | 'dizzy' | 'wink' | 'look' | 'idle' | 'feed' | 'zzz'
+  | 'worried';
 
 export interface SpriteOpts {
   x: number;

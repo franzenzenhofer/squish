@@ -232,6 +232,20 @@ export function eyes(ctx: Ctx, r: number, o?: EyeOpts): void {
     arcEye(sp);
     return;
   }
+  if (mood === 'worried') {
+    LR(openEye);
+    /* slanted little brows above the eyes — instant concern */
+    ctx.strokeStyle = C.pupil;
+    ctx.lineWidth = lw * 0.85;
+    LR((x) => {
+      const inward = x < 0 ? 1 : -1;
+      ctx.beginPath();
+      ctx.moveTo(x + fx - ew * 0.7 * inward, ey - eh * 1.5);
+      ctx.lineTo(x + fx + ew * 0.7 * inward, ey - eh * 1.95);
+      ctx.stroke();
+    });
+    return;
+  }
   if ((mood === 'happy' || mood === 'look') && blinkOn(seed, now)) {
     LR(lineEye);
     return;

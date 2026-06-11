@@ -45,7 +45,10 @@ export const squishy: SpriteFn = (ctx, o) => {
   }
   U.blush(ctx, r);
   U.eyes(ctx, r, { dx, dy, mood: fm, seed, now });
-  U.mouth(ctx, r, { mood: fm === 'joy' ? 'joy' : (fm === 'dizzy' ? 'o' : 'smile'), dx, y: 0.28 });
+  U.mouth(ctx, r, {
+    mood: fm === 'joy' ? 'joy' : fm === 'dizzy' || fm === 'worried' ? 'o' : 'smile',
+    dx, y: 0.28
+  });
 
   ctx.restore();
 };

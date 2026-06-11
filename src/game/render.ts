@@ -16,9 +16,12 @@ const KIND_SPRITE: Record<string, string> = {
   frog: 'frog', panda: 'panda', cat: 'cat', chick: 'chick', pig: 'pig'
 };
 
-export function mods(s: Session, cellKey: string, now: number): { sx: number; sy: number } {
+export function mods(
+  s: Session, cellKey: string, now: number
+): { sx: number; sy: number; rot: number } {
   let sx = 1;
   let sy = 1;
+  let rot = 0;
   for (const p of s.pulses) {
     if (p.key !== cellKey) continue;
     const t = (now - p.t0) / p.dur;
@@ -36,9 +39,12 @@ export function mods(s: Session, cellKey: string, now: number): { sx: number; sy
         sy += a * w;
         sx -= a * 0.72 * w;
       }
+    } else if (p.type === 'shake') {
+      /* decaying head wobble — four no-no shakes */
+      rot += (p.amp ?? 0.16) * Math.sin(t * Math.PI * 4) * (1 - t);
     }
   }
-  return { sx, sy };
+  return { sx, sy, rot };
 }
 
 function chompScale(s: Session, k: string, now: number): number {
@@ -210,13 +216,16 @@ function drawAnimSprite(
     }
   }
   const mNow = spriteM(sp, distE);
-  const mod = sp.done ? mods(s, key(sp.endCell.x, sp.endCell.y), now) : { sx: 1, sy: 1 };
+  const mod = sp.done
+    ? mods(s, key(sp.endCell.x, sp.endCell.y), now)
+    : { sx: 1, sy: 1, rot: 0 };
   const kscl = sp.kind !== 'dot' ? scl : 1;
   const asleep = sp.kind === 'panda' && sp.segs.length === 0;
   drawMover(ctx, s, sp.kind, xN, yN - lift, dotR(s, mNow) * scl,
     mod.sx * tSX * kscl, mod.sy * tSY * kscl,
     sp.done ? 0 : dx, sp.done ? 0 : dy,
-    asleep ? 'sleepy' : 'happy', sp.seed, now, false, sp.done ? 0 : tRot);
+    asleep ? 'sleepy' : s.ohNoFace ? 'worried' : 'happy',
+    sp.seed, now, false, sp.done ? mod.rot : tRot);
   return p >= 1;
 }
 
@@ -239,13 +248,14 @@ function drawIdleActors(ctx: CanvasRenderingContext2D, s: Session, now: number):
     for (const p of list) {
       const m = mods(s, key(p.x, p.y), now);
       drawMover(ctx, s, kind, cx(s, p.x), cy(s, p.y), 0, m.sx, m.sy,
-        kind === 'snail' ? 1 : 0, 0, mood, p.x * 7 + p.y * 3, now, true);
+        kind === 'snail' ? 1 : 0, 0, mood, p.x * 7 + p.y * 3, now, true, m.rot);
     }
   }
   for (const d of s.gs.dots) {
     const m = mods(s, key(d.x, d.y), now);
     drawMover(ctx, s, 'dot', cx(s, d.x), cy(s, d.y), dotR(s, d.m), m.sx, m.sy, 0, 0,
-      s.winFace ? 'joy' : 'happy', d.x * 7 + d.y * 13, now, true);
+      s.winFace ? 'joy' : s.ohNoFace ? 'worried' : 'happy',
+      d.x * 7 + d.y * 13, now, true, m.rot);
   }
 }
 

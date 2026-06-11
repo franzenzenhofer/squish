@@ -39,7 +39,7 @@ export interface Particle {
 }
 
 export interface Pulse {
-  type: 'pop' | 'squash' | 'chomp' | 'sink';
+  type: 'pop' | 'squash' | 'chomp' | 'sink' | 'shake';
   key?: string;
   axis?: 'x' | 'y';
   t0: number;
@@ -94,6 +94,10 @@ export interface Session {
   /** movers of the last executed swipe — fuels the oh-no reverse hop */
   lastMovers: MoverReport[] | null;
   ohNoShown: boolean;
+  /** squishies wear the worried face while the oh-no plays */
+  ohNoFace: boolean;
+  /** the running anim is the oh-no reverse hop, not a player move */
+  ohNoReturn: boolean;
 }
 
 const PROGRESS_KEY = 'squish-progress-v1';
@@ -109,7 +113,8 @@ export function blankSession(): Session {
     cell: 0, ox: 0, oy: 0, cssSize: 0, dpr: 1,
     winTimer: null, capTimer: null, combo: 0, winFace: false, boardScale: 1,
     oracle: null, oracleKey: null, hintMode: false,
-    hintDir: null, hintT0: 0, lastMovers: null, ohNoShown: false
+    hintDir: null, hintT0: 0, lastMovers: null,
+    ohNoShown: false, ohNoFace: false, ohNoReturn: false
   };
 }
 

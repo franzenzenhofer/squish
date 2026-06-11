@@ -1,7 +1,7 @@
 /* Game orchestrator — boot, layout, level flow, move loop. Input, hints,
    endings and the oh-no sequence live in their own modules; this file only
    wires them together around the shared session. */
-import { cloneState, isWin, key, makeLevel, ser } from '../engine/core';
+import { cloneState, isWin, key, makeLevel } from '../engine/core';
 import { move } from '../engine/move';
 import type { Dir, LevelDef } from '../engine/types';
 import { createAssist } from './assist';
@@ -10,6 +10,8 @@ import { createEndings } from './endings';
 import { buildSprites, handleFx, onEnd } from './fx';
 import { createHints } from './hints';
 import { bindInput } from './input';
+import { createOhNo } from './ohno';
+import { hideToast } from './toast';
 import { drawFrame, type RenderHooks } from './render';
 import { blankSession, loadProgress, saveProgress, type Session } from './session';
 
@@ -96,6 +98,9 @@ function applyLevel(def: LevelDef): void {
   s.hintDir = null;
   s.lastMovers = null;
   s.ohNoShown = false;
+  s.ohNoFace = false;
+  s.ohNoReturn = false;
+  hideToast();
   setCap(def.cap ?? '');
   layout();
   hud();
@@ -122,28 +127,15 @@ function loadLevel(li: number): void {
   });
 }
 
-/** That swipe made the heart unreachable: say a short "oh no" and
-    automatically hop back one move (auto ctrl-z). */
-function ohNoJumpBack(): void {
-  if (s.ohNoShown || s.mode !== 'idle' || s.hist.length === 0) return;
-  s.ohNoShown = true;
-  audio.ohno();
-  audio.buzz([15, 40, 15]);
-  setCap('oh no! that swipe blocked the heart… hopping back', true);
-  const frozen = ser(s.gs);
-  window.setTimeout(() => {
-    s.ohNoShown = false;
-    if (ser(s.gs) !== frozen || s.mode !== 'idle') return; // state changed meanwhile
-    undo();
-    const now = performance.now();
-    for (const d of s.gs.dots) {
-      s.pulses.push({ type: 'pop', key: key(d.x, d.y), t0: now, dur: 340, amp: 0.45 });
-    }
-  }, 850);
-}
+const ohno = createOhNo({
+  s, audio, reduced,
+  caption: setCap,
+  hud,
+  afterRestore: () => hints.afterStateChange()
+});
 
 const hints = createHints(s, assist, {
-  onUnwinnable: () => ohNoJumpBack(),
+  onUnwinnable: () => ohno.trigger(),
   onHintChange: (on) => elHintBtn.classList.toggle('on', on),
   caption: setCap
 });
@@ -151,7 +143,7 @@ const hints = createHints(s, assist, {
 /* ------------------------------ move flow -------------------------------- */
 function doMove(dir: Dir): void {
   if (s.mode !== 'idle' && s.mode !== 'anim') return;
-  if (s.ohNoShown) return;
+  if (s.ohNoShown || s.ohNoReturn) return;
   if (s.mode === 'anim') {
     s.pending = dir;
     return;
@@ -175,6 +167,10 @@ function doMove(dir: Dir): void {
 }
 
 function finishMove(): void {
+  if (s.ohNoReturn) {
+    ohno.complete();
+    return;
+  }
   s.mode = 'idle';
   s.renderBroken = new Set(s.gs.broken);
   s.renderFed = new Set(s.gs.fed);
