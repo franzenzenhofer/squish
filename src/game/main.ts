@@ -20,6 +20,7 @@ import { createStart } from './start';
 import { hideToast } from './toast';
 import { drawFrame, type RenderHooks } from './render';
 import { CURATED, blankSession, type Session } from './session';
+import { installTestApi } from './testapi';
 
 const audio = createAudio();
 const assist = createAssist();
@@ -336,16 +337,18 @@ const startMenu = createStart({
 });
 
 /* --------------------------------- boot ---------------------------------- */
-declare global {
-  interface Window {
-    __move: (d: Dir) => void;
-    __goto: (i: number) => void;
-    __state: () => { li: number; moves: number; mode: string };
-  }
-}
-window.__move = doMove;
-window.__goto = (i: number): void => loadLevel(i);
-window.__state = () => ({ li: s.li, moves: s.moves, mode: s.mode });
+installTestApi({
+  s,
+  doMove,
+  loadLevel: (n) => loadLevel(n),
+  startDaily,
+  undo,
+  retry,
+  toggleHintMode: () => hints.toggleHintMode(),
+  dismissIntro: () => intro.dismiss(),
+  closeMenu: () => startMenu.close(),
+  solution: () => hints.solution()
+});
 
 const saved = loadGame();
 s.results = saved.results;

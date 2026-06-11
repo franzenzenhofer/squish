@@ -92,7 +92,7 @@ export function createOhNo(d: OhNoDeps): OhNo {
       return;
     }
     restoreFieldVisuals(h.gs);
-    if (d.reduced || !s.lastMovers) {
+    if (d.reduced || s.instantAnims || !s.lastMovers) {
       complete();
       return;
     }
@@ -154,7 +154,7 @@ export function createOhNo(d: OhNoDeps): OhNo {
     window.setTimeout(() => {
       if (s.mode === 'ohno') toast("oh no! that's not a good idea!", { tone: 'bad', ms: 1600 });
     }, 120);
-    window.setTimeout(launchReturn, d.reduced ? 200 : RETURN_AT_MS);
+    window.setTimeout(launchReturn, d.reduced || s.instantAnims ? 50 : RETURN_AT_MS);
   };
 
   return { trigger, complete };

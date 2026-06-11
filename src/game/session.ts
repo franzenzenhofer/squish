@@ -109,6 +109,8 @@ export interface Session {
   ohNoReturn: boolean;
   /** start of the heart-unlock animation (last star collected), or null */
   heartUnlockT0: number | null;
+  /** test mode: clamp all animation durations to ~1ms (real code path) */
+  instantAnims: boolean;
 }
 
 const GEN_KEY = 'squish-gen-v1:';
@@ -125,7 +127,8 @@ export function blankSession(): Session {
     winTimer: null, capTimer: null, combo: 0, winFace: false, boardScale: 1,
     oracle: null, oracleKey: null, hintMode: false,
     hintDir: null, hintT0: 0, lastMovers: null,
-    ohNoShown: false, ohNoFace: false, ohNoReturn: false, heartUnlockT0: null
+    ohNoShown: false, ohNoFace: false, ohNoReturn: false, heartUnlockT0: null,
+    instantAnims: false
   };
 }
 

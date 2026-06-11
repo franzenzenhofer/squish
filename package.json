@@ -9,15 +9,17 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src scripts tests",
-    "test": "vitest run",
+    "test": "vitest run --exclude tests/e2e/**",
     "levels": "tsx scripts/build-levels.ts",
     "gates": "npm run typecheck && npm run lint && npm run test && npm run build",
     "deploy": "npm run gates && wrangler deploy",
     "levels:audit": "tsx scripts/audit-levels.ts",
-    "daily:verify": "tsx scripts/verify-daily.ts"
+    "daily:verify": "tsx scripts/verify-daily.ts",
+    "e2e": "playwright test"
   },
   "devDependencies": {
     "@eslint/js": "^9.28.0",
+    "@playwright/test": "^1.60.0",
     "@types/node": "^25.9.3",
     "eslint": "^9.28.0",
     "tsx": "^4.19.4",

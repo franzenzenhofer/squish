@@ -29,7 +29,7 @@ export function buildSprites(s: Session, movers: MoverReport[], t0: number): voi
       const b = mv.path[i];
       if (!a || !b) continue;
       const cells = Math.max(1, Math.abs(b.x - a.x) + Math.abs(b.y - a.y));
-      const dur = b.tp ? 120 : b.hop ? 120 + 30 * cells : perCell * cells;
+      const dur = s.instantAnims ? 1 : b.tp ? 120 : b.hop ? 120 + 30 * cells : perCell * cells;
       segs.push({
         x0: cx(s, a.x), y0: cy(s, a.y), x1: cx(s, b.x), y1: cy(s, b.y),
         tp: !!b.tp, hop: !!b.hop, dur,
@@ -67,7 +67,9 @@ export function buildSprites(s: Session, movers: MoverReport[], t0: number): voi
     if (!first) return;
     s.sprites.push({
       kind: mv.kind, end: mv.end, stick: mv.stick, segs, cum, total, fxq, msteps,
-      t0: t0 + (mv.delayCells ?? 0) * 46 + (mv.kind === 'balloon' ? 90 : 0),
+      t0: s.instantAnims
+        ? t0
+        : t0 + (mv.delayCells ?? 0) * 46 + (mv.kind === 'balloon' ? 90 : 0),
       done: false, seed: mi * 13 + 5,
       lastX: cx(s, first.x), lastY: cy(s, first.y), lastDx: 0, lastDy: 0,
       endCell: mv.path[mv.path.length - 1] ?? first
