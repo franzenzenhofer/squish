@@ -1,0 +1,10 @@
+name = "squish"
+compatibility_date = "2026-06-01"
+account_id = "ecf21e85812dfa5b2a35245257fc71f5"
+
+[assets]
+directory = "./dist"
+
+routes = [
+  { pattern = "squish.franzai.com", custom_domain = true }
+]

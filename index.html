@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#FFF1F7">
+<meta name="description" content="squish — a tiny cute swipe puzzle. merge your squishies onto the heart!">
+<title>squish ♥</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 28 C3 18 2 9 8.5 6.5 C13 4.5 16 8.5 16 12 C16 8.5 19 4.5 23.5 6.5 C30 9 29 18 16 28 Z' fill='%23FF6D9E'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --ink: #6B4A5B;
+    --pink: #FF9CC0;
+    --heart: #FF6D9E;
+    --yel: #FFD56A;
+    --border: #F6C9DC;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    position: fixed; inset: 0;
+    background: radial-gradient(130% 90% at 50% -15%, #FFFAFC 0%, #FFEFF6 42%, #FFE2EE 100%);
+    color: var(--ink);
+    font: 800 14px/1.25 ui-rounded, "Hiragino Maru Gothic ProN", "Quicksand", "Varela Round", system-ui, sans-serif;
+    letter-spacing: .02em;
+    user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+    touch-action: none; overscroll-behavior: none;
+    display: flex; flex-direction: column;
+  }
+  body::before, body::after {
+    content: ""; position: absolute; border-radius: 50%; filter: blur(3px); opacity: .5; pointer-events: none;
+  }
+  body::before { width: 200px; height: 200px; background: #FFE0EC; left: -60px; top: 12%; }
+  body::after { width: 240px; height: 240px; background: #FFEAD6; right: -80px; bottom: 8%; }
+
+  header {
+    position: relative; z-index: 1;
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    padding: 16px 22px; padding-top: calc(16px + env(safe-area-inset-top));
+  }
+  #brand { font-weight: 800; font-size: 19px; letter-spacing: .06em; }
+  #brand b { color: var(--heart); }
+  #lvl {
+    font-size: 12px; color: #C18BA8; font-weight: 800; letter-spacing: .08em;
+    background: #fff; border: 2px solid var(--border); border-radius: 999px;
+    padding: 4px 14px; box-shadow: 0 3px 0 rgba(246,201,220,.45);
+  }
+  #moves { font-size: 16px; min-width: 44px; text-align: right; }
+  #moves b { font-weight: 800; color: var(--ink); }
+  #moves b.over { color: var(--heart); }
+  .dim { color: #CDA4B7; font-weight: 800; }
+
+  #main { position: relative; z-index: 1; flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; touch-action: none; }
+  canvas { display: block; }
+  #cap {
+    position: absolute; left: 0; right: 0; bottom: 6px; text-align: center;
+    font-size: 13px; color: #C18BA8; font-weight: 800; letter-spacing: .05em;
+    pointer-events: none; opacity: 0; transition: opacity .4s ease; padding: 0 16px;
+  }
+  #cap.show { opacity: 1; }
+  #cap.bad { color: var(--heart); }
+
+  #flood { position: absolute; inset: 0; background: var(--pink); clip-path: circle(0px at 50% 50%); pointer-events: none; z-index: 5; }
+  #msg {
+    position: absolute; inset: 0; z-index: 6; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 14px; color: #fff;
+    opacity: 0; pointer-events: none; transition: opacity .15s linear; text-align: center;
+  }
+  #msg.show { opacity: 1; }
+  #msg.show #msgbig { animation: pop .5s cubic-bezier(.2,1.4,.4,1) both; }
+  #msgbig { font-size: 42px; font-weight: 800; text-shadow: 0 3px 0 rgba(0,0,0,.07); }
+  #msgsub { font-size: 14px; font-weight: 800; }
+  .rate { display: flex; gap: 8px; justify-content: center; }
+  .rate .rh { width: 30px; height: 28px; transform: scale(.6); transition: transform .35s cubic-bezier(.2,1.6,.4,1); }
+  .rate .rh path { fill: rgba(255,255,255,.4); transition: fill .3s; }
+  .rate .rh.on { transform: scale(1); }
+  .rate .rh.on path { fill: var(--yel); }
+  .rate .rh.on:nth-child(2) { transition-delay: .1s; }
+  .rate .rh.on:nth-child(3) { transition-delay: .2s; }
+  @keyframes pop { 0% { transform: scale(.4); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+
+  #ohno {
+    position: absolute; inset: 0; z-index: 7;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+    background: rgba(90, 50, 71, .38); backdrop-filter: blur(2px);
+    opacity: 0; pointer-events: none; transition: opacity .25s ease; text-align: center;
+  }
+  #ohno.show { opacity: 1; pointer-events: auto; }
+  #ohno .card {
+    background: #fff; border: 2px solid var(--border); border-radius: 26px;
+    padding: 22px 30px; box-shadow: 0 12px 30px rgba(240,80,140,.25);
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    animation: pop .4s cubic-bezier(.2,1.4,.4,1) both;
+  }
+  #ohno .big { font-size: 30px; color: var(--heart); }
+  #ohno .why { font-size: 13px; color: #C18BA8; max-width: 230px; line-height: 1.5; }
+  #ohno .row { display: flex; gap: 12px; margin-top: 8px; }
+  #ohno button {
+    height: 46px; padding: 0 22px;
+    background: var(--heart); color: #fff;
+    border: none; border-radius: 999px;
+    font: inherit; font-weight: 800; letter-spacing: .04em; cursor: pointer;
+    box-shadow: 0 4px 0 rgba(240,80,140,.35);
+  }
+  #ohno button.alt { background: #fff; color: var(--ink); border: 2px solid var(--border); box-shadow: 0 4px 0 rgba(246,201,220,.5); }
+  #ohno button:active { transform: translateY(3px); box-shadow: none; }
+
+  footer {
+    position: relative; z-index: 1; display: flex; gap: 14px; justify-content: center;
+    padding: 14px 22px; padding-bottom: calc(16px + env(safe-area-inset-bottom));
+  }
+  footer button {
+    width: 58px; height: 58px; flex: none;
+    display: flex; align-items: center; justify-content: center;
+    background: #fff; color: var(--ink);
+    border: 2px solid var(--border); border-radius: 50%;
+    cursor: pointer; box-shadow: 0 5px 0 rgba(246,201,220,.5);
+    transition: transform .08s ease, box-shadow .08s ease, background .12s;
+  }
+  footer button svg { width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+  footer button:active { transform: translateY(4px); box-shadow: 0 1px 0 rgba(246,201,220,.5); background: #FFF0F5; }
+  footer button#hint { color: #E8A93C; }
+  footer button#hint.busy { animation: think 1s ease-in-out infinite; }
+  @keyframes think { 0%,100% { transform: rotate(-7deg); } 50% { transform: rotate(7deg); } }
+  footer button#mute.off { color: #D7B9C7; background: #FBEEF3; }
+  footer button#mute .wave { transition: opacity .12s; }
+  footer button#mute.off .wave { opacity: 0; }
+  footer button#mute .slash { opacity: 0; }
+  footer button#mute.off .slash { opacity: 1; }
+
+  .shake { animation: shake .55s linear; }
+  @keyframes shake {
+    0%,100% { transform: translate(0,0); }
+    15% { transform: translate(-7px,2px); } 30% { transform: translate(6px,-3px); }
+    45% { transform: translate(-5px,-2px); } 60% { transform: translate(4px,3px); }
+    75% { transform: translate(-3px,1px); } 90% { transform: translate(2px,-1px); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .shake { animation: none; } #msg, footer button { transition: none; }
+    #msg.show #msgbig { animation: none; } .rate .rh { transition: none; }
+    #ohno .card { animation: none; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div id="brand">squish<b>♥</b></div>
+  <div id="lvl">01</div>
+  <div id="moves"><b>0</b><span class="dim">/1</span></div>
+</header>
+<main id="main">
+  <canvas id="c"></canvas>
+  <div id="cap"></div>
+  <div id="flood"></div>
+  <div id="msg"><div id="msgbig"></div><div id="msgsub"></div></div>
+  <div id="ohno">
+    <div class="card">
+      <div class="big">oh no!</div>
+      <div class="why">there is no way to the heart anymore… undo your last swipe or start over</div>
+      <div class="row">
+        <button id="ohno-undo">undo</button>
+        <button id="ohno-retry" class="alt">retry</button>
+      </div>
+    </div>
+  </div>
+</main>
+<footer>
+  <button id="undo" aria-label="undo">
+    <svg viewBox="0 0 24 24"><path d="M10 8 L5 12.5 L10 17"/><path d="M5 12.5 H14 a4.5 4.5 0 0 1 4.5 4.5"/></svg>
+  </button>
+  <button id="retry" aria-label="retry">
+    <svg viewBox="0 0 24 24"><path d="M18.5 8.5 A7 7 0 1 0 19.5 14"/><path d="M19 4 V9 H14"/></svg>
+  </button>
+  <button id="hint" aria-label="hint">
+    <svg viewBox="0 0 24 24"><path d="M12 3 a6 6 0 0 1 6 6 c0 2.2-1.2 3.5-2.2 4.6-.8.9-1.3 1.5-1.3 2.4 H9.5 c0-.9-.5-1.5-1.3-2.4C7.2 12.5 6 11.2 6 9 a6 6 0 0 1 6-6 Z"/><path d="M9.8 19.5 h4.4"/><path d="M10.5 21.5 h3"/></svg>
+  </button>
+  <button id="mute" aria-label="sound">
+    <svg viewBox="0 0 24 24"><path d="M5 9.5 H8 L12.5 6 V18 L8 14.5 H5 Z" fill="currentColor" stroke="none"/><path class="wave" d="M16 9.5 a4 4 0 0 1 0 5"/><path class="wave" d="M18.4 7.5 a7 7 0 0 1 0 9"/><path class="slash" d="M16 9 L21 15 M21 9 L16 15"/></svg>
+  </button>
+</footer>
+<script type="module" src="/src/game/main.ts"></script>
+</body>
+</html>
