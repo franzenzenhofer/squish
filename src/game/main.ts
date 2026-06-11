@@ -41,8 +41,8 @@ function layout(): void {
   s.dpr = Math.min(window.devicePixelRatio || 1, 3);
   const pad = 14;
   const aw = main.clientWidth - pad * 2;
-  /* 76px under the board is the message strip (toast + caption) */
-  const ah = main.clientHeight - pad * 2 - 76;
+  /* 88px under the board is the message strip (toast + caption) */
+  const ah = main.clientHeight - pad * 2 - 88;
   s.cssSize = Math.max(140, Math.floor(Math.min(aw, ah)));
   canvas.style.width = s.cssSize + 'px';
   canvas.style.height = s.cssSize + 'px';

@@ -21,8 +21,10 @@ export function toast(txt: string, o?: ToastOpts): void {
   el.textContent = txt;
   el.classList.toggle('bad', o?.tone === 'bad');
   el.classList.add('show');
+  document.getElementById('cap')?.classList.add('mute');
   timer = window.setTimeout(() => {
     el.classList.remove('show');
+    document.getElementById('cap')?.classList.remove('mute');
     timer = null;
   }, o?.ms ?? 1800);
 }
@@ -35,4 +37,5 @@ export function hideToast(): void {
     timer = null;
   }
   el.classList.remove('show');
+  document.getElementById('cap')?.classList.remove('mute');
 }

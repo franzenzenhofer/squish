@@ -66,20 +66,22 @@
 
   #main { position: relative; z-index: 1; flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; touch-action: none; }
   /* the board sits a bit high — the strip below it belongs to messages */
-  canvas { display: block; margin-bottom: 76px; }
+  canvas { display: block; margin-bottom: 88px; }
   #cap {
-    position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%);
-    max-width: calc(100% - 32px); text-align: center;
-    font-size: 13px; color: #C18BA8; font-weight: 800; letter-spacing: .05em;
+    position: absolute; left: 50%; bottom: 6px; transform: translateX(-50%);
+    max-width: calc(100% - 24px); text-align: center;
+    font-size: 12px; color: #C18BA8; font-weight: 800; letter-spacing: .04em;
     background: #fff; border: 2px solid var(--border); border-radius: 999px;
     padding: 7px 16px; box-shadow: 0 3px 0 rgba(246,201,220,.4);
     pointer-events: none; opacity: 0; transition: opacity .4s ease;
   }
   #cap.show { opacity: 1; }
   #cap.bad { color: var(--heart); }
+  /* a toast takes the stage — the caption politely dips until it's gone */
+  #cap.mute { opacity: 0; }
 
   #toast {
-    position: absolute; left: 50%; bottom: 44px;
+    position: absolute; left: 50%; bottom: 54px;
     transform: translate(-50%, 10px) scale(.88);
     background: #fff; border: 2px solid var(--border); border-radius: 999px;
     padding: 9px 18px; font-size: 14px; font-weight: 800; color: var(--ink);

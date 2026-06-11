@@ -106,6 +106,40 @@ test('a trapping line triggers the oh-no auto-undo', async ({ page }) => {
   );
 });
 
+test('daily solve shows the congrats modal and returns to campaign', async ({ page }) => {
+  await boot(page);
+  await page.evaluate(() => localStorage.clear());
+  await page.evaluate(() => window.__squishy?.startDaily());
+  await page.waitForFunction(() => {
+    const m = window.__squishy?.state();
+    return m !== undefined && m.play.startsWith('daily') && m.mode !== 'loading';
+  }, undefined, { timeout: 120000 });
+  await page.evaluate(() => {
+    window.__squishy?.dismissIntro();
+    window.__squishy?.dismissIntro();
+    window.__squishy?.dismissIntro();
+  });
+  await page.waitForFunction(() => window.__squishy?.state().oracleReady === true,
+    undefined, { timeout: 60000 });
+  for (let i = 0; i < 16; i++) {
+    const sol = await page.evaluate(() => window.__squishy?.solution());
+    if (!sol || sol.length === 0) break;
+    await page.evaluate((d) => window.__squishy?.move(d as never), sol[0]);
+    const mode = await page.evaluate(() => window.__squishy?.state().mode);
+    if (mode === 'win') break;
+  }
+  expect(await page.evaluate(() => window.__squishy?.state().mode)).toBe('win');
+  /* the congrats modal must appear (no auto-advance for dailies) */
+  await page.waitForSelector('#dailyWin.show', { timeout: 10000 });
+  expect(await page.textContent('#dwTitle')).toBe('Congrats!');
+  expect(await page.textContent('#dwMoves')).toMatch(/Solved in \d+ moves/);
+  await page.click('#dwContinue');
+  await page.waitForFunction(() => {
+    const m = window.__squishy?.state();
+    return m?.play === 'campaign' && (m.mode === 'idle' || m.mode === 'intro');
+  }, undefined, { timeout: 10000 });
+});
+
 test('mid-level state survives a reload', async ({ page }) => {
   await boot(page);
   await page.evaluate(() => localStorage.clear());
