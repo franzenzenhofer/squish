@@ -80,32 +80,6 @@
   .rate .rh.on:nth-child(3) { transition-delay: .2s; }
   @keyframes pop { 0% { transform: scale(.4); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
 
-  #ohno {
-    position: absolute; inset: 0; z-index: 7;
-    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
-    background: rgba(90, 50, 71, .38); backdrop-filter: blur(2px);
-    opacity: 0; pointer-events: none; transition: opacity .25s ease; text-align: center;
-  }
-  #ohno.show { opacity: 1; pointer-events: auto; }
-  #ohno .card {
-    background: #fff; border: 2px solid var(--border); border-radius: 26px;
-    padding: 22px 30px; box-shadow: 0 12px 30px rgba(240,80,140,.25);
-    display: flex; flex-direction: column; align-items: center; gap: 8px;
-    animation: pop .4s cubic-bezier(.2,1.4,.4,1) both;
-  }
-  #ohno .big { font-size: 30px; color: var(--heart); }
-  #ohno .why { font-size: 13px; color: #C18BA8; max-width: 230px; line-height: 1.5; }
-  #ohno .row { display: flex; gap: 12px; margin-top: 8px; }
-  #ohno button {
-    height: 46px; padding: 0 22px;
-    background: var(--heart); color: #fff;
-    border: none; border-radius: 999px;
-    font: inherit; font-weight: 800; letter-spacing: .04em; cursor: pointer;
-    box-shadow: 0 4px 0 rgba(240,80,140,.35);
-  }
-  #ohno button.alt { background: #fff; color: var(--ink); border: 2px solid var(--border); box-shadow: 0 4px 0 rgba(246,201,220,.5); }
-  #ohno button:active { transform: translateY(3px); box-shadow: none; }
-
   footer {
     position: relative; z-index: 1; display: flex; gap: 14px; justify-content: center;
     padding: 14px 22px; padding-bottom: calc(16px + env(safe-area-inset-bottom));
@@ -154,16 +128,6 @@
   <div id="cap"></div>
   <div id="flood"></div>
   <div id="msg"><div id="msgbig"></div><div id="msgsub"></div></div>
-  <div id="ohno">
-    <div class="card">
-      <div class="big">oh no!</div>
-      <div class="why">there is no way to the heart anymore… undo your last swipe or start over</div>
-      <div class="row">
-        <button id="ohno-undo">undo</button>
-        <button id="ohno-retry" class="alt">retry</button>
-      </div>
-    </div>
-  </div>
 </main>
 <footer>
   <button id="undo" aria-label="undo">

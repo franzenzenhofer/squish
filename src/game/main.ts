@@ -24,7 +24,6 @@ const elFlood = document.getElementById('flood') as HTMLElement;
 const elMsg = document.getElementById('msg') as HTMLElement;
 const elMsgBig = document.getElementById('msgbig') as HTMLElement;
 const elMsgSub = document.getElementById('msgsub') as HTMLElement;
-const elOhno = document.getElementById('ohno') as HTMLElement;
 const elHintBtn = document.getElementById('hint') as HTMLButtonElement;
 const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -99,7 +98,6 @@ function applyLevel(def: LevelDef): void {
   s.solutionFor = null;
   s.hintDir = null;
   s.ohNoShown = false;
-  hideOhNo();
   setCap(def.cap ?? '');
   layout();
   hud();
@@ -134,7 +132,7 @@ function scheduleCheck(): void {
   assist.checkState(
     s,
     () => {
-      showOhNo();
+      ohNoJumpBack();
     },
     (sol) => {
       s.solution = sol;
@@ -143,17 +141,24 @@ function scheduleCheck(): void {
   );
 }
 
-function showOhNo(): void {
-  if (s.ohNoShown || s.mode === 'win') return;
+/** That swipe made the heart unreachable: say a short "oh no" and
+    automatically hop back one move (auto ctrl-z). */
+function ohNoJumpBack(): void {
+  if (s.ohNoShown || s.mode !== 'idle' || s.hist.length === 0) return;
   s.ohNoShown = true;
   audio.ohno();
   audio.buzz([15, 40, 15]);
-  elOhno.classList.add('show');
-}
-
-function hideOhNo(): void {
-  s.ohNoShown = false;
-  elOhno.classList.remove('show');
+  setCap('oh no! that swipe blocked the heart… hopping back', true);
+  const frozen = ser(s.gs);
+  window.setTimeout(() => {
+    s.ohNoShown = false;
+    if (ser(s.gs) !== frozen || s.mode !== 'idle') return; // state changed meanwhile
+    undo();
+    const now = performance.now();
+    for (const d of s.gs.dots) {
+      s.pulses.push({ type: 'pop', key: key(d.x, d.y), t0: now, dur: 340, amp: 0.45 });
+    }
+  }, 850);
 }
 
 function showHint(): void {
@@ -242,7 +247,7 @@ function finishMove(): void {
 }
 
 function undo(): void {
-  if ((s.mode !== 'idle' && !s.ohNoShown) || s.hist.length === 0) return;
+  if (s.mode !== 'idle' || s.hist.length === 0) return;
   const h = s.hist.pop();
   if (!h) return;
   s.gs = h.gs;
@@ -250,8 +255,7 @@ function undo(): void {
   s.renderBroken = new Set(s.gs.broken);
   s.renderFed = new Set(s.gs.fed);
   s.renderStars = new Set(s.gs.stars);
-  s.mode = 'idle';
-  hideOhNo();
+  s.ohNoShown = false;
   audio.tick();
   hud();
   s.solution = null;
@@ -416,8 +420,6 @@ function bind(id: string, fn: () => void): void {
 bind('undo', undo);
 bind('retry', retry);
 bind('hint', showHint);
-bind('ohno-undo', undo);
-bind('ohno-retry', retry);
 
 function toggleMute(): void {
   const muted = audio.toggleMute();
