@@ -7,7 +7,7 @@ import type { Dir, LevelDef } from '../engine/types';
 import { createAssist } from './assist';
 import { createAudio } from './audio';
 import { createEndings } from './endings';
-import { buildSprites, handleFx, onEnd } from './fx';
+import { buildSprites, handleFx, onEnd, updateStarPill } from './fx';
 import { createHints } from './hints';
 import { bindInput } from './input';
 import { createOhNo } from './ohno';
@@ -78,6 +78,7 @@ function hud(): void {
   elMoves.innerHTML =
     '<b class="' + (s.moves > s.def.par ? 'over' : '') + '">' + s.moves +
     '</b><span class="dim">/' + s.def.par + '</span>';
+  updateStarPill(s);
 }
 
 function applyLevel(def: LevelDef): void {
@@ -102,6 +103,7 @@ function applyLevel(def: LevelDef): void {
   s.ohNoShown = false;
   s.ohNoFace = false;
   s.ohNoReturn = false;
+  s.heartUnlockT0 = null;
   hideToast();
   setCap(def.cap ?? '');
   layout();
@@ -207,6 +209,7 @@ function undo(): void {
   s.renderStars = new Set(s.gs.stars);
   s.ohNoShown = false;
   s.hintDir = null;
+  s.heartUnlockT0 = null;
   audio.tick();
   hud();
   hints.afterStateChange();

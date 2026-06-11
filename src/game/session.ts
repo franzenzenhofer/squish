@@ -39,7 +39,7 @@ export interface Particle {
 }
 
 export interface Pulse {
-  type: 'pop' | 'squash' | 'chomp' | 'sink' | 'shake';
+  type: 'pop' | 'squash' | 'chomp' | 'sink' | 'shake' | 'soar' | 'ring';
   key?: string;
   axis?: 'x' | 'y';
   t0: number;
@@ -106,6 +106,8 @@ export interface Session {
   ohNoFace: boolean;
   /** the running anim is the oh-no reverse hop, not a player move */
   ohNoReturn: boolean;
+  /** start of the heart-unlock animation (last star collected), or null */
+  heartUnlockT0: number | null;
 }
 
 const GEN_KEY = 'squish-gen-v1:';
@@ -122,7 +124,7 @@ export function blankSession(): Session {
     winTimer: null, capTimer: null, combo: 0, winFace: false, boardScale: 1,
     oracle: null, oracleKey: null, hintMode: false,
     hintDir: null, hintT0: 0, lastMovers: null,
-    ohNoShown: false, ohNoFace: false, ohNoReturn: false
+    ohNoShown: false, ohNoFace: false, ohNoReturn: false, heartUnlockT0: null
   };
 }
 

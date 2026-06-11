@@ -74,6 +74,7 @@ export function createOhNo(d: OhNoDeps): OhNo {
     s.ohNoFace = false;
     s.ohNoShown = false;
     s.ohNoReturn = false;
+    s.heartUnlockT0 = null;
     s.mode = 'idle';
     d.hud();
     saveGame(s);

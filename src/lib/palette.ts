@@ -40,7 +40,26 @@ export const C = {
   /* gold star pickup */
   goldStar: '#FFD56A', goldStarHi: '#FFF0C4', goldStarLn: '#E8AE32',
 
+  /* locked heart — cute steel */
+  steel: '#D6DCEA', steelHi: '#F4F7FC', steelLo: '#B9C3D9', steelLn: '#94A1BE',
+
   /* surfaces & accents */
-  panel: '#FFFFFF', panelLn: '#FBE2EC', lattice: '#FBE6EE',
+  panel: '#FFFFFF', panelLn: '#FBE2EC', lattice: '#FBE6EE', latticeAlt: '#FFF8FB',
   yel: '#FFD56A', sky: '#FFE9F2'
 } as const;
+
+/* candy balloon themes — picked by seed so a level's balloons vary happily */
+export interface BalloonTheme {
+  hi: string;
+  base: string;
+  lo: string;
+  line: string;
+}
+
+export const BAL_THEMES: readonly BalloonTheme[] = [
+  { hi: '#FFE7D6', base: '#FFB088', lo: '#FF8F5F', line: '#E96F3C' }, /* peach */
+  { hi: '#E8F6FF', base: '#A6DBFF', lo: '#6FBFF2', line: '#4FAAEC' }, /* sky */
+  { hi: '#D2F4E8', base: '#A0E7CF', lo: '#6FD0AC', line: '#54C09E' }, /* mint */
+  { hi: '#FFF0C4', base: '#FFD56A', lo: '#F4BD45', line: '#E8AE32' }, /* lemon */
+  { hi: '#E5D8FC', base: '#C4A9F8', lo: '#A685EC', line: '#9676E6' }  /* lavender */
+];

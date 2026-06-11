@@ -1,9 +1,10 @@
 /* ============================================================================
-   sprites/balloon.ts — a friendly round helium balloon. Soft round body, a
-   bright gloss, a knot + short curly string, and the same warm kawaii face as
-   the rest of the cast (so it never looks uncanny). Bobs gently when idle.
+   sprites/balloon.ts — a happy candy balloon. Five pastel themes picked by
+   seed, diagonal candy stripes, a bright gloss, knot + curly string that
+   lags behind the sway, and the same warm kawaii face as the rest of the
+   cast. Floats slowly and dreamily — never springs.
    ============================================================================ */
-import { C } from '../lib/palette';
+import { BAL_THEMES, type BalloonTheme } from '../lib/palette';
 import * as U from '../lib/draw';
 import type { SpriteFn } from '../lib/types';
 
@@ -16,8 +17,11 @@ export const balloon: SpriteFn = (ctx, o) => {
   const sx = o.sx ?? 1;
   const sy = o.sy ?? 1;
   const idle = o.idle;
-  const bob = idle ? U.bob(now, seed, 2.6) : 0;
-  const sway = idle ? Math.sin(now * 0.0024 + seed) * 0.05 : 0;
+  const theme = BAL_THEMES[Math.abs(seed) % BAL_THEMES.length] as BalloonTheme;
+  /* slow dreamy float: gentle bob, soft sway, string lagging behind */
+  const bob = idle ? Math.sin(now * 0.0021 + seed) * 3.6 : 0;
+  const sway = idle ? Math.sin(now * 0.0017 + seed) * 0.09 : 0;
+  const lag = Math.sin(now * 0.0017 + seed - 0.7) * 0.12;
   const r = cell * 0.3;
 
   ctx.save();
@@ -25,31 +29,52 @@ export const balloon: SpriteFn = (ctx, o) => {
   ctx.rotate(sway + (o.rot ?? 0));
   ctx.scale(sx, sy);
 
-  /* short curly ribbon */
-  ctx.strokeStyle = C.balLn;
+  /* curly ribbon, phase-lagged so it trails the sway */
+  ctx.strokeStyle = theme.line;
   ctx.lineWidth = Math.max(1.4, cell * 0.022);
   ctx.lineCap = 'round';
   ctx.beginPath();
   ctx.moveTo(0, r * 1.04);
-  ctx.bezierCurveTo(r * 0.42, r * 1.36, -r * 0.3, r * 1.5, r * 0.12, r * 1.82);
+  ctx.bezierCurveTo(
+    r * (0.42 + lag), r * 1.36,
+    -r * (0.3 - lag), r * 1.5,
+    r * (0.12 + lag * 1.6), r * 1.82
+  );
   ctx.stroke();
 
   /* round body */
   const g = ctx.createRadialGradient(-r * 0.32, -r * 0.4, r * 0.08, 0, r * 0.06, r * 1.22);
-  g.addColorStop(0, C.balHi);
-  g.addColorStop(0.55, C.bal);
-  g.addColorStop(1, C.balLo);
+  g.addColorStop(0, theme.hi);
+  g.addColorStop(0.55, theme.base);
+  g.addColorStop(1, theme.lo);
   ctx.fillStyle = g;
-  ctx.strokeStyle = C.balLn;
-  ctx.lineWidth = Math.max(2, r * 0.08);
   ctx.beginPath();
   ctx.ellipse(0, 0, r * 0.93, r, 0, 0, 7);
   ctx.fill();
+
+  /* candy stripes, clipped inside the body */
+  ctx.save();
+  ctx.beginPath();
+  ctx.ellipse(0, 0, r * 0.93, r, 0, 0, 7);
+  ctx.clip();
+  ctx.globalAlpha = 0.5;
+  ctx.fillStyle = theme.hi;
+  ctx.rotate(-0.5);
+  for (let i = -2; i <= 2; i += 2) {
+    ctx.fillRect(i * r * 0.42 - r * 0.13, -r * 1.6, r * 0.26, r * 3.2);
+  }
+  ctx.restore();
+
+  /* outline over the stripes */
+  ctx.strokeStyle = theme.line;
+  ctx.lineWidth = Math.max(2, r * 0.08);
+  ctx.beginPath();
+  ctx.ellipse(0, 0, r * 0.93, r, 0, 0, 7);
   ctx.stroke();
 
   /* knot */
-  ctx.fillStyle = C.balLo;
-  ctx.strokeStyle = C.balLn;
+  ctx.fillStyle = theme.lo;
+  ctx.strokeStyle = theme.line;
   ctx.lineWidth = Math.max(1.5, r * 0.06);
   ctx.beginPath();
   ctx.moveTo(-r * 0.15, r * 0.95);

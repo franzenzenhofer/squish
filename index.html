@@ -46,6 +46,13 @@
     background: #fff; border: 2px solid var(--border); border-radius: 999px;
     padding: 4px 14px; box-shadow: 0 3px 0 rgba(246,201,220,.45);
   }
+  #starpill {
+    font-size: 12px; color: #E8AE32; font-weight: 800; letter-spacing: .08em;
+    background: #fff; border: 2px solid #F4D389; border-radius: 999px;
+    padding: 4px 12px; box-shadow: 0 3px 0 rgba(244,211,137,.45);
+  }
+  #starpill.bump { animation: bump .4s cubic-bezier(.2,1.6,.4,1); }
+  @keyframes bump { 30% { transform: scale(1.25); } 100% { transform: scale(1); } }
   #moves { font-size: 16px; min-width: 44px; text-align: right; }
   #moves b { font-weight: 800; color: var(--ink); }
   #moves b.over { color: var(--heart); }
@@ -142,6 +149,7 @@
 <header>
   <div id="brand">squish<b>♥</b></div>
   <div id="lvl">01</div>
+  <div id="starpill" hidden></div>
   <div id="moves"><b>0</b><span class="dim">/1</span></div>
 </header>
 <main id="main">

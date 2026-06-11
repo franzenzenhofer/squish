@@ -126,7 +126,13 @@ function drawFields(ctx: CanvasRenderingContext2D, s: Session, now: number): voi
       if (L.walls.has(k)) FLD.wall?.(ctx, o);
     }
   }
-  FLD.heart?.(ctx, { px: cx(s, L.tx), py: cy(s, L.ty), cell: s.cell, now, won: s.winFace });
+  const unlockP = s.heartUnlockT0 === null
+    ? undefined
+    : Math.min(1, (now - s.heartUnlockT0) / 550);
+  FLD.heart?.(ctx, {
+    px: cx(s, L.tx), py: cy(s, L.ty), cell: s.cell, now, won: s.winFace,
+    locked: s.renderStars.size > 0, unlockP
+  });
 }
 
 function spriteM(sp: AnimSprite, distE: number): number {
@@ -200,11 +206,15 @@ function drawAnimSprite(
     }
     sp.lastX = xN; sp.lastY = yN; sp.lastDx = dx; sp.lastDy = dy;
   }
+  /* balloons never spring — they drift with a lazy sine float */
+  if (sp.kind === 'balloon' && !sp.done && !isTp) {
+    lift += Math.sin(now * 0.004 + sp.seed) * s.cell * 0.05;
+  }
   /* directional squash & stretch — every swipe direction its own motion */
   let tSX = 1;
   let tSY = 1;
   let tRot = 0;
-  if (!sp.done && !isTp && (dx !== 0 || dy !== 0)) {
+  if (!sp.done && !isTp && sp.kind !== 'balloon' && (dx !== 0 || dy !== 0)) {
     const env = Math.max(0, Math.min(1, Math.min(p / 0.22, (1 - p) / 0.22)));
     if (dx !== 0) {
       tSX = 1 + 0.3 * env; tSY = 1 - 0.18 * env; tRot = dx * 0.19 * env;
@@ -323,14 +333,19 @@ export function drawFrame(
   ctx.stroke();
 
   drawAmbients(ctx, s, now);
-  ctx.fillStyle = C.lattice;
-  for (let x = 1; x < s.level.w; x++) {
-    for (let y = 1; y < s.level.h; y++) {
-      ctx.beginPath();
-      ctx.arc(s.ox + x * s.cell, s.oy + y * s.cell, 1.6, 0, 7);
+  /* pastel checkerboard tiles — the "roads" every piece sits on */
+  const inset = 2.5;
+  const rad = s.cell * 0.18;
+  for (let x = 0; x < s.level.w; x++) {
+    for (let y = 0; y < s.level.h; y++) {
+      ctx.globalAlpha = (x + y) % 2 === 0 ? 0.55 : 0.9;
+      ctx.fillStyle = (x + y) % 2 === 0 ? C.lattice : C.latticeAlt;
+      U.rrect(ctx, s.ox + x * s.cell + inset, s.oy + y * s.cell + inset,
+        s.cell - inset * 2, s.cell - inset * 2, rad);
       ctx.fill();
     }
   }
+  ctx.globalAlpha = 1;
   drawFields(ctx, s, now);
 
   if (s.mode === 'anim') {
@@ -343,12 +358,30 @@ export function drawFrame(
     drawIdleActors(ctx, s, now);
   }
 
-  /* sinks (eaten squishies spiralling away) */
+  /* sinks (eaten squishies spiralling away) + star collect juice */
   for (const pu of s.pulses) {
     const t = (now - pu.t0) / pu.dur;
-    if (t > 1 || t < 0 || pu.type !== 'sink') continue;
-    drawMover(ctx, s, pu.kind ?? 'dot', pu.x ?? 0, pu.y ?? 0, (pu.r ?? 10) * (1 - t),
-      1 - t, 1 - t, 0, 0, 'dizzy', 1, now, false);
+    if (t > 1 || t < 0) continue;
+    if (pu.type === 'sink') {
+      drawMover(ctx, s, pu.kind ?? 'dot', pu.x ?? 0, pu.y ?? 0, (pu.r ?? 10) * (1 - t),
+        1 - t, 1 - t, 0, 0, 'dizzy', 1, now, false);
+    } else if (pu.type === 'soar') {
+      /* the collected star floats up, grows and fades */
+      const sr = (pu.r ?? s.cell * 0.22) * (1 + 0.45 * t);
+      ctx.globalAlpha = 1 - t;
+      ctx.fillStyle = C.goldStar;
+      U.star5(ctx, pu.x ?? 0, (pu.y ?? 0) - t * s.cell * 0.7, sr, sr * 0.44);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    } else if (pu.type === 'ring') {
+      ctx.globalAlpha = (1 - t) * 0.8;
+      ctx.strokeStyle = C.goldStar;
+      ctx.lineWidth = Math.max(2, s.cell * 0.05) * (1 - t * 0.6);
+      ctx.beginPath();
+      ctx.arc(pu.x ?? 0, pu.y ?? 0, s.cell * (0.2 + 0.5 * t), 0, 7);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
   }
   /* particles */
   for (let pi = s.particles.length - 1; pi >= 0; pi--) {

@@ -20,7 +20,8 @@ export function dotR(s: Session, m: number): number {
 
 export function buildSprites(s: Session, movers: MoverReport[], t0: number): void {
   movers.forEach((mv, mi) => {
-    const perCell = mv.kind === 'snail' ? 100 : mv.kind === 'bear' ? 80 : 46;
+    const perCell =
+      mv.kind === 'snail' ? 100 : mv.kind === 'balloon' ? 88 : mv.kind === 'bear' ? 80 : 46;
     const segs: AnimSprite['segs'] = [];
     const cum = [0];
     for (let i = 1; i < mv.path.length; i++) {
@@ -66,12 +67,28 @@ export function buildSprites(s: Session, movers: MoverReport[], t0: number): voi
     if (!first) return;
     s.sprites.push({
       kind: mv.kind, end: mv.end, stick: mv.stick, segs, cum, total, fxq, msteps,
-      t0: t0 + (mv.delayCells ?? 0) * 46,
+      t0: t0 + (mv.delayCells ?? 0) * 46 + (mv.kind === 'balloon' ? 90 : 0),
       done: false, seed: mi * 13 + 5,
       lastX: cx(s, first.x), lastY: cy(s, first.y), lastDx: 0, lastDy: 0,
       endCell: mv.path[mv.path.length - 1] ?? first
     });
   });
+}
+
+/** Header star counter: visible only on star levels, bounces on collect,
+    shows a little open heart when the last star is gone. */
+export function updateStarPill(s: Session, bump = false): void {
+  const el = document.getElementById('starpill');
+  if (!el) return;
+  const total = s.level.initState.stars.size;
+  el.hidden = total === 0;
+  if (total === 0) return;
+  el.textContent = s.renderStars.size > 0 ? '★ ' + s.renderStars.size : '♥';
+  if (bump) {
+    el.classList.remove('bump');
+    void el.offsetWidth;
+    el.classList.add('bump');
+  }
 }
 
 export function sparkleBurst(s: Session, x: number, y: number, n: number, cols: string[]): void {
@@ -150,9 +167,19 @@ export function handleFx(s: Session, audio: Audio, f: Fx, now: number): void {
     audio.oink();
   } else if (t === 'collect') {
     s.renderStars.delete(key(c.x, c.y));
+    s.pulses.push({ type: 'soar', x: px, y: py, r: s.cell * 0.24, t0: now, dur: 420 });
+    s.pulses.push({ type: 'ring', x: px, y: py, t0: now, dur: 380 });
+    s.pulses.push({ type: 'pop', key: key(c.x, c.y), t0: now, dur: 260, amp: 0.4 });
     sparkleBurst(s, px, py, 12, [C.goldStar, C.yel, '#fff']);
     audio.collect();
     audio.buzz(8);
+    updateStarPill(s, true);
+    if (s.renderStars.size === 0) {
+      /* last star — the heart unlocks */
+      s.heartUnlockT0 = now;
+      heartBurst(s, cx(s, s.level.tx), cy(s, s.level.ty), 14);
+      audio.yum();
+    }
   } else if (t === 'catturn') {
     sparkleBurst(s, px, py, 5, [C.heartHi, '#fff']);
     audio.turn();

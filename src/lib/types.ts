@@ -33,6 +33,10 @@ export interface FieldOpts {
   gy?: number;
   dir?: Dir4;
   won?: boolean;
+  /** heart only: stars remain — render the cute steel padlock look */
+  locked?: boolean;
+  /** heart only: unlock animation progress 0..1 (band falls, pink blooms) */
+  unlockP?: number;
 }
 
 export type SpriteFn = (ctx: CanvasRenderingContext2D, o: SpriteOpts) => void;
