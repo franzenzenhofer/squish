@@ -90,6 +90,12 @@
   }
 
   #flood { position: absolute; inset: 0; background: var(--pink); clip-path: circle(0px at 50% 50%); pointer-events: none; z-index: 5; }
+  #fade {
+    position: absolute; inset: 0; z-index: 4; pointer-events: none;
+    background: linear-gradient(180deg, #FFF6FA, #FFE9F2);
+    opacity: 0; transition: opacity .24s ease;
+  }
+  #fade.show { opacity: .95; }
   #msg {
     position: absolute; inset: 0; z-index: 6; display: flex; flex-direction: column;
     align-items: center; justify-content: center; gap: 14px; color: #fff;
@@ -123,8 +129,14 @@
   footer button svg { width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
   footer button:active { transform: translateY(4px); box-shadow: 0 1px 0 rgba(246,201,220,.5); background: #FFF0F5; }
   footer button#hint { color: #E8A93C; }
-  footer button#hint.busy { animation: think 1s ease-in-out infinite; }
-  @keyframes think { 0%,100% { transform: rotate(-7deg); } 50% { transform: rotate(7deg); } }
+  footer button#hint.on {
+    background: #FFF6E3; border-color: #F4D389;
+    animation: hintglow 1.6s ease-in-out infinite;
+  }
+  @keyframes hintglow {
+    0%, 100% { box-shadow: 0 5px 0 rgba(232,169,60,.35); }
+    50% { box-shadow: 0 5px 0 rgba(232,169,60,.35), 0 0 16px rgba(255,213,106,.85); }
+  }
   footer button#mute.off { color: #D7B9C7; background: #FBEEF3; }
   footer button#mute .wave { transition: opacity .12s; }
   footer button#mute.off .wave { opacity: 0; }
@@ -142,6 +154,7 @@
     .shake { animation: none; } #msg, footer button { transition: none; }
     #msg.show #msgbig { animation: none; } .rate .rh { transition: none; }
     #toast { transition: opacity .2s ease; } #toast.bad.show { animation: none; }
+    #fade { transition: none; } footer button#hint.on { animation: none; }
   }
 </style>
 </head>
@@ -156,6 +169,7 @@
   <canvas id="c"></canvas>
   <div id="cap"></div>
   <div id="toast"></div>
+  <div id="fade"></div>
   <div id="flood"></div>
   <div id="msg"><div id="msgbig"></div><div id="msgsub"></div></div>
 </main>

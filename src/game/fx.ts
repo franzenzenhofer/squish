@@ -178,7 +178,7 @@ export function handleFx(s: Session, audio: Audio, f: Fx, now: number): void {
       /* last star — the heart unlocks */
       s.heartUnlockT0 = now;
       heartBurst(s, cx(s, s.level.tx), cy(s, s.level.ty), 14);
-      audio.yum();
+      audio.unlockHeart();
     }
   } else if (t === 'catturn') {
     sparkleBurst(s, px, py, 5, [C.heartHi, '#fff']);

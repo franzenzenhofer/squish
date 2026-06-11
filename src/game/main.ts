@@ -7,7 +7,8 @@ import type { Dir, LevelDef } from '../engine/types';
 import { createAssist } from './assist';
 import { createAudio } from './audio';
 import { createEndings } from './endings';
-import { buildSprites, handleFx, onEnd, updateStarPill } from './fx';
+import { buildSprites, cx, cy, handleFx, onEnd, updateStarPill } from './fx';
+import { drainFlood, fadeSwap } from './transition';
 import { createHints } from './hints';
 import { bindInput } from './input';
 import { createOhNo } from './ohno';
@@ -123,12 +124,21 @@ function applyLevel(def: LevelDef): void {
   saveGame(s);
 }
 
-function loadLevel(li: number): void {
+function loadLevel(li: number, fromWin = false): void {
   s.li = li;
   s.mode = 'loading';
-  void assist.getLevel(li).then((def) => {
-    applyLevel(def);
-  });
+  const defP = assist.getLevel(li);
+  if (fromWin) {
+    /* the screen is flooded pink — apply beneath, then drain into the new heart */
+    void defP.then((def) => {
+      applyLevel(def);
+      const r = canvas.getBoundingClientRect();
+      const mr = main.getBoundingClientRect();
+      drainFlood(reduced, r.left - mr.left + cx(s, s.level.tx), r.top - mr.top + cy(s, s.level.ty));
+    });
+    return;
+  }
+  fadeSwap(reduced, async () => applyLevel(await defP));
 }
 
 const ohno = createOhNo({
@@ -224,15 +234,15 @@ function retry(): void {
     endings.hideFlood();
   }
   audio.tick();
-  void assist.getLevel(s.li).then(applyLevel);
+  fadeSwap(reduced, async () => applyLevel(await assist.getLevel(s.li)));
 }
 
 /* --------------------------- endings / render ---------------------------- */
 const endings = createEndings({
   s, audio, main, canvas, reduced,
   caption: setCap,
-  reload: () => void assist.getLevel(s.li).then(applyLevel),
-  next: () => loadLevel(s.li + 1)
+  reload: () => fadeSwap(reduced, async () => applyLevel(await assist.getLevel(s.li))),
+  next: () => loadLevel(s.li + 1, true)
 });
 
 const hooks: RenderHooks = {
@@ -252,6 +262,8 @@ function toggleMute(): void {
   const b = document.getElementById('mute');
   if (b) b.classList.toggle('off', muted);
 }
+/* reflect the persisted mute state on boot */
+document.getElementById('mute')?.classList.toggle('off', audio.isMuted());
 
 bindInput(main, {
   doMove,

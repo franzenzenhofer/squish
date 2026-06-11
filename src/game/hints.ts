@@ -10,6 +10,7 @@ import { move } from '../engine/move';
 import type { Dir } from '../engine/types';
 import type { Assist } from './assist';
 import type { Session } from './session';
+import { toast } from './toast';
 
 export interface HintHooks {
   /** current state is provably unwinnable — trigger the oh-no sequence */
@@ -104,6 +105,7 @@ export function createHints(s: Session, assist: Assist, hooks: HintHooks): Hints
     afterStateChange,
     toggleHintMode: (): void => {
       s.hintMode = !s.hintMode;
+      toast(s.hintMode ? 'hint mode on' : 'hint mode off', { ms: 1300 });
       if (!s.hintMode) {
         s.hintDir = null;
         hooks.onHintChange(false, null);

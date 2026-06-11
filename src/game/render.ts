@@ -273,14 +273,20 @@ function drawHint(ctx: CanvasRenderingContext2D, s: Session, now: number): void 
   if (!s.hintDir) return;
   const age = now - s.hintT0;
   const DUR = 1900;
-  if (age > DUR) {
-    s.hintDir = null;
-    return;
+  let alpha: number;
+  if (s.hintMode) {
+    /* hint mode: the arrow stays and breathes until toggled off */
+    alpha = (age < 200 ? age / 200 : 1) * (0.66 + 0.26 * Math.sin(now * 0.003));
+  } else {
+    if (age > DUR) {
+      s.hintDir = null;
+      return;
+    }
+    alpha = age < 200 ? age / 200 : age > DUR - 400 ? (DUR - age) / 400 : 1;
   }
   const [vx, vy] = DIRS[s.hintDir as Dir];
   const bx = s.ox + (s.cell * s.level.w) / 2;
   const by = s.oy + (s.cell * s.level.h) / 2;
-  const alpha = age < 200 ? age / 200 : age > DUR - 400 ? (DUR - age) / 400 : 1;
   const slide = ((now * 0.0022) % 1) * s.cell * 0.9;
   ctx.save();
   ctx.globalAlpha = alpha * 0.92;

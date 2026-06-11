@@ -64,7 +64,8 @@ export function createEndings(d: EndingsDeps): Endings {
       clearTimeout(s.winTimer);
       s.winTimer = null;
     }
-    hideFlood();
+    /* keep the flood up — the next level drains it into its own heart */
+    elMsg.classList.remove('show');
     d.next();
   };
 
