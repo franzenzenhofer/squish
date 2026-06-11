@@ -16,6 +16,8 @@ export interface RampParams {
   h: number;
   parMin: number;
   parTarget: number;
+  /** hard ceiling — candidates above this par are rejected */
+  parMax: number;
   dots: number;
   friends: FriendKind[];
   fields: FieldKind[];
@@ -81,9 +83,10 @@ const CURATED: Record<number, Partial<RampParams>> = {
   23: { friends: ['chick'], fields: ['sticky'] },
   24: { friends: [], fields: ['nom', 'split'], classics: ['box', 'balloon'] },
   25: { friends: [], fields: ['split', 'portal'], classics: ['snail'] },
-  26: { friends: ['penguin', 'bunny'], fields: ['ice'] },
-  27: { friends: ['frog', 'star'], fields: ['portal'] },
-  28: { friends: ['bear', 'pig'], fields: ['nom'] },
+  /* first multi-friend levels ramp gently: 5-6 -> 7 -> 7, no par-9 cliff */
+  26: { friends: ['penguin', 'bunny'], fields: ['ice'], parTarget: 5, parMax: 6 },
+  27: { friends: ['frog', 'star'], fields: ['portal'], parMax: 7 },
+  28: { friends: ['bear', 'pig'], fields: ['nom'], parMax: 7 },
   29: { friends: ['ghost', 'cat'], fields: ['oneway'] },
   30: { friends: ['panda', 'chick'], fields: [] },
   31: { friends: ['bunny', 'star'], fields: ['jelly'] },
@@ -105,7 +108,7 @@ const ENDLESS_FIELDS: readonly FieldKind[] = [
 export function ramp(n: number): RampParams {
   /* base curve */
   const base: RampParams = {
-    w: 5, h: 5, parMin: 4, parTarget: 4, dots: 1,
+    w: 5, h: 5, parMin: 4, parTarget: 4, parMax: 7, dots: 1,
     friends: [], fields: [], classics: [], wallMax: 4,
     attempts: 90, maxStates: 60000
   };
@@ -114,6 +117,7 @@ export function ramp(n: number): RampParams {
     const tier = n <= 13 ? 0 : n <= 25 ? 1 : 2;
     base.w = base.h = tier === 0 ? 5 : tier === 1 ? 6 : n >= 38 ? 7 : 6;
     base.parTarget = tier === 0 ? 4 : tier === 1 ? 5 : 6 + Math.floor((n - 26) / 5);
+    base.parMax = base.parTarget + 3;
     base.parMin = 4;
     base.dots = tier === 0 ? (n % 2 === 0 ? 1 : 2) : 2;
     base.wallMax = tier === 0 ? 4 : tier === 1 ? 6 : 8;
@@ -127,6 +131,7 @@ export function ramp(n: number): RampParams {
   base.w = base.h = tier === 0 ? 5 : tier <= 2 ? 6 : 7;
   base.parMin = tier === 0 ? 4 : tier === 1 ? 4 : 5;
   base.parTarget = Math.min(12, 4 + Math.floor(k / 10));
+  base.parMax = base.parTarget + 3;
   base.dots = tier === 0 ? 1 + (k % 2) : tier === 1 ? 2 : 2 + (k % 2);
   base.wallMax = 4 + tier * 2;
   base.attempts = 80;

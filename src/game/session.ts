@@ -3,7 +3,7 @@
    localStorage cache and one-level prefetch). */
 import type { Oracle } from '../engine/analyze';
 import { cloneState, makeLevel } from '../engine/core';
-import type { Dir, GameState, Level, LevelDef, MoverReport } from '../engine/types';
+import type { Dir, DirCode, GameState, Level, LevelDef, MoverReport } from '../engine/types';
 import curatedJson from '../levels.json';
 
 export const CURATED: LevelDef[] = curatedJson as LevelDef[];
@@ -57,6 +57,9 @@ export interface Ambient {
 
 export type Mode = 'idle' | 'anim' | 'ohno' | 'win' | 'lose' | 'loading';
 
+/** What is being played — the campaign ladder or a dated daily puzzle. */
+export type PlayTag = { kind: 'campaign' } | { kind: 'daily'; date: string };
+
 export interface Session {
   li: number;
   def: LevelDef;
@@ -64,9 +67,14 @@ export interface Session {
   gs: GameState;
   moves: number;
   hist: Array<{ gs: GameState; moves: number }>;
+  /** the swipes played so far in this level — replayed to restore a session */
+  line: DirCode[];
+  play: PlayTag;
   mode: Mode;
   pending: Dir | null;
   results: Record<number, number>;
+  /** best move counts for completed daily puzzles, keyed by date */
+  daily: Record<string, number>;
   sprites: AnimSprite[];
   particles: Particle[];
   pulses: Pulse[];
@@ -100,14 +108,14 @@ export interface Session {
   ohNoReturn: boolean;
 }
 
-const PROGRESS_KEY = 'squish-progress-v1';
 const GEN_KEY = 'squish-gen-v1:';
 
 export function blankSession(): Session {
   const def = CURATED[0] as LevelDef;
   return {
     li: 0, def, level: makeLevel(def), gs: cloneState(makeLevel(def).initState),
-    moves: 0, hist: [], mode: 'idle', pending: null, results: {},
+    moves: 0, hist: [], line: [], play: { kind: 'campaign' },
+    mode: 'idle', pending: null, results: {}, daily: {},
     sprites: [], particles: [], pulses: [], ambients: [],
     renderBroken: new Set(), renderFed: new Set(), renderStars: new Set(),
     cell: 0, ox: 0, oy: 0, cssSize: 0, dpr: 1,
@@ -116,27 +124,6 @@ export function blankSession(): Session {
     hintDir: null, hintT0: 0, lastMovers: null,
     ohNoShown: false, ohNoFace: false, ohNoReturn: false
   };
-}
-
-export function loadProgress(): { li: number; results: Record<number, number> } {
-  try {
-    const raw = localStorage.getItem(PROGRESS_KEY);
-    if (raw) {
-      const p = JSON.parse(raw) as { li?: number; results?: Record<number, number> };
-      return { li: p.li ?? 0, results: p.results ?? {} };
-    }
-  } catch {
-    /* fresh start */
-  }
-  return { li: 0, results: {} };
-}
-
-export function saveProgress(s: Session): void {
-  try {
-    localStorage.setItem(PROGRESS_KEY, JSON.stringify({ li: s.li, results: s.results }));
-  } catch {
-    /* storage full or blocked — play on */
-  }
 }
 
 export function cachedGenLevel(n: number): LevelDef | null {

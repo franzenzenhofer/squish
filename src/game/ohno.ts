@@ -6,6 +6,7 @@ import { key } from '../engine/core';
 import type { GameState } from '../engine/types';
 import type { Audio } from './audio';
 import { cx, cy, sparkleBurst } from './fx';
+import { saveGame } from './persist';
 import type { Session } from './session';
 import { toast } from './toast';
 
@@ -62,6 +63,7 @@ export function createOhNo(d: OhNoDeps): OhNo {
     if (h) {
       s.gs = h.gs;
       s.moves = h.moves;
+      s.line.pop();
     }
     s.renderBroken = new Set(s.gs.broken);
     s.renderFed = new Set(s.gs.fed);
@@ -74,6 +76,7 @@ export function createOhNo(d: OhNoDeps): OhNo {
     s.ohNoReturn = false;
     s.mode = 'idle';
     d.hud();
+    saveGame(s);
     window.setTimeout(() => {
       d.caption('Squishy hopped back - that way the heart stays reachable', false);
     }, 150);

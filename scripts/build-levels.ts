@@ -5,7 +5,8 @@ import { CODEDIR, DIRCODE, cloneState, isWin, makeLevel } from '../src/engine/co
 import { move } from '../src/engine/move';
 import { solve, spamSolvable } from '../src/engine/solve';
 import type { Dir, DirCode, LevelDef, XY } from '../src/engine/types';
-import { generateLevel } from '../src/gen/generate';
+import { generateLevel, trapFree } from '../src/gen/generate';
+import { ramp } from '../src/gen/ramp';
 
 const CAPS: Record<number, string> = {
   4: 'penguin glides over thin ice without cracking it',
@@ -40,7 +41,8 @@ function replayWins(def: LevelDef): boolean {
   return isWin(level, st);
 }
 
-/** Drop walls that change nothing — cleaner boards, same puzzle. */
+/** Drop walls that change nothing — cleaner boards, same puzzle. A removal
+    must keep par, stay spam-proof AND stay free of early dead states. */
 function minimize(def: LevelDef): LevelDef {
   let cur = def;
   let walls = cur.walls ?? [];
@@ -51,6 +53,7 @@ function minimize(def: LevelDef): LevelDef {
     const res = solve(level, { maxStates: 400000, maxDepth: cur.par + 1 });
     if (res.status !== 'solved' || res.par !== cur.par) continue;
     if (spamSolvable(level, res.par)) continue;
+    if (!trapFree(trial)) continue;
     cur = { ...trial, sol: res.solution.map((d: Dir) => DIRCODE[d]).join('') };
     walls = cur.walls ?? [];
   }
@@ -67,6 +70,8 @@ for (let n = 1; n <= 40; n++) {
   if (cap) def.cap = cap;
   if (!replayWins(def)) throw new Error('level ' + n + ': sol does not win after minimize');
   if (n > 3 && def.par < 4) throw new Error('level ' + n + ': par < 4');
+  if (n > 3 && def.par > ramp(n).parMax) throw new Error('level ' + n + ': par > parMax');
+  if (n > 3 && !trapFree(def)) throw new Error('level ' + n + ': dead state within 2 swipes');
   const onHeart = def.dots.some((d: XY) => d[0] === def.target[0] && d[1] === def.target[1]);
   if (onHeart) throw new Error('level ' + n + ': squishy spawned on the heart');
   levels.push(def);

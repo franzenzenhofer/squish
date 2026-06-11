@@ -27,19 +27,39 @@ describe('level oracle', () => {
     });
   }
 
-  it('level 26: full graph has known size and dead-state count', () => {
+  it('policy and dist are consistent over the whole graph', () => {
     const level = makeLevel(LEVELS[25] as LevelDef);
     const o = analyzeLevel(level);
     expect(o.exhausted).toBe(true);
-    expect(o.states).toBe(6081);
-    let dead = 0;
-    for (const k of o.policy.keys()) if (winnableState(o, k) === false) dead++;
-    expect(dead).toBe(350);
+    expect(o.states).toBeGreaterThan(0);
+    for (const [k, dir] of o.policy) {
+      const d = o.dist.get(k);
+      if (d === undefined) expect(dir).toBe(''); // dead state
+      else if (d === 0) expect(dir).toBe('');    // already won
+      else expect(dir).not.toBe('');             // winnable: has a move
+    }
   });
 
   it('labels a dead state as unwinnable and recovers after undo', () => {
-    const level = makeLevel(LEVELS[25] as LevelDef);
-    const o = analyzeLevel(level);
+    /* pick the first curated level whose graph contains a dead state */
+    let level = makeLevel(LEVELS[0] as LevelDef);
+    let o = analyzeLevel(level);
+    for (const def of LEVELS) {
+      const l = makeLevel(def);
+      const cand = analyzeLevel(l);
+      let hasDead = false;
+      for (const k of cand.policy.keys()) {
+        if (winnableState(cand, k) === false) {
+          hasDead = true;
+          break;
+        }
+      }
+      if (hasDead) {
+        level = l;
+        o = cand;
+        break;
+      }
+    }
     /* BFS from the start until we land in a provably dead state */
     let st = cloneState(level.initState);
     let deadKey: string | null = null;

@@ -1,10 +1,11 @@
 /* Budgeted level generation pipeline. Fully deterministic per level number:
    fixed attempt counts and state budgets (never wall-clock), so level N is
    identical for every player. Levels 1..3 are hand-made tutorials. */
-import { DIRCODE, DIRNAMES, cloneState, makeLevel } from '../engine/core';
+import { analyzeLevel, winnableState } from '../engine/analyze';
+import { DIRCODE, DIRNAMES, cloneState, makeLevel, ser } from '../engine/core';
 import { move } from '../engine/move';
 import { featureUse, solve, spamSolvable } from '../engine/solve';
-import type { Dir, Level, LevelDef } from '../engine/types';
+import type { Dir, GameState, Level, LevelDef } from '../engine/types';
 import { FIELD_FLAGS, FRIEND_FLAGS, ramp, type RampParams } from './ramp';
 import { levelRng, type Rng } from './rng';
 import { sketch } from './sketch';
@@ -24,7 +25,7 @@ export const TUTORIALS: LevelDef[] = [
   }
 ];
 
-interface Candidate {
+export interface Candidate {
   def: LevelDef;
   par: number;
   ways: number;
@@ -79,8 +80,35 @@ function featuredOk(p: RampParams, used: Set<string>): boolean {
   return true;
 }
 
-function tryGenerate(rng: Rng, p: RampParams): Candidate | null {
-  let best: Candidate | null = null;
+/** No board may punish within the first two swipes: every state reachable in
+    <= `depth` moves must stay winnable, and the full graph must be
+    exhaustible (so the in-game oracle never has blind spots). */
+export function trapFree(def: LevelDef, depth = 2): boolean {
+  const level = makeLevel(def);
+  const oracle = analyzeLevel(level);
+  if (!oracle.exhausted) return false;
+  let frontier: GameState[] = [cloneState(level.initState)];
+  const seen = new Set<string>([ser(level.initState)]);
+  for (let d = 0; d < depth; d++) {
+    const next: GameState[] = [];
+    for (const st of frontier) {
+      for (const dir of DIRNAMES) {
+        const r = move(level, st, dir);
+        if (!r.moved || r.state.dots.length === 0) continue;
+        const k = ser(r.state);
+        if (seen.has(k)) continue;
+        seen.add(k);
+        if (winnableState(oracle, k) === false) return false;
+        next.push(r.state);
+      }
+    }
+    frontier = next;
+  }
+  return true;
+}
+
+export function tryGenerate(rng: Rng, p: RampParams): Candidate | null {
+  const pool: Candidate[] = [];
   for (let a = 0; a < p.attempts; a++) {
     const def = sketch(rng, p);
     if (!def) continue;
@@ -88,7 +116,7 @@ function tryGenerate(rng: Rng, p: RampParams): Candidate | null {
     const level = makeLevel(def);
     const res = solve(level, { maxStates: p.maxStates, maxDepth: p.parTarget + 3 });
     if (res.status !== 'solved') continue;
-    if (res.par < p.parMin) continue;
+    if (res.par < p.parMin || res.par > p.parMax) continue;
     if (res.ways > 8) continue;
     if (suicideDirs(level) >= 2) continue;
     if (spamSolvable(level, res.par)) continue;
@@ -96,26 +124,31 @@ function tryGenerate(rng: Rng, p: RampParams): Candidate | null {
     if (!fu.win) continue;
     if (!featuredOk(p, fu.used)) continue;
     const score = res.par * 3 + fu.used.size * 2 - res.ways;
-    if (best === null || score > best.score) {
-      best = { def, par: res.par, ways: res.ways, solution: res.solution, score };
-    }
-    if (best.score >= p.parTarget * 3 + 4) break;
+    pool.push({ def, par: res.par, ways: res.ways, solution: res.solution, score });
+    if (score >= p.parTarget * 3 + 4 && trapFree(def)) break;
   }
-  return best;
+  /* best-scoring candidate that doesn't punish within the opening swipes */
+  pool.sort((a, b) => b.score - a.score);
+  for (const c of pool) {
+    if (trapFree(c.def)) return c;
+  }
+  return null;
 }
 
 function simplify(p: RampParams): RampParams {
+  const parTarget = Math.max(4, p.parTarget - 1);
   return {
     ...p,
     fields: p.fields.slice(0, Math.max(0, p.fields.length - 1)),
     wallMax: Math.max(2, p.wallMax - 2),
-    parTarget: Math.max(4, p.parTarget - 1),
+    parTarget,
+    parMax: parTarget + (p.parMax - p.parTarget),
     parMin: 4,
     attempts: Math.max(40, Math.floor(p.attempts / 2))
   };
 }
 
-function finalize(c: Candidate): LevelDef {
+export function finalize(c: Candidate): LevelDef {
   return {
     ...c.def,
     par: c.par,

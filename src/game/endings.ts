@@ -2,7 +2,8 @@
    advance) and the lose shake. Owns the #flood / #msg DOM. */
 import type { Audio } from './audio';
 import { cx, cy, heartBurst } from './fx';
-import { saveProgress, type Session } from './session';
+import { saveGame } from './persist';
+import type { Session } from './session';
 
 const WINWORDS = ['sweet!', 'yay!', 'lovely!', 'cutie!', 'aww!', 'hooray!'];
 
@@ -74,9 +75,14 @@ export function createEndings(d: EndingsDeps): Endings {
     audio.buzz(30);
     s.pulses.push({ type: 'pop', key: s.level.target, t0: performance.now(), dur: 420, amp: 0.55 });
     heartBurst(s, cx(s, s.level.tx), cy(s, s.level.ty), 28);
-    const prev = s.results[s.li];
-    if (prev === undefined || s.moves < prev) s.results[s.li] = s.moves;
-    saveProgress(s);
+    if (s.play.kind === 'daily') {
+      const prev = s.daily[s.play.date];
+      if (prev === undefined || s.moves < prev) s.daily[s.play.date] = s.moves;
+    } else {
+      const prev = s.results[s.li];
+      if (prev === undefined || s.moves < prev) s.results[s.li] = s.moves;
+    }
+    saveGame(s);
     const hearts = s.moves <= s.def.par ? 3 : s.moves <= s.def.par + 1 ? 2 : 1;
     setTimeout(() => {
       floodAt(cx(s, s.level.tx), cy(s, s.level.ty));

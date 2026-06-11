@@ -1,7 +1,7 @@
 /* Game orchestrator — boot, layout, level flow, move loop. Input, hints,
    endings and the oh-no sequence live in their own modules; this file only
    wires them together around the shared session. */
-import { cloneState, isWin, key, makeLevel } from '../engine/core';
+import { DIRCODE, cloneState, isWin, key, makeLevel } from '../engine/core';
 import { move } from '../engine/move';
 import type { Dir, LevelDef } from '../engine/types';
 import { createAssist } from './assist';
@@ -11,9 +11,10 @@ import { buildSprites, handleFx, onEnd } from './fx';
 import { createHints } from './hints';
 import { bindInput } from './input';
 import { createOhNo } from './ohno';
+import { loadGame, replayLine, restoreReplay, sameDef, saveGame } from './persist';
 import { hideToast } from './toast';
 import { drawFrame, type RenderHooks } from './render';
-import { blankSession, loadProgress, saveProgress, type Session } from './session';
+import { CURATED, blankSession, type Session } from './session';
 
 const audio = createAudio();
 const assist = createAssist();
@@ -88,6 +89,7 @@ function applyLevel(def: LevelDef): void {
   s.renderStars = new Set(s.gs.stars);
   s.moves = 0;
   s.hist = [];
+  s.line = [];
   s.pending = null;
   s.sprites = [];
   s.particles = [];
@@ -116,7 +118,7 @@ function applyLevel(def: LevelDef): void {
   });
   hints.levelLoaded('lvl:' + s.li);
   assist.prefetch(s.li + 1);
-  saveProgress(s);
+  saveGame(s);
 }
 
 function loadLevel(li: number): void {
@@ -154,6 +156,7 @@ function doMove(dir: Dir): void {
     return;
   }
   s.hist.push({ gs: cloneState(s.gs), moves: s.moves });
+  s.line.push(DIRCODE[dir]);
   s.moves++;
   audio.slide();
   s.combo = 0;
@@ -184,6 +187,7 @@ function finishMove(): void {
     return;
   }
   hints.afterStateChange();
+  saveGame(s);
   if (s.pending) {
     const d = s.pending;
     s.pending = null;
@@ -197,6 +201,7 @@ function undo(): void {
   if (!h) return;
   s.gs = h.gs;
   s.moves = h.moves;
+  s.line.pop();
   s.renderBroken = new Set(s.gs.broken);
   s.renderFed = new Set(s.gs.fed);
   s.renderStars = new Set(s.gs.stars);
@@ -205,6 +210,7 @@ function undo(): void {
   audio.tick();
   hud();
   hints.afterStateChange();
+  saveGame(s);
 }
 
 function retry(): void {
@@ -268,7 +274,26 @@ window.__move = doMove;
 window.__goto = (i: number): void => loadLevel(i);
 window.__state = () => ({ li: s.li, moves: s.moves, mode: s.mode });
 
-const progress = loadProgress();
-s.results = progress.results;
-loadLevel(progress.li);
+const saved = loadGame();
+s.results = saved.results;
+s.daily = saved.daily;
+if (saved.play.kind === 'campaign' && saved.li < CURATED.length) {
+  /* restore exactly where the player was, replaying the saved line */
+  const cur = CURATED[saved.li] as LevelDef;
+  s.li = saved.li;
+  applyLevel(cur);
+  if (saved.line && sameDef(saved.def, cur)) {
+    const rp = replayLine(s.level, saved.line);
+    if (rp) {
+      restoreReplay(s, rp);
+      hud();
+      hints.afterStateChange();
+      saveGame(s);
+    } else {
+      console.warn('[squishy] saved line no longer replays — starting level fresh');
+    }
+  }
+} else {
+  loadLevel(saved.li);
+}
 requestAnimationFrame(render);
