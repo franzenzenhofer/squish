@@ -128,27 +128,38 @@ export function ramp(n: number): RampParams {
     base.maxStates = 400000;
     return { ...base, friends: [], fields: [], classics: [], ...c };
   }
-  /* endless 41+ */
+  /* endless 41+ — one continuous progression: picks up at late-campaign
+     hardness and keeps climbing slowly. Never resets, never gets easier. */
   const k = n - 41;
-  const tier = k < 15 ? 0 : k < 35 ? 1 : k < 60 ? 2 : 3;
-  base.w = base.h = tier === 0 ? 5 : tier <= 2 ? 6 : 7;
-  base.parMin = tier === 0 ? 4 : tier === 1 ? 4 : 5;
-  base.parTarget = Math.min(12, 4 + Math.floor(k / 10));
+  base.w = base.h = k < 20 ? 6 : 7;
+  base.parMin = Math.min(8, 6 + Math.floor(k / 25));
+  base.parTarget = Math.min(12, 7 + Math.floor(k / 15));
   base.parMax = base.parTarget + 3;
-  base.dots = tier === 0 ? 1 + (k % 2) : tier === 1 ? 2 : 2 + (k % 2);
-  base.wallMax = 4 + tier * 2;
+  base.dots = k < 40 ? 2 : 2 + (k % 2);
+  base.wallMax = Math.min(9, 7 + Math.floor(k / 30));
   base.attempts = 80;
-  base.maxStates = tier === 0 ? 30000 : 50000;
-  const featured = FRIEND_ROTATION[k % 10] as FriendKind;
-  base.friends = [featured];
-  if (tier >= 2) base.friends.push(FRIEND_ROTATION[(k * 3 + 1) % 10] as FriendKind);
+  base.maxStates = 120000;
+  /* the optimal line must use at least two featured groups — keeps
+     on-device generation fast while boards stay busy */
+  base.featureUseMin = 2;
+  base.friends = [
+    FRIEND_ROTATION[k % 10] as FriendKind,
+    FRIEND_ROTATION[(k * 3 + 1) % 10] as FriendKind
+  ];
+  if (base.friends[0] === base.friends[1]) {
+    base.friends[1] = FRIEND_ROTATION[(k * 3 + 2) % 10] as FriendKind;
+  }
+  if (k >= 30) {
+    const third = FRIEND_ROTATION[(k * 7 + 5) % 10] as FriendKind;
+    if (!base.friends.includes(third)) base.friends.push(third);
+  }
   /* panda/chick multiply the BFS state space — shrink the board for them */
   if (base.friends.includes('panda') || base.friends.includes('chick')) {
     base.w = base.h = Math.max(5, base.w - 1);
     base.maxStates = Math.floor(base.maxStates / 2);
   }
-  base.fields = tier === 0 ? [] : [ENDLESS_FIELDS[(k * 7 + 3) % ENDLESS_FIELDS.length] as FieldKind];
-  if (tier >= 2) base.fields.push(ENDLESS_FIELDS[(k * 5 + 1) % ENDLESS_FIELDS.length] as FieldKind);
+  base.fields = [ENDLESS_FIELDS[(k * 7 + 3) % ENDLESS_FIELDS.length] as FieldKind];
+  if (k >= 10) base.fields.push(ENDLESS_FIELDS[(k * 5 + 1) % ENDLESS_FIELDS.length] as FieldKind);
   if (k % 3 === 1) base.classics = [(['box', 'balloon', 'snail'] as const)[k % 3] as ClassicKind];
   return base;
 }

@@ -55,7 +55,7 @@ export interface Intro {
   isOpen: () => boolean;
 }
 
-export function createIntro(s: Session): Intro {
+export function createIntro(s: Session, onAllDismissed: () => void): Intro {
   const el = document.getElementById('intro') as HTMLElement;
   const elName = document.getElementById('introName') as HTMLElement;
   const elLine = document.getElementById('introLine') as HTMLElement;
@@ -208,6 +208,7 @@ export function createIntro(s: Session): Intro {
     }
     el.classList.remove('show');
     if (s.mode === 'intro') s.mode = 'idle';
+    onAllDismissed(); // re-arm hints / oh-no for the position under the card
   };
 
   return {

@@ -35,31 +35,38 @@
   body::after { width: 240px; height: 240px; background: #FFEAD6; right: -80px; bottom: 8%; }
 
   header {
-    position: relative; z-index: 1;
-    display: flex; align-items: center; justify-content: space-between; gap: 10px;
-    padding: 16px 22px; padding-top: calc(16px + env(safe-area-inset-top));
+    position: relative; z-index: 1; overflow: hidden;
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    padding: 14px 16px; padding-top: calc(14px + env(safe-area-inset-top));
   }
-  #brand { font-weight: 800; font-size: 17px; letter-spacing: .05em; display: flex; align-items: center; }
-  #brand b { color: var(--heart); font-size: 12px; margin-left: 5px; letter-spacing: .08em; }
+  #brand {
+    font-weight: 800; font-size: 16px; letter-spacing: .04em;
+    display: flex; align-items: center;
+    flex: 1 1 auto; min-width: 0; overflow: hidden; white-space: nowrap;
+  }
+  #brand b { color: var(--heart); font-size: 11px; margin-left: 5px; letter-spacing: .06em; }
   #lvl {
     font-size: 12px; color: #C18BA8; font-weight: 800; letter-spacing: .08em;
     background: #fff; border: 2px solid var(--border); border-radius: 999px;
-    padding: 4px 14px; box-shadow: 0 3px 0 rgba(246,201,220,.45);
+    padding: 4px 12px; box-shadow: 0 3px 0 rgba(246,201,220,.45);
+    flex: none; white-space: nowrap;
   }
   #starpill {
     font-size: 12px; color: #E8AE32; font-weight: 800; letter-spacing: .08em;
     background: #fff; border: 2px solid #F4D389; border-radius: 999px;
-    padding: 4px 12px; box-shadow: 0 3px 0 rgba(244,211,137,.45);
+    padding: 4px 10px; box-shadow: 0 3px 0 rgba(244,211,137,.45);
+    flex: none; white-space: nowrap;
   }
   #starpill.bump { animation: bump .4s cubic-bezier(.2,1.6,.4,1); }
   @keyframes bump { 30% { transform: scale(1.25); } 100% { transform: scale(1); } }
-  #moves { font-size: 16px; min-width: 44px; text-align: right; }
+  #moves { font-size: 16px; flex: none; white-space: nowrap; text-align: right; }
   #moves b { font-weight: 800; color: var(--ink); }
   #moves b.over { color: var(--heart); }
   .dim { color: #CDA4B7; font-weight: 800; }
 
   #main { position: relative; z-index: 1; flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; touch-action: none; }
-  canvas { display: block; }
+  /* the board sits a bit high — the strip below it belongs to messages */
+  canvas { display: block; margin-bottom: 76px; }
   #cap {
     position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%);
     max-width: calc(100% - 32px); text-align: center;
@@ -72,11 +79,12 @@
   #cap.bad { color: var(--heart); }
 
   #toast {
-    position: absolute; left: 50%; top: 13%;
-    transform: translate(-50%, -12px) scale(.88);
+    position: absolute; left: 50%; bottom: 44px;
+    transform: translate(-50%, 10px) scale(.88);
     background: #fff; border: 2px solid var(--border); border-radius: 999px;
-    padding: 10px 20px; font-size: 15px; font-weight: 800; color: var(--ink);
+    padding: 9px 18px; font-size: 14px; font-weight: 800; color: var(--ink);
     letter-spacing: .04em; white-space: nowrap; max-width: calc(100% - 28px);
+    overflow: hidden; text-overflow: ellipsis;
     box-shadow: 0 5px 0 rgba(246,201,220,.5);
     opacity: 0; pointer-events: none; z-index: 6;
     transition: opacity .22s ease, transform .26s cubic-bezier(.2,1.4,.4,1);
@@ -116,25 +124,64 @@
   #introTap { font-size: 11px; color: #D7B9C7; margin-top: 4px; animation: tappulse 1.4s ease-in-out infinite; }
   @keyframes tappulse { 50% { opacity: .45; } }
 
+  #dailyWin {
+    position: absolute; inset: 0; z-index: 7; display: none;
+    align-items: center; justify-content: center; overflow-y: auto;
+  }
+  #dailyWin.show { display: flex; }
+  #dwCardBox {
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    background: #fff; border: 2px solid var(--border); border-radius: 28px;
+    padding: 18px 22px 16px; margin: auto;
+    box-shadow: 0 10px 0 rgba(246,201,220,.45);
+    animation: cardpop .3s cubic-bezier(.2,1.4,.4,1) both;
+  }
+  #dwTitle { font-size: 26px; font-weight: 800; color: var(--heart); letter-spacing: .05em; }
+  #dwMoves { font-size: 14px; color: #C18BA8; font-weight: 800; }
+  #dwCard { border-radius: 14px; border: 2px solid var(--border); }
+  #dwBtns { display: flex; gap: 10px; margin-top: 6px; }
+  #dwBtns button {
+    font: inherit; font-size: 15px; font-weight: 800; letter-spacing: .05em;
+    padding: 11px 22px; border-radius: 999px; cursor: pointer;
+    background: #fff; color: var(--ink); border: 2px solid var(--border);
+    box-shadow: 0 4px 0 rgba(246,201,220,.5);
+  }
+  #dwBtns button:active { transform: translateY(3px); box-shadow: 0 1px 0 rgba(246,201,220,.5); }
+  #dwBtns #dwShare {
+    background: var(--heart); color: #fff; border-color: #F04F88;
+    box-shadow: 0 4px 0 rgba(226,101,143,.55);
+  }
+
   #start, #levels {
     position: absolute; inset: 0; z-index: 8; display: none;
-    flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+    flex-direction: column; align-items: center; overflow-y: auto;
     background: radial-gradient(130% 90% at 50% -15%, #FFFAFC 0%, #FFEFF6 42%, #FFE2EE 100%);
   }
   #start.show, #levels.show { display: flex; }
   #levels { z-index: 9; }
+  /* margin:auto centers when there is room and scrolls cleanly when not —
+     nothing is ever cut off */
+  #startInner, #levelsInner {
+    display: flex; flex-direction: column; align-items: center;
+    gap: clamp(10px, 2.4vh, 18px); margin: auto; padding: 18px 14px;
+  }
   #startTitle { display: flex; flex-direction: column; align-items: center; line-height: 1; }
   #st1 {
-    font-size: 46px; font-weight: 800; color: var(--heart);
+    font-size: clamp(34px, 11vw, 48px); font-weight: 800; color: var(--heart);
     letter-spacing: .04em; transform: rotate(-2.5deg);
     text-shadow: 0 3px 0 rgba(240,79,136,.18);
   }
-  #st2 { font-size: 20px; font-weight: 800; color: var(--ink); letter-spacing: .14em; margin-top: 6px; }
-  #startc { width: min(330px, 86vw); height: 120px; }
-  #startBtns { display: flex; flex-direction: column; gap: 12px; width: min(240px, 70vw); }
+  #st2 {
+    font-size: clamp(15px, 4.6vw, 20px); font-weight: 800; color: var(--ink);
+    letter-spacing: .12em; margin-top: -7px; transform: rotate(-2.5deg);
+    background: linear-gradient(180deg, rgba(255,250,252,0) 0%, rgba(255,250,252,.85) 45%);
+    padding: 2px 8px; border-radius: 8px;
+  }
+  #startc { width: min(320px, 84vw); height: clamp(84px, 15vh, 118px); }
+  #startBtns { display: flex; flex-direction: column; gap: clamp(8px, 1.6vh, 12px); width: min(240px, 72vw); }
   #startBtns button {
-    font: inherit; font-size: 17px; font-weight: 800; letter-spacing: .06em;
-    padding: 13px 0; border-radius: 999px; cursor: pointer;
+    font: inherit; font-size: 16px; font-weight: 800; letter-spacing: .06em;
+    padding: clamp(10px, 1.8vh, 13px) 0; border-radius: 999px; cursor: pointer;
     background: #fff; color: var(--ink); border: 2px solid var(--border);
     box-shadow: 0 5px 0 rgba(246,201,220,.5);
     transition: transform .08s ease, box-shadow .08s ease;
@@ -142,14 +189,13 @@
   #startBtns button:active { transform: translateY(4px); box-shadow: 0 1px 0 rgba(246,201,220,.5); }
   #startBtns #bplay {
     background: var(--heart); color: #fff; border-color: #F04F88;
-    box-shadow: 0 6px 0 rgba(226,101,143,.55); font-size: 19px;
+    box-shadow: 0 6px 0 rgba(226,101,143,.55); font-size: 18px;
   }
   #bdailyDate { font-size: 11px; color: #CDA4B7; font-weight: 800; }
-  #bplay + button { margin-top: 2px; }
   #levelsTitle { font-size: 22px; font-weight: 800; color: var(--heart); letter-spacing: .1em; }
   #levelsGrid {
     display: grid; grid-template-columns: repeat(5, 52px); gap: 10px;
-    max-height: 60vh; overflow-y: auto; padding: 6px;
+    max-height: 56vh; overflow-y: auto; padding: 6px;
   }
   .lvchip {
     width: 52px; height: 52px; border-radius: 16px; cursor: pointer;
@@ -235,7 +281,7 @@
 </head>
 <body>
 <header>
-  <div id="brand"><button id="home" aria-label="menu">♥</button>Squishy <b>&amp; friends</b></div>
+  <div id="brand"><button id="home" aria-label="menu">♥</button>Squishy <b>&amp; Friends</b></div>
   <div id="lvl">01</div>
   <div id="starpill" hidden></div>
   <div id="moves"><b>0</b><span class="dim">/1</span></div>
@@ -251,24 +297,39 @@
       <div id="introName"></div>
       <canvas id="introD"></canvas>
       <div id="introLine"></div>
-      <div id="introTap">tap to play</div>
+      <div id="introTap">Tap to play</div>
     </div>
   </div>
   <div id="flood"></div>
   <div id="msg"><div id="msgbig"></div><div id="msgsub"></div></div>
+  <div id="dailyWin">
+    <div id="dwCardBox">
+      <div id="dwTitle">Congrats!</div>
+      <div id="dwMoves"></div>
+      <canvas id="dwCard"></canvas>
+      <div id="dwBtns">
+        <button id="dwShare">Share</button>
+        <button id="dwContinue">Keep playing</button>
+      </div>
+    </div>
+  </div>
   <div id="start">
-    <div id="startTitle"><span id="st1">Squishy</span><span id="st2">&amp; friends</span></div>
-    <canvas id="startc"></canvas>
-    <div id="startBtns">
-      <button id="bplay">play</button>
-      <button id="blevels">levels</button>
-      <button id="bdaily">daily <span id="bdailyDate"></span></button>
+    <div id="startInner">
+      <div id="startTitle"><span id="st1">Squishy</span><span id="st2">&amp; Friends</span></div>
+      <canvas id="startc"></canvas>
+      <div id="startBtns">
+        <button id="bplay">Play</button>
+        <button id="blevels">Levels</button>
+        <button id="bdaily">Daily <span id="bdailyDate"></span></button>
+      </div>
     </div>
   </div>
   <div id="levels">
-    <div id="levelsTitle">levels</div>
-    <div id="levelsGrid"></div>
-    <button id="blback">back</button>
+    <div id="levelsInner">
+      <div id="levelsTitle">Levels</div>
+      <div id="levelsGrid"></div>
+      <button id="blback">Back</button>
+    </div>
   </div>
 </main>
 <footer>

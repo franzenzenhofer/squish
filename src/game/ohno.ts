@@ -152,7 +152,7 @@ export function createOhNo(d: OhNoDeps): OhNo {
       s.pulses.push({ type: 'shake', key: key(dot.x, dot.y), t0: now, dur: SHAKE_MS, amp: 0.16 });
     }
     window.setTimeout(() => {
-      if (s.mode === 'ohno') toast("oh no! that's not a good idea!", { tone: 'bad', ms: 1600 });
+      if (s.mode === 'ohno') toast("Oh no! That's not a good idea!", { tone: 'bad', ms: 1600 });
     }, 120);
     window.setTimeout(launchReturn, d.reduced || s.instantAnims ? 50 : RETURN_AT_MS);
   };

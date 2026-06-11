@@ -63,13 +63,13 @@ export function generateDaily(date: string): LevelDef {
     const c = tryGenerate(rng, dailyParams(rng, round));
     if (c) {
       const def = finalize(c);
-      def.cap = 'daily puzzle - three friends, one heart';
+      def.cap = 'Daily puzzle - three friends, one heart';
       return def;
     }
   }
   const pool = fallbackPool();
   const def = { ...pool[hashStr('squish-daily:' + date) % pool.length] as LevelDef };
-  def.cap = 'daily puzzle - a classic, extra tricky';
+  def.cap = 'Daily puzzle - a classic, extra tricky';
   return def;
 }
 

@@ -5,7 +5,7 @@ import { cx, cy, heartBurst } from './fx';
 import { saveGame } from './persist';
 import type { Session } from './session';
 
-const WINWORDS = ['sweet!', 'yay!', 'lovely!', 'cutie!', 'aww!', 'hooray!'];
+const WINWORDS = ['Sweet!', 'Yay!', 'Lovely!', 'Cutie!', 'Aww!', 'Hooray!'];
 
 export interface EndingsDeps {
   s: Session;
@@ -16,6 +16,8 @@ export interface EndingsDeps {
   caption: (txt: string, bad: boolean) => void;
   reload: () => void;
   next: () => void;
+  /** a solved daily celebrates with the congrats + share modal */
+  dailyWin: (onContinue: () => void) => void;
 }
 
 export interface Endings {
@@ -87,17 +89,26 @@ export function createEndings(d: EndingsDeps): Endings {
     const hearts = s.moves <= s.def.par ? 3 : s.moves <= s.def.par + 1 ? 2 : 1;
     setTimeout(() => {
       floodAt(cx(s, s.level.tx), cy(s, s.level.ty));
-      elMsgBig.textContent = WINWORDS[Math.floor(Math.random() * WINWORDS.length)] ?? 'sweet!';
+      elMsgBig.textContent = WINWORDS[Math.floor(Math.random() * WINWORDS.length)] ?? 'Sweet!';
       elMsgSub.innerHTML = ratingHearts(hearts);
       setTimeout(() => elMsg.classList.add('show'), d.reduced ? 0 : 220);
-      s.winTimer = window.setTimeout(advance, 1250);
+      if (s.play.kind === 'daily') {
+        /* no auto-advance — celebrate and offer the share moment */
+        s.winTimer = window.setTimeout(() => {
+          s.winTimer = null;
+          elMsg.classList.remove('show');
+          d.dailyWin(advance);
+        }, 1100);
+      } else {
+        s.winTimer = window.setTimeout(advance, 1250);
+      }
     }, d.reduced ? 0 : 440);
   };
 
   const loseSeq = (): void => {
     s.mode = 'lose';
     audio.buzz([15, 40, 15]);
-    d.caption('nom! a nomster got your squishy', true);
+    d.caption('Nom! A nomster got your Squishy!', true);
     if (!d.reduced) d.main.classList.add('shake');
     setTimeout(() => {
       d.main.classList.remove('shake');

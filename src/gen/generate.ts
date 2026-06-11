@@ -13,15 +13,15 @@ import { sketch } from './sketch';
 export const TUTORIALS: LevelDef[] = [
   {
     w: 4, h: 4, target: [1, 0], dots: [[1, 3]],
-    par: 1, sol: 'U', cap: 'swipe! everybody slides'
+    par: 1, sol: 'U', cap: 'Swipe! Everybody slides'
   },
   {
     w: 4, h: 4, target: [3, 1], dots: [[0, 1], [1, 1]],
-    par: 1, sol: 'R', cap: 'squishies merge - end with one on the heart'
+    par: 1, sol: 'R', cap: 'Squishies merge - end with one on the heart'
   },
   {
     w: 4, h: 4, target: [3, 3], dots: [[0, 1], [0, 3]], walls: [[2, 1]],
-    par: 2, sol: 'DR', cap: 'pillows are walls'
+    par: 2, sol: 'DR', cap: 'Pillows are walls'
   }
 ];
 

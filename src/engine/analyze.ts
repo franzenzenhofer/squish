@@ -37,7 +37,8 @@ function nowMs(): number {
 
 export function analyzeLevel(level: Level, opts?: AnalyzeOptions): Oracle {
   const maxStates = opts?.maxStates ?? 300000;
-  const deadlineMs = opts?.deadlineMs ?? 10000;
+  /* generous: slow phones must still exhaust a ~300k-state daily graph */
+  const deadlineMs = opts?.deadlineMs ?? 45000;
   const t0 = nowMs();
 
   const idx = new Map<string, number>();

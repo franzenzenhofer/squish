@@ -9,25 +9,25 @@ import { generateLevel, trapFree } from '../src/gen/generate';
 import { ramp } from '../src/gen/ramp';
 
 const CAPS: Record<number, string> = {
-  4: 'penguin glides over thin ice without cracking it',
-  5: 'bunny hops two squares - right over things',
-  6: 'froggy leaps all the way to the next wall',
-  7: 'bear plods two steps and scares nomsters away',
-  8: 'ghostie floats straight through walls',
-  9: 'collect every star to open the heart',
-  10: 'bump piggy and she scoots one square',
-  11: 'kitty turns right when she bumps into things',
-  12: 'panda is sleepy - he moves every second swipe',
-  13: 'chick copies your previous swipe',
-  14: 'flowers are sticky - you stop on them',
-  16: 'swirls teleport you',
-  17: 'sparkles split your squishy in two',
-  19: 'jelly hops you over the next tile',
-  20: 'curls turn you clockwise',
-  21: 'springs bounce you backwards',
-  22: 'wind clouds blow you their way',
-  26: 'two friends, one heart',
-  40: 'the grand finale'
+  4: 'Penguin glides over thin ice without cracking it',
+  5: 'Bunny hops two squares - right over things',
+  6: 'Froggy leaps all the way to the next wall',
+  7: 'Bear plods two steps and scares nomsters away',
+  8: 'Ghostie floats straight through walls',
+  9: 'Collect every star to open the heart',
+  10: 'Bump Piggy and she scoots one square',
+  11: 'Kitty turns right when she bumps into things',
+  12: 'Panda is sleepy - he moves every second swipe',
+  13: 'Chick copies your previous swipe',
+  14: 'Flowers are sticky - you stop on them',
+  16: 'Swirls teleport you',
+  17: 'Sparkles split your Squishy in two',
+  19: 'Jelly hops you over the next tile',
+  20: 'Curls turn you clockwise',
+  21: 'Springs bounce you backwards',
+  22: 'Wind clouds blow you their way',
+  26: 'Two friends, one heart',
+  40: 'The grand finale'
 };
 
 function replayWins(def: LevelDef): boolean {

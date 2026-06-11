@@ -16,6 +16,7 @@ import { localToday } from '../gen/daily';
 import { createOhNo } from './ohno';
 import { createLevelsPick } from './levelsPick';
 import { loadGame, replayLine, restoreReplay, sameDef, saveGame } from './persist';
+import { createDailyWin } from './share';
 import { createStart } from './start';
 import { hideToast, toast } from './toast';
 import { drawFrame, type RenderHooks } from './render';
@@ -40,7 +41,8 @@ function layout(): void {
   s.dpr = Math.min(window.devicePixelRatio || 1, 3);
   const pad = 14;
   const aw = main.clientWidth - pad * 2;
-  const ah = main.clientHeight - pad * 2 - 24;
+  /* 76px under the board is the message strip (toast + caption) */
+  const ah = main.clientHeight - pad * 2 - 76;
   s.cssSize = Math.max(140, Math.floor(Math.min(aw, ah)));
   canvas.style.width = s.cssSize + 'px';
   canvas.style.height = s.cssSize + 'px';
@@ -84,9 +86,8 @@ function oracleKey(): string {
 
 function hud(): void {
   const n = s.li + 1;
-  elLvl.textContent = s.play.kind === 'daily'
-    ? 'daily'
-    : (n > 40 ? '∞ ' : '') + String(n).padStart(2, '0');
+  /* one continuous ladder: plain numbers forever */
+  elLvl.textContent = s.play.kind === 'daily' ? 'Daily' : String(n).padStart(2, '0');
   elMoves.innerHTML =
     '<b class="' + (s.moves > s.def.par ? 'over' : '') + '">' + s.moves +
     '</b><span class="dim">/' + s.def.par + '</span>';
@@ -120,6 +121,7 @@ function applyLevel(def: LevelDef): void {
   s.ohNoReturn = false;
   s.heartUnlockT0 = null;
   hideToast();
+  dailyWin.hide();
   setCap(def.cap ?? '');
   layout();
   hud();
@@ -266,7 +268,7 @@ function startDaily(): void {
   s.mode = 'loading';
   /* usually instant (prefetched at boot); cover the cold case cutely */
   const slow = window.setTimeout(
-    () => toast("baking today's puzzle…", { ms: 30000 }), 600);
+    () => toast("Baking today's puzzle…", { ms: 30000 }), 600);
   fadeSwap(reduced, async () => {
     const def = await assist.getDaily(date);
     clearTimeout(slow);
@@ -275,12 +277,14 @@ function startDaily(): void {
 }
 
 /* --------------------------- endings / render ---------------------------- */
+const dailyWin = createDailyWin();
 const endings = createEndings({
   s, audio, main, canvas, reduced,
   caption: setCap,
   reload: () => fadeSwap(reduced, async () => applyLevel(await currentDef())),
   /* daily solved -> back to the campaign where the player left off */
-  next: () => loadLevel(s.play.kind === 'daily' ? s.li : s.li + 1, true)
+  next: () => loadLevel(s.play.kind === 'daily' ? s.li : s.li + 1, true),
+  dailyWin: (onContinue) => dailyWin.show(s, onContinue)
 });
 
 const hooks: RenderHooks = {
@@ -308,9 +312,14 @@ bindInput(main, {
   undo,
   retry,
   hint: () => {
+    /* tapping the bulb under an intro card means "let me play with hints" */
+    if (s.mode === 'intro') intro.dismiss();
     if (s.mode === 'idle' || s.mode === 'anim') hints.toggleHintMode();
   },
-  advance: () => endings.advance(),
+  advance: () => {
+    if (dailyWin.isOpen()) return; // the modal's own buttons decide
+    endings.advance();
+  },
   toggleMute,
   inWin: () => s.mode === 'win',
   unlockAudio: () => audio.unlock()
@@ -318,7 +327,7 @@ bindInput(main, {
 window.addEventListener('resize', () => layout());
 
 /* friend first-meet cards: any tap or key dismisses */
-const intro = createIntro(s);
+const intro = createIntro(s, () => hints.afterStateChange());
 document.getElementById('intro')?.addEventListener('pointerdown', () => intro.dismiss());
 document.addEventListener('keydown', () => {
   if (s.mode === 'intro') intro.dismiss();

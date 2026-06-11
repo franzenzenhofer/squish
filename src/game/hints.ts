@@ -70,7 +70,7 @@ export function createHints(s: Session, assist: Assist, hooks: HintHooks): Hints
         refreshHint();
       } else {
         console.error('[squishy] deep solve exhausted budgets — cannot judge state');
-        hooks.caption('this one is beyond me — try undo', true);
+        hooks.caption('This one is beyond me - try undo', true);
       }
     });
   };
@@ -105,14 +105,14 @@ export function createHints(s: Session, assist: Assist, hooks: HintHooks): Hints
     afterStateChange,
     toggleHintMode: (): void => {
       s.hintMode = !s.hintMode;
-      toast(s.hintMode ? 'hint mode on' : 'hint mode off', { ms: 1300 });
+      toast(s.hintMode ? 'Hint mode on' : 'Hint mode off', { ms: 1300 });
       if (!s.hintMode) {
         s.hintDir = null;
         hooks.onHintChange(false, null);
         return;
       }
       if (s.oracle && winnableState(s.oracle, ser(s.gs)) === false) {
-        hooks.caption('no path to the heart from here — hop back!', true);
+        hooks.caption('No path to the heart from here - hop back!', true);
       }
       refreshHint();
       if (!s.hintDir) hooks.onHintChange(true, null);
