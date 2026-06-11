@@ -1,8 +1,9 @@
 /* Session — the one shared mutable state of a running game, plus level
    sourcing (curated levels.json, then endless worker generation with a
    localStorage cache and one-level prefetch). */
+import type { Oracle } from '../engine/analyze';
 import { cloneState, makeLevel } from '../engine/core';
-import type { Dir, GameState, Level, LevelDef } from '../engine/types';
+import type { Dir, GameState, Level, LevelDef, MoverReport } from '../engine/types';
 import curatedJson from '../levels.json';
 
 export const CURATED: LevelDef[] = curatedJson as LevelDef[];
@@ -54,7 +55,7 @@ export interface Ambient {
   x: number; y: number; v: number; ph: number; s: number; star: boolean;
 }
 
-export type Mode = 'idle' | 'anim' | 'win' | 'lose' | 'loading';
+export type Mode = 'idle' | 'anim' | 'ohno' | 'win' | 'lose' | 'loading';
 
 export interface Session {
   li: number;
@@ -83,13 +84,15 @@ export interface Session {
   combo: number;
   winFace: boolean;
   boardScale: number;
-  /** cached optimal line for the CURRENT gs (worker-provided) */
-  solution: Dir[] | null;
-  solutionFor: string | null;
-  solToken: number;
+  /** full solved state graph of the current level (worker-provided) */
+  oracle: Oracle | null;
+  /** assist cache key the oracle belongs to ('lvl:<li>' / 'daily:<date>') */
+  oracleKey: string | null;
+  hintMode: boolean;
   hintDir: Dir | null;
   hintT0: number;
-  hintBusy: boolean;
+  /** movers of the last executed swipe — fuels the oh-no reverse hop */
+  lastMovers: MoverReport[] | null;
   ohNoShown: boolean;
 }
 
@@ -105,8 +108,8 @@ export function blankSession(): Session {
     renderBroken: new Set(), renderFed: new Set(), renderStars: new Set(),
     cell: 0, ox: 0, oy: 0, cssSize: 0, dpr: 1,
     winTimer: null, capTimer: null, combo: 0, winFace: false, boardScale: 1,
-    solution: null, solutionFor: null, solToken: 0,
-    hintDir: null, hintT0: 0, hintBusy: false, ohNoShown: false
+    oracle: null, oracleKey: null, hintMode: false,
+    hintDir: null, hintT0: 0, lastMovers: null, ohNoShown: false
   };
 }
 

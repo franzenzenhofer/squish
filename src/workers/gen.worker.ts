@@ -1,6 +1,8 @@
-/* Web worker: endless level generation, solvability checks ("oh no") and
-   hints — all off the main thread. Stateless: every request carries the
-   level definition and (for solver requests) the current game state. */
+/* Web worker: endless level generation and full level analysis (the oracle)
+   — all off the main thread. Stateless: every request carries what it needs.
+   The deep 'solve' request is a defense-in-depth fallback for states missing
+   from a non-exhausted oracle; shipped levels always analyze exhaustively. */
+import { analyzeLevel, packOracle, type OracleWire } from '../engine/analyze';
 import { makeLevel } from '../engine/core';
 import { solve } from '../engine/solve';
 import type { GameState, LevelDef } from '../engine/types';
@@ -9,13 +11,13 @@ import curated from '../levels.json';
 
 export type WorkerRequest =
   | { type: 'gen'; id: number; n: number }
-  | { type: 'solvable'; id: number; def: LevelDef; state: GameState; par: number }
-  | { type: 'hint'; id: number; def: LevelDef; state: GameState; par: number };
+  | { type: 'analyze'; id: number; def: LevelDef }
+  | { type: 'solve'; id: number; def: LevelDef; state: GameState };
 
 export type WorkerResponse =
   | { type: 'gen'; id: number; n: number; def: LevelDef }
-  | { type: 'solvable'; id: number; status: 'solved' | 'unsolvable' | 'unknown'; solution?: string[] }
-  | { type: 'hint'; id: number; status: string; solution?: string[] };
+  | { type: 'analyze'; id: number; oracle: OracleWire }
+  | { type: 'solve'; id: number; status: 'solved' | 'unsolvable' | 'unknown'; solution?: string[] };
 
 const FALLBACK = (curated as LevelDef[]).slice(28);
 
@@ -31,28 +33,20 @@ scope.onmessage = (ev: MessageEvent<WorkerRequest>): void => {
     scope.postMessage({ type: 'gen', id: msg.id, n: msg.n, def });
     return;
   }
-  const level = makeLevel(msg.def);
-  if (msg.type === 'solvable') {
-    const res = solve(level, {
-      maxStates: 30000,
-      maxDepth: Math.min(14, msg.par + 6),
-      deadlineMs: 300
-    }, msg.state);
-    if (res.status === 'solved') {
-      scope.postMessage({ type: 'solvable', id: msg.id, status: 'solved', solution: res.solution });
-    } else {
-      scope.postMessage({ type: 'solvable', id: msg.id, status: res.status });
+  if (msg.type === 'analyze') {
+    const oracle = analyzeLevel(makeLevel(msg.def));
+    if (!oracle.exhausted) {
+      console.warn('[squishy] oracle not exhausted:', oracle.states, 'states');
     }
+    scope.postMessage({ type: 'analyze', id: msg.id, oracle: packOracle(oracle) });
     return;
   }
-  const res = solve(level, {
-    maxStates: 120000,
-    maxDepth: Math.min(15, msg.par + 7),
-    deadlineMs: 800
+  const res = solve(makeLevel(msg.def), {
+    maxStates: 2000000, maxDepth: 64, deadlineMs: 5000
   }, msg.state);
   if (res.status === 'solved') {
-    scope.postMessage({ type: 'hint', id: msg.id, status: 'solved', solution: res.solution });
+    scope.postMessage({ type: 'solve', id: msg.id, status: 'solved', solution: res.solution });
   } else {
-    scope.postMessage({ type: 'hint', id: msg.id, status: res.status });
+    scope.postMessage({ type: 'solve', id: msg.id, status: res.status });
   }
 };
