@@ -18,6 +18,9 @@ export interface RampParams {
   parTarget: number;
   /** hard ceiling — candidates above this par are rejected */
   parMax: number;
+  /** how many featured friend/field groups the optimal line must actually
+      use; omitted = all of them */
+  featureUseMin?: number;
   dots: number;
   friends: FriendKind[];
   fields: FieldKind[];

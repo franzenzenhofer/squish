@@ -18,7 +18,7 @@ export type WorkerRequest =
 
 export type WorkerResponse =
   | { type: 'gen'; id: number; n: number; def: LevelDef }
-  | { type: 'daily'; id: number; date: string; def: LevelDef }
+  | { type: 'daily'; id: number; date: string; def: LevelDef | null }
   | { type: 'analyze'; id: number; oracle: OracleWire }
   | { type: 'solve'; id: number; status: 'solved' | 'unsolvable' | 'unknown'; solution?: string[] };
 
@@ -37,8 +37,13 @@ scope.onmessage = (ev: MessageEvent<WorkerRequest>): void => {
     return;
   }
   if (msg.type === 'daily') {
-    const def = generateDaily(msg.date);
-    scope.postMessage({ type: 'daily', id: msg.id, date: msg.date, def });
+    try {
+      const def = generateDaily(msg.date);
+      scope.postMessage({ type: 'daily', id: msg.id, date: msg.date, def });
+    } catch (e) {
+      console.error('[squishy] daily generation failed:', e);
+      scope.postMessage({ type: 'daily', id: msg.id, date: msg.date, def: null });
+    }
     return;
   }
   if (msg.type === 'analyze') {

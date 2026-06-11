@@ -55,6 +55,11 @@ export function createAssist(): Assist {
   const worker = new Worker(new URL('../workers/gen.worker.ts', import.meta.url), {
     type: 'module'
   });
+  /* daily generation can take seconds — it gets its own worker so the main
+     one stays free for oracles and post-move checks */
+  const dailyWorker = new Worker(new URL('../workers/gen.worker.ts', import.meta.url), {
+    type: 'module'
+  });
   let nextId = 1;
   const genWaiters = new Map<number, Array<(def: LevelDef) => void>>();
   const genPending = new Set<number>();
@@ -62,6 +67,18 @@ export function createAssist(): Assist {
   const analyzeWaiters = new Map<number, (o: Oracle) => void>();
   const solveWaiters = new Map<number, (r: DeepSolveResult) => void>();
   const oracles = new Map<string, Promise<Oracle>>();
+
+  dailyWorker.onmessage = (ev: MessageEvent<WorkerResponse>): void => {
+    const msg = ev.data;
+    if (msg.type !== 'daily') return;
+    if (msg.def) cacheDaily(msg.date, msg.def);
+    const w = dailyWaiters.get(msg.id);
+    dailyWaiters.delete(msg.id);
+    if (w && msg.def) w(msg.def);
+    if (w && !msg.def) {
+      throw new Error('daily generation failed for ' + msg.date);
+    }
+  };
 
   worker.onmessage = (ev: MessageEvent<WorkerResponse>): void => {
     const msg = ev.data;
@@ -73,19 +90,13 @@ export function createAssist(): Assist {
       for (const w of ws) w(msg.def);
       return;
     }
-    if (msg.type === 'daily') {
-      cacheDaily(msg.date, msg.def);
-      const w = dailyWaiters.get(msg.id);
-      dailyWaiters.delete(msg.id);
-      if (w) w(msg.def);
-      return;
-    }
     if (msg.type === 'analyze') {
       const w = analyzeWaiters.get(msg.id);
       analyzeWaiters.delete(msg.id);
       if (w) w(unpackOracle(msg.oracle));
       return;
     }
+    if (msg.type !== 'solve') return;
     const w = solveWaiters.get(msg.id);
     solveWaiters.delete(msg.id);
     if (w) {
@@ -142,7 +153,7 @@ export function createAssist(): Assist {
         const id = nextId++;
         dailyWaiters.set(id, resolve);
         const req: WorkerRequest = { type: 'daily', id, date };
-        worker.postMessage(req);
+        dailyWorker.postMessage(req);
       });
     },
     prefetch: (li: number): void => {

@@ -71,24 +71,24 @@ function suicideDirs(level: Level): number {
 }
 
 function featuredOk(p: RampParams, used: Set<string>): boolean {
+  let hits = 0;
+  let groups = 0;
   for (const f of p.friends) {
-    if (!FRIEND_FLAGS[f].some((flag) => used.has(flag))) return false;
+    groups++;
+    if (FRIEND_FLAGS[f].some((flag) => used.has(flag))) hits++;
   }
   for (const f of new Set(p.fields)) {
-    if (!FIELD_FLAGS[f].some((flag) => used.has(flag))) return false;
+    groups++;
+    if (FIELD_FLAGS[f].some((flag) => used.has(flag))) hits++;
   }
-  return true;
+  return hits >= Math.min(groups, p.featureUseMin ?? groups);
 }
 
-/** No board may punish within the first two swipes: every state reachable in
-    <= `depth` moves must stay winnable, and the full graph must be
-    exhaustible (so the in-game oracle never has blind spots). */
-export function trapFree(def: LevelDef, depth = 2): boolean {
-  const level = makeLevel(def);
-  const oracle = analyzeLevel(level);
-  if (!oracle.exhausted) return false;
+/** All states reachable within `depth` swipes of the start. */
+function nearStates(level: Level, depth: number): GameState[] {
   let frontier: GameState[] = [cloneState(level.initState)];
   const seen = new Set<string>([ser(level.initState)]);
+  const out: GameState[] = [];
   for (let d = 0; d < depth; d++) {
     const next: GameState[] = [];
     for (const st of frontier) {
@@ -98,11 +98,35 @@ export function trapFree(def: LevelDef, depth = 2): boolean {
         const k = ser(r.state);
         if (seen.has(k)) continue;
         seen.add(k);
-        if (winnableState(oracle, k) === false) return false;
+        out.push(r.state);
         next.push(r.state);
       }
     }
     frontier = next;
+  }
+  return out;
+}
+
+/** No board may punish within the first two swipes: every state reachable in
+    <= `depth` moves must stay winnable, and the full graph must be
+    exhaustible (so the in-game oracle never has blind spots). */
+export function trapFree(def: LevelDef, depth = 2): boolean {
+  const level = makeLevel(def);
+  const oracle = analyzeLevel(level);
+  if (!oracle.exhausted) return false;
+  for (const st of nearStates(level, depth)) {
+    if (winnableState(oracle, ser(st)) === false) return false;
+  }
+  return true;
+}
+
+/** Cheap pre-filter: a small budgeted solve from every near-start state.
+    Catches PROVEN traps fast; 'unknown' passes (the full trapFree gate on
+    the final winner still guarantees correctness). */
+function quickTrapScan(level: Level, par: number, depth = 2): boolean {
+  for (const st of nearStates(level, depth)) {
+    const r = solve(level, { maxStates: 6000, maxDepth: par + 4, deadlineMs: 40 }, st);
+    if (r.status === 'unsolvable') return false;
   }
   return true;
 }
@@ -125,11 +149,19 @@ export function tryGenerate(rng: Rng, p: RampParams): Candidate | null {
     if (!featuredOk(p, fu.used)) continue;
     const score = res.par * 3 + fu.used.size * 2 - res.ways;
     pool.push({ def, par: res.par, ways: res.ways, solution: res.solution, score });
-    if (score >= p.parTarget * 3 + 4 && trapFree(def)) break;
+    if (score >= p.parTarget * 3 + 4 && quickTrapScan(level, res.par) && trapFree(def)) {
+      return pool[pool.length - 1] as Candidate;
+    }
   }
-  /* best-scoring candidate that doesn't punish within the opening swipes */
+  /* best-scoring candidate that doesn't punish within the opening swipes:
+     cheap budgeted scan filters the pool, the expensive full-graph proof
+     runs on at most a few finalists */
   pool.sort((a, b) => b.score - a.score);
+  let fullChecks = 0;
   for (const c of pool) {
+    if (!quickTrapScan(makeLevel(c.def), c.par)) continue;
+    if (fullChecks >= 3) break;
+    fullChecks++;
     if (trapFree(c.def)) return c;
   }
   return null;

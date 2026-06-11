@@ -17,7 +17,7 @@ import { createOhNo } from './ohno';
 import { createLevelsPick } from './levelsPick';
 import { loadGame, replayLine, restoreReplay, sameDef, saveGame } from './persist';
 import { createStart } from './start';
-import { hideToast } from './toast';
+import { hideToast, toast } from './toast';
 import { drawFrame, type RenderHooks } from './render';
 import { CURATED, blankSession, type Session } from './session';
 import { installTestApi } from './testapi';
@@ -264,7 +264,14 @@ function startDaily(): void {
   const date = localToday();
   s.play = { kind: 'daily', date };
   s.mode = 'loading';
-  fadeSwap(reduced, async () => applyLevel(await assist.getDaily(date)));
+  /* usually instant (prefetched at boot); cover the cold case cutely */
+  const slow = window.setTimeout(
+    () => toast("baking today's puzzle…", { ms: 30000 }), 600);
+  fadeSwap(reduced, async () => {
+    const def = await assist.getDaily(date);
+    clearTimeout(slow);
+    applyLevel(def);
+  });
 }
 
 /* --------------------------- endings / render ---------------------------- */
@@ -386,4 +393,6 @@ if (saved.play.kind === 'daily' && saved.def && saved.play.date === localToday()
   loadLevel(saved.li);
 }
 startMenu.open();
+/* bake today's daily in its own worker while the player plays */
+window.setTimeout(() => void assist.getDaily(localToday()), 4000);
 requestAnimationFrame(render);

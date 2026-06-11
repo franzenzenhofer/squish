@@ -12,22 +12,31 @@ import { hashStr, mulberry32, shuffle, type Rng } from './rng';
 const DAILY_FIELDS: readonly FieldKind[] = [
   'sticky', 'oneway', 'split', 'portal', 'turn', 'ice', 'mush', 'breeze', 'jelly', 'nom'
 ];
-const ROUNDS = 8;
+const ROUNDS = 16;
 
 export function dailySeed(date: string, round: number): Rng {
   return mulberry32(hashStr('squish-daily:' + date + ':' + round));
 }
 
-export function dailyParams(rng: Rng): RampParams {
+export function dailyParams(rng: Rng, round: number): RampParams {
   const friends = shuffle(rng, [...FRIEND_ROTATION]).slice(0, 3) as FriendKind[];
   const fields = shuffle(rng, [...DAILY_FIELDS]).slice(0, 2) as FieldKind[];
-  /* panda/chick multiply the state space — shrink the board for them */
+  /* 6x6 keeps the BFS per attempt cheap enough for in-worker generation;
+     hardness comes from par >= 7 with three friends + two fields placed.
+     panda/chick multiply the state space further — shrink for them. */
   const tight = friends.includes('panda') || friends.includes('chick');
   return {
-    w: tight ? 6 : 7, h: tight ? 6 : 7,
-    parMin: 7, parTarget: 8, parMax: 10,
+    w: tight ? 5 : 6, h: tight ? 5 : 6,
+    parMin: 7, parTarget: 7, parMax: 10,
+    /* all 3 friends + 2 fields are ON the board; the optimal line must use
+       at least 3 of the 5 (2 in late rescue rounds) — demanding all 5
+       makes generation minutes-slow on unlucky dates */
+    featureUseMin: round < 8 ? 3 : 2,
     dots: 2, friends, fields, classics: [],
-    wallMax: 8, attempts: 400, maxStates: 400000
+    /* small deterministic budgets: a heavy sketch is rejected fast and the
+       next seeded round takes over — keeps worst-case generation seconds,
+       not minutes, and identical on every device */
+    wallMax: 7, attempts: 60, maxStates: 30000
   };
 }
 
@@ -36,7 +45,7 @@ export function dailyParams(rng: Rng): RampParams {
 export function generateDaily(date: string): LevelDef {
   for (let round = 0; round < ROUNDS; round++) {
     const rng = dailySeed(date, round);
-    const c = tryGenerate(rng, dailyParams(rng));
+    const c = tryGenerate(rng, dailyParams(rng, round));
     if (c) {
       const def = finalize(c);
       def.cap = 'daily puzzle - three friends, one heart';
