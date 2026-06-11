@@ -14,12 +14,39 @@ export type DeepSolveResult =
 export interface Assist {
   /** resolve level def for 0-based index (curated or generated) */
   getLevel: (li: number) => Promise<LevelDef>;
+  /** the deterministic daily puzzle for a YYYY-MM-DD date */
+  getDaily: (date: string) => Promise<LevelDef>;
   /** warm the next level's def AND its oracle */
   prefetch: (li: number) => void;
   /** full level analysis, cached per key ('lvl:<li>' / 'daily:<date>') */
   getOracle: (cacheKey: string, def: LevelDef) => Promise<Oracle>;
   /** defense-in-depth fallback for states missing from a partial oracle */
   deepSolve: (def: LevelDef, state: GameState) => Promise<DeepSolveResult>;
+}
+
+const DAILY_KEY = 'squish-daily-v1:';
+
+function cachedDaily(date: string): LevelDef | null {
+  try {
+    const raw = localStorage.getItem(DAILY_KEY + date);
+    if (raw) return JSON.parse(raw) as LevelDef;
+  } catch {
+    /* regenerate */
+  }
+  return null;
+}
+
+function cacheDaily(date: string, def: LevelDef): void {
+  try {
+    /* keep only today's — old dailies are dead weight */
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith(DAILY_KEY) && k !== DAILY_KEY + date) localStorage.removeItem(k);
+    }
+    localStorage.setItem(DAILY_KEY + date, JSON.stringify(def));
+  } catch {
+    /* cache is an optimization only */
+  }
 }
 
 const ORACLE_CACHE_MAX = 3;
@@ -31,6 +58,7 @@ export function createAssist(): Assist {
   let nextId = 1;
   const genWaiters = new Map<number, Array<(def: LevelDef) => void>>();
   const genPending = new Set<number>();
+  const dailyWaiters = new Map<number, (def: LevelDef) => void>();
   const analyzeWaiters = new Map<number, (o: Oracle) => void>();
   const solveWaiters = new Map<number, (r: DeepSolveResult) => void>();
   const oracles = new Map<string, Promise<Oracle>>();
@@ -43,6 +71,13 @@ export function createAssist(): Assist {
       const ws = genWaiters.get(msg.n) ?? [];
       genWaiters.delete(msg.n);
       for (const w of ws) w(msg.def);
+      return;
+    }
+    if (msg.type === 'daily') {
+      cacheDaily(msg.date, msg.def);
+      const w = dailyWaiters.get(msg.id);
+      dailyWaiters.delete(msg.id);
+      if (w) w(msg.def);
       return;
     }
     if (msg.type === 'analyze') {
@@ -100,6 +135,16 @@ export function createAssist(): Assist {
   return {
     getLevel,
     getOracle,
+    getDaily: (date: string): Promise<LevelDef> => {
+      const cached = cachedDaily(date);
+      if (cached) return Promise.resolve(cached);
+      return new Promise((resolve) => {
+        const id = nextId++;
+        dailyWaiters.set(id, resolve);
+        const req: WorkerRequest = { type: 'daily', id, date };
+        worker.postMessage(req);
+      });
+    },
     prefetch: (li: number): void => {
       void getLevel(li).then((def) => {
         void getOracle('lvl:' + li, def);

@@ -6,5 +6,5 @@ account_id = "ecf21e85812dfa5b2a35245257fc71f5"
 directory = "./dist"
 
 routes = [
-  { pattern = "squish.franzai.com", custom_domain = true }
+  { pattern = "squishy.franzai.com", custom_domain = true }
 ]

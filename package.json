@@ -13,7 +13,8 @@
     "levels": "tsx scripts/build-levels.ts",
     "gates": "npm run typecheck && npm run lint && npm run test && npm run build",
     "deploy": "npm run gates && wrangler deploy",
-    "levels:audit": "tsx scripts/audit-levels.ts"
+    "levels:audit": "tsx scripts/audit-levels.ts",
+    "daily:verify": "tsx scripts/verify-daily.ts"
   },
   "devDependencies": {
     "@eslint/js": "^9.28.0",

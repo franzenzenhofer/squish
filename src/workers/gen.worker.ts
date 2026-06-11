@@ -6,16 +6,19 @@ import { analyzeLevel, packOracle, type OracleWire } from '../engine/analyze';
 import { makeLevel } from '../engine/core';
 import { solve } from '../engine/solve';
 import type { GameState, LevelDef } from '../engine/types';
+import { generateDaily } from '../gen/daily';
 import { generateLevel } from '../gen/generate';
 import curated from '../levels.json';
 
 export type WorkerRequest =
   | { type: 'gen'; id: number; n: number }
+  | { type: 'daily'; id: number; date: string }
   | { type: 'analyze'; id: number; def: LevelDef }
   | { type: 'solve'; id: number; def: LevelDef; state: GameState };
 
 export type WorkerResponse =
   | { type: 'gen'; id: number; n: number; def: LevelDef }
+  | { type: 'daily'; id: number; date: string; def: LevelDef }
   | { type: 'analyze'; id: number; oracle: OracleWire }
   | { type: 'solve'; id: number; status: 'solved' | 'unsolvable' | 'unknown'; solution?: string[] };
 
@@ -31,6 +34,11 @@ scope.onmessage = (ev: MessageEvent<WorkerRequest>): void => {
   if (msg.type === 'gen') {
     const def = generateLevel(msg.n, FALLBACK);
     scope.postMessage({ type: 'gen', id: msg.id, n: msg.n, def });
+    return;
+  }
+  if (msg.type === 'daily') {
+    const def = generateDaily(msg.date);
+    scope.postMessage({ type: 'daily', id: msg.id, date: msg.date, def });
     return;
   }
   if (msg.type === 'analyze') {

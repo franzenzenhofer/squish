@@ -11,8 +11,12 @@ import { buildSprites, cx, cy, handleFx, onEnd, updateStarPill } from './fx';
 import { drainFlood, fadeSwap } from './transition';
 import { createHints } from './hints';
 import { bindInput } from './input';
+import { createIntro } from './intro';
+import { localToday } from '../gen/daily';
 import { createOhNo } from './ohno';
+import { createLevelsPick } from './levelsPick';
 import { loadGame, replayLine, restoreReplay, sameDef, saveGame } from './persist';
+import { createStart } from './start';
 import { hideToast } from './toast';
 import { drawFrame, type RenderHooks } from './render';
 import { CURATED, blankSession, type Session } from './session';
@@ -73,9 +77,15 @@ function setCap(txt: string, bad = false): void {
   }
 }
 
+function oracleKey(): string {
+  return s.play.kind === 'daily' ? 'daily:' + s.play.date : 'lvl:' + s.li;
+}
+
 function hud(): void {
   const n = s.li + 1;
-  elLvl.textContent = (n > 40 ? '∞ ' : '') + String(n).padStart(2, '0');
+  elLvl.textContent = s.play.kind === 'daily'
+    ? 'daily'
+    : (n > 40 ? '∞ ' : '') + String(n).padStart(2, '0');
   elMoves.innerHTML =
     '<b class="' + (s.moves > s.def.par ? 'over' : '') + '">' + s.moves +
     '</b><span class="dim">/' + s.def.par + '</span>';
@@ -100,6 +110,9 @@ function applyLevel(def: LevelDef): void {
   s.combo = 0;
   s.winFace = false;
   s.hintDir = null;
+  /* hint mode is per-level: each level starts in normal mode */
+  s.hintMode = false;
+  elHintBtn.classList.remove('on');
   s.lastMovers = null;
   s.ohNoShown = false;
   s.ohNoFace = false;
@@ -119,13 +132,16 @@ function applyLevel(def: LevelDef): void {
   all.forEach((p, j) => {
     s.pulses.push({ type: 'pop', key: key(p.x, p.y), t0: now + 120 + j * 55, dur: 360, amp: 0.42 });
   });
-  hints.levelLoaded('lvl:' + s.li);
-  assist.prefetch(s.li + 1);
+  hints.levelLoaded(oracleKey());
+  if (s.play.kind === 'campaign') assist.prefetch(s.li + 1);
   saveGame(s);
+  intro.maybeShow(s);
+  if (startMenu.isOpen()) s.mode = 'menu'; // menu stays on top until play
 }
 
 function loadLevel(li: number, fromWin = false): void {
   s.li = li;
+  s.play = { kind: 'campaign' };
   s.mode = 'loading';
   const defP = assist.getLevel(li);
   if (fromWin) {
@@ -226,23 +242,37 @@ function undo(): void {
   saveGame(s);
 }
 
+function currentDef(): Promise<LevelDef> {
+  return s.play.kind === 'daily' ? assist.getDaily(s.play.date) : assist.getLevel(s.li);
+}
+
 function retry(): void {
-  if (s.mode === 'anim' || s.mode === 'loading') return;
+  if (s.mode === 'anim' || s.mode === 'loading' || s.mode === 'intro' || s.mode === 'menu') return;
   if (s.winTimer !== null) {
     clearTimeout(s.winTimer);
     s.winTimer = null;
     endings.hideFlood();
   }
   audio.tick();
-  fadeSwap(reduced, async () => applyLevel(await assist.getLevel(s.li)));
+  fadeSwap(reduced, async () => applyLevel(await currentDef()));
+}
+
+/** Start (or restart) today's daily puzzle. */
+function startDaily(): void {
+  if (s.mode === 'loading') return;
+  const date = localToday();
+  s.play = { kind: 'daily', date };
+  s.mode = 'loading';
+  fadeSwap(reduced, async () => applyLevel(await assist.getDaily(date)));
 }
 
 /* --------------------------- endings / render ---------------------------- */
 const endings = createEndings({
   s, audio, main, canvas, reduced,
   caption: setCap,
-  reload: () => fadeSwap(reduced, async () => applyLevel(await assist.getLevel(s.li))),
-  next: () => loadLevel(s.li + 1, true)
+  reload: () => fadeSwap(reduced, async () => applyLevel(await currentDef())),
+  /* daily solved -> back to the campaign where the player left off */
+  next: () => loadLevel(s.play.kind === 'daily' ? s.li : s.li + 1, true)
 });
 
 const hooks: RenderHooks = {
@@ -269,13 +299,41 @@ bindInput(main, {
   doMove,
   undo,
   retry,
-  hint: () => hints.toggleHintMode(),
+  hint: () => {
+    if (s.mode === 'idle' || s.mode === 'anim') hints.toggleHintMode();
+  },
   advance: () => endings.advance(),
   toggleMute,
   inWin: () => s.mode === 'win',
   unlockAudio: () => audio.unlock()
 });
 window.addEventListener('resize', () => layout());
+
+/* friend first-meet cards: any tap or key dismisses */
+const intro = createIntro(s);
+document.getElementById('intro')?.addEventListener('pointerdown', () => intro.dismiss());
+document.addEventListener('keydown', () => {
+  if (s.mode === 'intro') intro.dismiss();
+});
+
+/* start screen + level picker */
+const levelsPick = createLevelsPick({
+  s,
+  onPick: (li) => {
+    startMenu.close();
+    loadLevel(li);
+  },
+  unlockAudio: () => audio.unlock()
+});
+const startMenu = createStart({
+  s,
+  onPlay: () => {
+    if (intro.isOpen()) s.mode = 'intro';
+  },
+  onDaily: () => startDaily(),
+  onLevels: () => levelsPick.open(),
+  unlockAudio: () => audio.unlock()
+});
 
 /* --------------------------------- boot ---------------------------------- */
 declare global {
@@ -292,7 +350,20 @@ window.__state = () => ({ li: s.li, moves: s.moves, mode: s.mode });
 const saved = loadGame();
 s.results = saved.results;
 s.daily = saved.daily;
-if (saved.play.kind === 'campaign' && saved.li < CURATED.length) {
+if (saved.play.kind === 'daily' && saved.def && saved.play.date === localToday()) {
+  /* resume today's daily exactly where it was left */
+  s.li = saved.li;
+  s.play = saved.play;
+  applyLevel(saved.def);
+  if (saved.line) {
+    const rp = replayLine(s.level, saved.line);
+    if (rp) {
+      restoreReplay(s, rp);
+      hud();
+      hints.afterStateChange();
+    }
+  }
+} else if (saved.play.kind === 'campaign' && saved.li < CURATED.length) {
   /* restore exactly where the player was, replaying the saved line */
   const cur = CURATED[saved.li] as LevelDef;
   s.li = saved.li;
@@ -311,4 +382,5 @@ if (saved.play.kind === 'campaign' && saved.li < CURATED.length) {
 } else {
   loadLevel(saved.li);
 }
+startMenu.open();
 requestAnimationFrame(render);

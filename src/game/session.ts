@@ -55,7 +55,8 @@ export interface Ambient {
   x: number; y: number; v: number; ph: number; s: number; star: boolean;
 }
 
-export type Mode = 'idle' | 'anim' | 'ohno' | 'win' | 'lose' | 'loading';
+export type Mode =
+  | 'idle' | 'anim' | 'ohno' | 'win' | 'lose' | 'loading' | 'intro' | 'menu';
 
 /** What is being played — the campaign ladder or a dated daily puzzle. */
 export type PlayTag = { kind: 'campaign' } | { kind: 'daily'; date: string };
