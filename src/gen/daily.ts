@@ -3,6 +3,7 @@
    three different friends + two field types, all REQUIRED on the optimal
    line (featuredOk), par 7..10, on a big board. */
 import type { LevelDef } from '../engine/types';
+import curated from '../levels.json';
 import { finalize, tryGenerate } from './generate';
 import {
   FRIEND_ROTATION, type FieldKind, type FriendKind, type RampParams
@@ -33,15 +34,29 @@ export function dailyParams(rng: Rng, round: number): RampParams {
        makes generation minutes-slow on unlucky dates */
     featureUseMin: round < 8 ? 3 : 2,
     dots: 2, friends, fields, classics: [],
-    /* small deterministic budgets: a heavy sketch is rejected fast and the
-       next seeded round takes over — keeps worst-case generation seconds,
-       not minutes, and identical on every device */
-    wallMax: 7, attempts: 60, maxStates: 30000
+    /* deterministic budgets (no wall clock — every device gets the same
+       level). 150k states keeps viable hard candidates in play; short
+       rounds with fresh seeds escape unlucky friend/field draws fast. */
+    wallMax: 7, attempts: 60, maxStates: 150000
   };
 }
 
-/** Deterministic daily level for a YYYY-MM-DD date. Throws only if eight
-    independent seeded rounds all fail — verify-daily proves they don't. */
+/** Curated boards hard enough to stand in as a daily (par >= 7, several
+    piece kinds) — the deterministic safety net for pathological dates. */
+function fallbackPool(): LevelDef[] {
+  return (curated as LevelDef[]).filter((l) => {
+    if (l.par < 7) return false;
+    const kinds = [
+      l.penguins, l.bears, l.ghosts, l.bunnies, l.frogs, l.pandas,
+      l.cats, l.chicks, l.pigs, l.stars, l.balloons, l.boxes, l.snails
+    ].filter((a) => (a ?? []).length > 0).length;
+    return kinds >= 2;
+  });
+}
+
+/** Deterministic daily level for a YYYY-MM-DD date. Sixteen independent
+    seeded rounds; if a pathological date defeats them all, a proven hard
+    curated board steps in (same level for everyone, never a throw). */
 export function generateDaily(date: string): LevelDef {
   for (let round = 0; round < ROUNDS; round++) {
     const rng = dailySeed(date, round);
@@ -52,7 +67,10 @@ export function generateDaily(date: string): LevelDef {
       return def;
     }
   }
-  throw new Error('daily generation failed for ' + date);
+  const pool = fallbackPool();
+  const def = { ...pool[hashStr('squish-daily:' + date) % pool.length] as LevelDef };
+  def.cap = 'daily puzzle - a classic, extra tricky';
+  return def;
 }
 
 /** Local-timezone YYYY-MM-DD — the player's "today". */
