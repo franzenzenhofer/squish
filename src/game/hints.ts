@@ -108,6 +108,9 @@ export function createHints(s: Session, assist: Assist, hooks: HintHooks): Hints
     afterStateChange,
     toggleHintMode: (): void => {
       s.hintMode = !s.hintMode;
+      /* one peek is enough: this run's win earns no hearts (sticky until the
+         level is reloaded — turning hints off again does not un-peek) */
+      if (s.hintMode) s.hintUsed = true;
       toast(s.hintMode ? 'Hint mode on' : 'Hint mode off', { ms: 1300 });
       if (!s.hintMode) {
         s.hintDir = null;

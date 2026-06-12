@@ -4,7 +4,6 @@
 import { SPR } from '../sprites';
 import { localToday } from '../gen/daily';
 import { mountWordmark } from './logo';
-import { resetProgress } from './persist';
 import type { Session } from './session';
 
 const CAST_POOL = [
@@ -16,6 +15,7 @@ export interface StartDeps {
   onPlay: () => void;
   onDaily: () => void;
   onLevels: () => void;
+  onSettings: () => void;
   unlockAudio: () => void;
 }
 
@@ -107,30 +107,12 @@ export function createStart(d: StartDeps): Start {
     d.onDaily();
   });
   bind('blevels', () => d.onLevels());
+  /* Reset progress lives in here now — the start screen stays pure play */
+  bind('bsettings', () => d.onSettings());
   /* tapping the "Squishy & Friends" wordmark (the only thing in #brand now)
      returns to the start screen */
   bind('brand', () => {
     if (s.mode === 'idle') open();
-  });
-
-  /* Reset progress — one tap arms, a second within 3s wipes and reloads */
-  const breset = document.getElementById('breset');
-  let armed = false;
-  let armTimer = 0;
-  breset?.addEventListener('click', () => {
-    d.unlockAudio();
-    if (!armed) {
-      armed = true;
-      breset.textContent = 'Tap again to reset';
-      armTimer = window.setTimeout(() => {
-        armed = false;
-        breset.textContent = 'Reset progress';
-      }, 3000);
-      return;
-    }
-    clearTimeout(armTimer);
-    resetProgress();
-    location.reload();
   });
 
   return { open, close, isOpen: () => el.classList.contains('show') };

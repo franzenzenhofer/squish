@@ -16,6 +16,10 @@ import { localToday } from '../gen/daily';
 import { createOhNo } from './ohno';
 import { createLevelsPick } from './levelsPick';
 import { loadGame, saveGame } from './persist';
+import { DEBUG_LEVELS } from './debugLevels';
+import { isDebug } from './debugMode';
+import { getSettings, updateSettings, type Settings } from './settings';
+import { createSettingsView } from './settingsView';
 import { createStart } from './start';
 import { mountWordmark } from './logo';
 import { hideToast, toast } from './toast';
@@ -113,23 +117,47 @@ function dismissCap(): void {
 }
 document.getElementById('capX')?.addEventListener('click', dismissCap);
 
+/* each bake gets a fresh oracle-cache key — two bakes are different levels */
+let bakeSeq = 0;
+
 function oracleKey(): string {
-  return s.play.kind === 'daily' ? 'daily:' + s.play.date : 'lvl:' + s.li;
+  if (s.play.kind === 'daily') return 'daily:' + s.play.date;
+  if (s.play.kind === 'debug') {
+    return s.play.di < 0 ? 'debug:bake:' + bakeSeq : 'debug:' + s.play.di;
+  }
+  return 'lvl:' + s.li;
 }
 
 function hud(): void {
   const n = s.li + 1;
   /* one continuous ladder: plain numbers forever */
-  elLvl.textContent = s.play.kind === 'daily' ? 'Daily' : String(n).padStart(2, '0');
+  elLvl.textContent =
+    s.play.kind === 'daily' ? 'Daily'
+    : s.play.kind === 'debug' ? (s.play.di < 0 ? 'Bake' : 'T' + (s.play.di + 1))
+    : String(n).padStart(2, '0');
   elMoves.innerHTML =
     '<b class="' + (s.moves > s.def.par ? 'over' : '') + '">' + s.moves +
     '</b><span class="dim">/' + s.def.par + '</span>';
   /* teach the tools on the first few levels and on dailies (the hard ones,
-     where Hint matters most), then go icon-only */
+     where Hint matters most), then go icon-only — unless labels are off */
   if (elFooter) {
     elFooter.classList.toggle('labels',
-      s.play.kind === 'daily' || (s.play.kind === 'campaign' && s.li < 3));
+      getSettings().buttonLabels &&
+      (s.play.kind === 'daily' || (s.play.kind === 'campaign' && s.li < 3)));
   }
+  /* debug plays carry the JSON export pill in the header */
+  document.getElementById('dbgExport')?.classList.toggle(
+    'show', isDebug() && s.play.kind === 'debug');
+}
+
+/** Push the current settings into the live chrome (footer classes, labels). */
+function applySettings(patch?: Partial<Omit<Settings, 'v'>>): void {
+  if (patch) updateSettings(patch);
+  const st = getSettings();
+  elFooter?.classList.toggle('nohint', !st.hintButton);
+  /* a hidden bulb must not leave a live hint arrow behind */
+  if (!st.hintButton && s.hintMode) hints.toggleHintMode();
+  hud();
 }
 
 function applyLevel(def: LevelDef): void {
@@ -150,8 +178,9 @@ function applyLevel(def: LevelDef): void {
   s.combo = 0;
   s.winFace = false;
   s.hintDir = null;
-  /* hint mode is per-level: each level starts in normal mode */
+  /* hint mode is per-level: each level starts in normal mode, un-peeked */
   s.hintMode = false;
+  s.hintUsed = false;
   elHintBtn.classList.remove('on');
   s.lastMovers = null;
   s.ohNoShown = false;
@@ -323,8 +352,49 @@ function undo(): void {
 }
 
 function currentDef(): Promise<LevelDef> {
-  return s.play.kind === 'daily' ? assist.getDaily(s.play.date) : assist.getLevel(s.li);
+  if (s.play.kind === 'daily') return assist.getDaily(s.play.date);
+  /* debug/baked: the def in play IS the level — reapply it as-is */
+  if (s.play.kind === 'debug') return Promise.resolve(s.def);
+  return assist.getLevel(s.li);
 }
+
+/** Play a hand-authored debug test level (picker, ?debug=doit only). */
+function loadTestLevel(di: number): void {
+  const t = DEBUG_LEVELS[di];
+  if (!t) return;
+  s.play = { kind: 'debug', di };
+  s.mode = 'loading';
+  fadeSwap(reduced, async () => applyLevel(t.def));
+}
+
+/** Bake a one-off level at the requested hardness and play it. */
+async function bakeAndPlay(hardness: number): Promise<void> {
+  const seed = (Math.random() * 0xffffffff) >>> 0;
+  toast('Baking hardness ' + hardness + '…', { ms: 30000 });
+  const def = await assist.bake(hardness, seed);
+  hideToast();
+  if (!def) {
+    toast('That bake fell flat - try again!', { ms: 2200 });
+    return;
+  }
+  bakeSeq++;
+  s.play = { kind: 'debug', di: -1 };
+  s.mode = 'loading';
+  fadeSwap(reduced, async () => applyLevel(def));
+}
+
+/** Download + copy the current level def — paste it to Claude to keep it. */
+function exportCurrentLevel(): void {
+  const json = JSON.stringify(s.def);
+  void navigator.clipboard?.writeText(json).catch(() => undefined);
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
+  a.download = 'squishy-level-' + Date.now() + '.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast('Level JSON copied + downloaded', { ms: 2000 });
+}
+document.getElementById('dbgExport')?.addEventListener('click', exportCurrentLevel);
 
 function retry(): void {
   if (s.mode === 'anim' || s.mode === 'loading' || s.mode === 'intro' || s.mode === 'menu') return;
@@ -358,8 +428,17 @@ const endings = createEndings({
   s, audio, main, canvas, reduced,
   caption: setCap,
   reload: () => fadeSwap(reduced, async () => applyLevel(await currentDef())),
-  /* daily solved -> back to the campaign where the player left off */
-  next: () => loadLevel(s.play.kind === 'daily' ? s.li : s.li + 1, true)
+  /* daily solved -> back to the campaign; debug solved -> back to the picker */
+  next: () => {
+    if (s.play.kind === 'debug') {
+      endings.hideFlood();
+      s.play = { kind: 'campaign' };
+      loadLevel(s.li);
+      levelsPick.open();
+      return;
+    }
+    loadLevel(s.play.kind === 'daily' ? s.li : s.li + 1, true);
+  }
 });
 
 const hooks: RenderHooks = {
@@ -462,6 +541,8 @@ bindInput(main, {
   undo,
   retry,
   hint: () => {
+    /* the bulb can be tucked away in settings — then it stays unreachable */
+    if (!getSettings().hintButton) return;
     /* tapping the bulb under an intro card means "let me play with hints" */
     if (s.mode === 'intro') intro.dismiss();
     if (s.mode === 'idle' || s.mode === 'anim') hints.toggleHintMode();
@@ -486,12 +567,24 @@ document.addEventListener('keydown', () => {
   if (s.mode === 'intro') intro.dismiss();
 });
 
-/* start screen + level picker */
+/* start screen + level picker + settings */
+const settingsView = createSettingsView({
+  onChange: () => applySettings(),
+  unlockAudio: () => audio.unlock()
+});
 const levelsPick = createLevelsPick({
   s,
   onPick: (li) => {
     startMenu.close();
     loadLevel(li);
+  },
+  onPickTest: (di) => {
+    startMenu.close();
+    loadTestLevel(di);
+  },
+  onBake: async (hardness) => {
+    startMenu.close();
+    await bakeAndPlay(hardness);
   },
   unlockAudio: () => audio.unlock()
 });
@@ -505,6 +598,7 @@ const startMenu = createStart({
   },
   onDaily: () => startDaily(),
   onLevels: () => levelsPick.open(),
+  onSettings: () => settingsView.open(),
   unlockAudio: () => audio.unlock()
 });
 
@@ -513,6 +607,7 @@ installTestApi({
   s,
   doMove,
   loadLevel: (n) => loadLevel(n),
+  loadTestLevel,
   startDaily,
   undo,
   retry,
@@ -520,12 +615,15 @@ installTestApi({
   dismissIntro: () => intro.dismiss(),
   closeMenu: () => startMenu.close(),
   tapCell: (x, y) => explainCell(x, y),
-  solution: () => hints.solution()
+  solution: () => hints.solution(),
+  applySettings
 });
 
 const saved = loadGame();
 s.results = saved.results;
+s.hinted = saved.hinted;
 s.daily = saved.daily;
+applySettings();
 const dailyResume = saved.play.kind === 'daily' && saved.def && saved.play.date === localToday();
 /* restore the resume level index BEFORE the menu paints, so the Play/Continue
    button reads the correct level on its very first frame (no "Level 1" flash).

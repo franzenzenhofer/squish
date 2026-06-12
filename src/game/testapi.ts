@@ -4,11 +4,13 @@
 import { ser } from '../engine/core';
 import type { Dir } from '../engine/types';
 import type { Mode, Session } from './session';
+import type { Settings } from './settings';
 
 export interface TestApiDeps {
   s: Session;
   doMove: (d: Dir) => void;
   loadLevel: (n: number) => void;
+  loadTestLevel: (di: number) => void;
   startDaily: () => void;
   undo: () => void;
   retry: () => void;
@@ -17,6 +19,7 @@ export interface TestApiDeps {
   closeMenu: () => void;
   tapCell: (x: number, y: number) => void;
   solution: () => Dir[] | null;
+  applySettings: (patch?: Partial<Omit<Settings, 'v'>>) => void;
 }
 
 export interface SquishyTestApi {
@@ -27,7 +30,9 @@ export interface SquishyTestApi {
   move: (d: Dir) => Promise<{ mode: Mode; moves: number }>;
   solution: () => string[] | null;
   loadLevel: (n: number) => Promise<void>;
+  loadTestLevel: (di: number) => Promise<void>;
   startDaily: () => Promise<void>;
+  setSettings: (patch: Partial<Omit<Settings, 'v'>>) => void;
   undo: () => void;
   retry: () => void;
   toggleHintMode: () => void;
@@ -71,7 +76,8 @@ export function installTestApi(d: TestApiDeps): void {
       li: s.li,
       moves: s.moves,
       mode: s.mode,
-      play: s.play.kind === 'daily' ? 'daily:' + s.play.date : 'campaign',
+      play: s.play.kind === 'daily' ? 'daily:' + s.play.date
+        : s.play.kind === 'debug' ? 'debug:' + s.play.di : 'campaign',
       line: s.line.join(''),
       ser: ser(s.gs),
       winnable: s.oracle
@@ -89,10 +95,15 @@ export function installTestApi(d: TestApiDeps): void {
       d.loadLevel(n);
       await waitIdle();
     },
+    loadTestLevel: async (di: number) => {
+      d.loadTestLevel(di);
+      await waitIdle();
+    },
     startDaily: async () => {
       d.startDaily();
       await waitIdle();
     },
+    setSettings: (patch) => d.applySettings(patch),
     undo: d.undo,
     retry: d.retry,
     toggleHintMode: d.toggleHintMode,

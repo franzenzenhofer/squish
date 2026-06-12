@@ -16,6 +16,8 @@ export interface Assist {
   getLevel: (li: number) => Promise<LevelDef>;
   /** the deterministic daily puzzle for a YYYY-MM-DD date */
   getDaily: (date: string) => Promise<LevelDef>;
+  /** debug baker: one fresh level at hardness 1..10 (null = bake failed) */
+  bake: (hardness: number, seed: number) => Promise<LevelDef | null>;
   /** warm the next level's def AND its oracle */
   prefetch: (li: number) => void;
   /** full level analysis, cached per key ('lvl:<li>' / 'daily:<date>') */
@@ -64,12 +66,19 @@ export function createAssist(): Assist {
   const genWaiters = new Map<number, Array<(def: LevelDef) => void>>();
   const genPending = new Set<number>();
   const dailyWaiters = new Map<number, (def: LevelDef) => void>();
+  const bakeWaiters = new Map<number, (def: LevelDef | null) => void>();
   const analyzeWaiters = new Map<number, (o: Oracle) => void>();
   const solveWaiters = new Map<number, (r: DeepSolveResult) => void>();
   const oracles = new Map<string, Promise<Oracle>>();
 
   dailyWorker.onmessage = (ev: MessageEvent<WorkerResponse>): void => {
     const msg = ev.data;
+    if (msg.type === 'bake') {
+      const w = bakeWaiters.get(msg.id);
+      bakeWaiters.delete(msg.id);
+      if (w) w(msg.def);
+      return;
+    }
     if (msg.type !== 'daily') return;
     if (msg.def) cacheDaily(msg.date, msg.def);
     const w = dailyWaiters.get(msg.id);
@@ -146,6 +155,14 @@ export function createAssist(): Assist {
   return {
     getLevel,
     getOracle,
+    /* bakes ride the daily worker so the main one stays free for oracles */
+    bake: (hardness: number, seed: number): Promise<LevelDef | null> =>
+      new Promise((resolve) => {
+        const id = nextId++;
+        bakeWaiters.set(id, resolve);
+        const req: WorkerRequest = { type: 'bake', id, hardness, seed };
+        dailyWorker.postMessage(req);
+      }),
     getDaily: (date: string): Promise<LevelDef> => {
       const cached = cachedDaily(date);
       if (cached) return Promise.resolve(cached);

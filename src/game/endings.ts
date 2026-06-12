@@ -4,9 +4,10 @@
 import type { Audio } from './audio';
 import { cx, cy, heartBurst } from './fx';
 import { saveAdvance, saveGame } from './persist';
+import { getSettings } from './settings';
 import { shareCard } from './share';
 import type { Session } from './session';
-import { pickWinLine, pickWinTitle } from './winLines';
+import { pickHintedLine, pickWinLine, pickWinTitle } from './winLines';
 import { startWinReplay, type WinReplay } from './winReplay';
 
 /** No-interaction auto-advance window on the Next button. */
@@ -40,9 +41,13 @@ function ratingHearts(n: number): string {
   return '<div class="rate">' + h + '</div>';
 }
 
-/** Campaign "Level 12" / daily "Daily 06-12" — the card caption + share label. */
+/** Campaign "Level 12" / daily "Daily 06-12" / debug "Test 3" — card + share label. */
 function levelLabel(s: Session): string {
-  return s.play.kind === 'daily' ? 'Daily ' + s.play.date : 'Level ' + (s.li + 1);
+  if (s.play.kind === 'daily') return 'Daily ' + s.play.date;
+  if (s.play.kind === 'debug') {
+    return s.play.di < 0 ? 'Baked level' : 'Test ' + (s.play.di + 1);
+  }
+  return 'Level ' + (s.li + 1);
 }
 
 export function createEndings(d: EndingsDeps): Endings {
@@ -103,11 +108,12 @@ export function createEndings(d: EndingsDeps): Endings {
     d.next();
   };
 
-  const showCard = (label: string, hearts: number): void => {
+  const showCard = (label: string, hearts: number, hinted: boolean): void => {
     elWinTitle.textContent = pickWinTitle();
     const mv = s.moves + (s.moves === 1 ? ' move' : ' moves');
     elWinSub.innerHTML = label + ' · solved in <b>' + mv + '</b>';
-    elWinTag.innerHTML = pickWinLine(hearts) + ratingHearts(hearts);
+    /* a hinted solve celebrates too, but the hearts stay empty */
+    elWinTag.innerHTML = (hinted ? pickHintedLine() : pickWinLine(hearts)) + ratingHearts(hearts);
     /* the in-app card REPLAYS the player's recorded solution, looping - always
        animated, painted by the one gameplay renderer */
     const line = s.line.join('');
@@ -116,8 +122,10 @@ export function createEndings(d: EndingsDeps): Endings {
     elWin.dataset.def = JSON.stringify(s.def);
     elWin.dataset.label = label;
     elWin.classList.add('show');
-    /* 7s no-interaction auto-advance with a countdown ring on Next */
     cancelAuto();
+    /* 7s no-interaction auto-advance with a countdown ring on Next — only in
+       the default 'auto' mode; 'wait' keeps the card up until a tap */
+    if (getSettings().afterWin !== 'auto') return;
     void elNext.offsetWidth; /* reflow so the ring animation restarts each win */
     elNext.classList.add('counting');
     autoTimer = window.setTimeout(() => {
@@ -150,25 +158,41 @@ export function createEndings(d: EndingsDeps): Endings {
     audio.buzz(30);
     s.pulses.push({ type: 'pop', key: s.level.target, t0: performance.now(), dur: 420, amp: 0.55 });
     heartBurst(s, cx(s, s.level.tx), cy(s, s.level.ty), 28);
+    const hinted = s.hintUsed;
     if (s.play.kind === 'daily') {
-      const prev = s.daily[s.play.date];
-      if (prev === undefined || s.moves < prev) s.daily[s.play.date] = s.moves;
+      /* a hinted daily never records a best — bests are earned hint-free */
+      if (!hinted) {
+        const prev = s.daily[s.play.date];
+        if (prev === undefined || s.moves < prev) s.daily[s.play.date] = s.moves;
+      }
       saveGame(s);
-    } else {
-      const prev = s.results[s.li];
-      if (prev === undefined || s.moves < prev) s.results[s.li] = s.moves;
+    } else if (s.play.kind === 'campaign') {
+      if (hinted) {
+        /* done with help: mark hinted only if no clean result exists — a clean
+           best (and its hearts) is never degraded by a later hinted replay */
+        if (s.results[s.li] === undefined) s.hinted[s.li] = true;
+      } else {
+        const prev = s.results[s.li];
+        if (prev === undefined || s.moves < prev) s.results[s.li] = s.moves;
+        delete s.hinted[s.li];
+      }
       /* advance the saved resume pointer now, so quitting during the win card
          still resumes on the next level */
       saveAdvance(s, s.li + 1);
     }
-    const hearts = s.moves <= s.def.par ? 3 : s.moves <= s.def.par + 1 ? 2 : 1;
+    /* debug test plays write nothing */
+    const hearts = hinted ? 0 : s.moves <= s.def.par ? 3 : s.moves <= s.def.par + 1 ? 2 : 1;
     const label = levelLabel(s);
+    /* 'instant': celebrate (burst + flood), then zoom straight into the next
+       campaign level — no card. Daily/debug always show the card (no ladder). */
+    const instant = getSettings().afterWin === 'instant' && s.play.kind === 'campaign';
     setTimeout(() => {
       floodAt(cx(s, s.level.tx), cy(s, s.level.ty));
       s.winTimer = window.setTimeout(() => {
         s.winTimer = null;
-        showCard(label, hearts);
-      }, d.reduced ? 0 : 320);
+        if (instant) advance();
+        else showCard(label, hearts, hinted);
+      }, d.reduced ? 0 : instant ? 460 : 320);
     }, d.reduced ? 0 : 440);
   };
 

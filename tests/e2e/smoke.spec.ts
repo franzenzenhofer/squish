@@ -149,17 +149,19 @@ test('daily solve shows the win card and returns to campaign', async ({ page }) 
   }, undefined, { timeout: 10000 });
 });
 
-test('mid-level state survives a reload', async ({ page }) => {
+test('a reload resumes the same level, fresh at its initial state', async ({ page }) => {
+  /* mid-level progress is deliberately never persisted (see persist.ts):
+     the level you were on comes back, at move zero */
   await boot(page);
   await page.evaluate(() => localStorage.clear());
   await page.evaluate(() => window.__squishy?.loadLevel(4));
   await clearIntros(page);
   await page.waitForFunction(() => window.__squishy?.state().oracleReady === true);
+  const fresh = await page.evaluate(() => window.__squishy?.state());
   const sol = await page.evaluate(() => window.__squishy?.solution());
   expect(sol && sol.length).toBeGreaterThan(2);
   await page.evaluate((d) => window.__squishy?.move(d as never), (sol as string[])[0]);
   await page.evaluate((d) => window.__squishy?.move(d as never), (sol as string[])[1]);
-  const before = await page.evaluate(() => window.__squishy?.state());
   await page.reload();
   await page.waitForFunction(() => window.__squishy !== undefined);
   await page.evaluate(() => window.__squishy?.closeMenu());
@@ -168,9 +170,9 @@ test('mid-level state survives a reload', async ({ page }) => {
     return m !== undefined && m.mode !== 'loading';
   });
   const after = await page.evaluate(() => window.__squishy?.state());
-  expect(after?.li).toBe(before?.li);
-  expect(after?.moves).toBe(before?.moves);
-  expect(after?.ser).toBe(before?.ser);
+  expect(after?.li).toBe(fresh?.li);
+  expect(after?.moves).toBe(0);
+  expect(after?.ser).toBe(fresh?.ser);
 });
 
 test('the board sits dead-centre in the play area', async ({ page }) => {
@@ -218,7 +220,7 @@ test('a fresh player meets new friends and elements on first play', async ({ pag
   expect(await page.evaluate(() => window.__squishy?.state().mode)).toBe('idle');
 });
 
-test('tap-to-explain: wall + heart open cards; the squishy is petted', async ({ page }) => {
+test('tap-to-explain: pillow + heart open cards; the squishy is petted', async ({ page }) => {
   const li = LEVELS.findIndex((d) => Array.isArray(d.walls) && d.walls.length > 0);
   expect(li, 'a curated level with a wall exists').toBeGreaterThan(-1);
   const lvl = LEVELS[li] as LevelDef;
@@ -231,7 +233,7 @@ test('tap-to-explain: wall + heart open cards; the squishy is petted', async ({ 
   const wall = (lvl.walls as [number, number][])[0] as [number, number];
   await page.evaluate(([x, y]) => window.__squishy?.tapCell(x, y), wall);
   await page.waitForSelector('#intro.show', { timeout: 4000 });
-  expect(await page.textContent('#introName')).toBe('Wall');
+  expect(await page.textContent('#introName')).toBe('Pillow');
   await page.evaluate(() => window.__squishy?.dismissIntro());
 
   await page.evaluate(([x, y]) => window.__squishy?.tapCell(x, y), lvl.target);
@@ -246,6 +248,98 @@ test('tap-to-explain: wall + heart open cards; the squishy is petted', async ({ 
   expect(await page.evaluate(
     () => document.getElementById('intro')?.classList.contains('show')
   )).toBe(false);
+});
+
+/** Drive the current level to the win using the oracle's solution. */
+async function solveCurrent(page: import('@playwright/test').Page): Promise<void> {
+  await page.waitForFunction(() => window.__squishy?.state().oracleReady === true);
+  for (let i = 0; i < 30; i++) {
+    const sol = await page.evaluate(() => window.__squishy?.solution());
+    if (!sol || sol.length === 0) break;
+    await page.evaluate((d) => window.__squishy?.move(d as never), sol[0]);
+    if (await page.evaluate(() => window.__squishy?.state().mode) === 'win') break;
+  }
+  expect(await page.evaluate(() => window.__squishy?.state().mode)).toBe('win');
+}
+
+test("settings 'instant': a win zooms straight into the next level, no card", async ({ page }) => {
+  await boot(page);
+  await page.evaluate(() => localStorage.clear());
+  await page.evaluate(() => window.__squishy?.setSettings({ afterWin: 'instant' }));
+  await page.evaluate(() => window.__squishy?.loadLevel(3));
+  await clearIntros(page);
+  await solveCurrent(page);
+  /* no win card — the flood drains into level 5 by itself */
+  await page.waitForFunction(() => {
+    const m = window.__squishy?.state();
+    return m?.li === 4 && (m.mode === 'idle' || m.mode === 'intro');
+  }, undefined, { timeout: 10000 });
+  expect(await page.evaluate(
+    () => document.getElementById('win')?.classList.contains('show'))).toBe(false);
+});
+
+test("settings 'wait': the win card shows without the countdown ring", async ({ page }) => {
+  await boot(page);
+  await page.evaluate(() => localStorage.clear());
+  await page.evaluate(() => window.__squishy?.setSettings({ afterWin: 'wait' }));
+  await page.evaluate(() => window.__squishy?.loadLevel(3));
+  await clearIntros(page);
+  await solveCurrent(page);
+  await page.waitForSelector('#win.show', { timeout: 10000 });
+  expect(await page.evaluate(
+    () => document.getElementById('winNext')?.classList.contains('counting'))).toBe(false);
+});
+
+test('settings hide the hint button and the labels', async ({ page }) => {
+  await boot(page);
+  await page.evaluate(() => localStorage.clear());
+  await page.evaluate(() => window.__squishy?.loadLevel(0));
+  await clearIntros(page);
+  /* level 1 shows labels by default */
+  expect(await page.evaluate(
+    () => document.querySelector('footer')?.classList.contains('labels'))).toBe(true);
+  await page.evaluate(() => window.__squishy?.setSettings({ hintButton: false, buttonLabels: false }));
+  expect(await page.locator('#toolHint').isVisible()).toBe(false);
+  expect(await page.evaluate(
+    () => document.querySelector('footer')?.classList.contains('labels'))).toBe(false);
+});
+
+test('a hinted win earns zero hearts and a friendly line', async ({ page }) => {
+  await boot(page);
+  await page.evaluate(() => localStorage.clear());
+  await page.evaluate(() => window.__squishy?.loadLevel(3));
+  await clearIntros(page);
+  await page.evaluate(() => window.__squishy?.toggleHintMode());
+  await solveCurrent(page);
+  await page.waitForSelector('#win.show', { timeout: 10000 });
+  expect(await page.locator('#winTag .rate .rh.on').count()).toBe(0);
+});
+
+test('?debug=doit: picker unlocks everything, test levels fire the oh-no', async ({ page }) => {
+  await page.goto('/?test=1&debug=doit');
+  await page.waitForFunction(() => window.__squishy !== undefined);
+  await page.evaluate(() => localStorage.clear());
+  await page.evaluate(() => {
+    window.__squishy?.setInstantAnims(true);
+    window.__squishy?.closeMenu();
+  });
+  await clearIntros(page);
+  /* the debug picker: no padlocks, generated ladder + test list + baker */
+  await page.evaluate(() => document.getElementById('blevels')?.click());
+  await page.waitForSelector('#levels.show', { timeout: 5000 });
+  expect(await page.locator('#levelsGrid .lvchip.locked').count()).toBe(0);
+  expect(await page.locator('#levelsGen .lvchip').count()).toBe(10);
+  expect(await page.locator('.lvtest button').count()).toBeGreaterThanOrEqual(8);
+  expect(await page.locator('.lvbake .bkgo').count()).toBe(1);
+  /* the oh-no trap level: a dead opening must hop back automatically */
+  await page.evaluate(() => window.__squishy?.loadTestLevel(0));
+  await clearIntros(page);
+  await page.waitForFunction(() => window.__squishy?.state().oracleReady === true);
+  await page.evaluate(() => window.__squishy?.move('up' as never));
+  await page.waitForFunction(() => {
+    const m = window.__squishy?.state();
+    return m?.mode === 'idle' && m.moves === 0 && m.winnable === true;
+  }, undefined, { timeout: 10000 });
 });
 
 test('the header never shows a star pill', async ({ page }) => {

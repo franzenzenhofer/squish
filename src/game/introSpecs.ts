@@ -147,7 +147,7 @@ export const INTRO_SPECS: Record<string, IntroSpec> = {
     keys: [{ t: 0, x: 0 }, { t: 300, x: 0 }, { t: 1000, x: 2 }]
   },
   honey: {
-    kind: 'honey', name: 'Honey', line: 'Sticky - you stop the moment you touch it',
+    kind: 'honey', name: 'Flower', line: 'Sticky - you stop the moment you touch it',
     actor: 'squishy', tiles: ['floor', 'honey', 'floor'], chevrons: [200],
     keys: [{ t: 0, x: 0 }, { t: 300, x: 0 }, { t: 900, x: 1 }]
   },

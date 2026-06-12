@@ -4,13 +4,17 @@
    GUARD: src/levels.json is the canonical PINNED level set (Franz, 2026-06-12:
    the original hand-tuned curve plays better than a constrained regeneration -
    never silently replace it). This script REFUSES to overwrite it unless
-   FORCE_LEVELS=1 is set, so a casual rebuild can never destroy the curve. */
-import { writeFileSync } from 'node:fs';
+   FORCE_LEVELS=1 is set, so a casual rebuild can never destroy the curve.
+
+   ONLY=28,33,34,40 regenerates just those level numbers and keeps every other
+   level verbatim from the existing levels.json - the surgical tool for fixing
+   difficulty dips without disturbing the pinned curve. */
+import { readFileSync, writeFileSync } from 'node:fs';
 
 if (process.env.FORCE_LEVELS !== '1') {
   console.error('refusing to overwrite the pinned src/levels.json - the curated');
   console.error('curve is hand-tuned. Run with FORCE_LEVELS=1 only if you really');
-  console.error('mean to regenerate every level.');
+  console.error('mean to regenerate levels (add ONLY=n,n for a surgical rebuild).');
   process.exit(1);
 }
 import { CODEDIR, DIRCODE, cloneState, isWin, makeLevel } from '../src/engine/core';
@@ -55,10 +59,24 @@ function minimize(def: LevelDef): LevelDef {
   return cur;
 }
 
+const only = process.env.ONLY
+  ? new Set(process.env.ONLY.split(',').map((x) => Number(x.trim())))
+  : null;
+const existing: LevelDef[] = only
+  ? (JSON.parse(readFileSync('src/levels.json', 'utf8')) as LevelDef[])
+  : [];
+
 const levels: LevelDef[] = [];
 const t0 = Date.now();
 for (let n = 1; n <= 40; n++) {
   const s = Date.now();
+  if (only && !only.has(n)) {
+    /* pinned: carry the existing level over byte-identically */
+    const keep = existing[n - 1];
+    if (!keep) throw new Error('ONLY rebuild: existing levels.json lacks level ' + n);
+    levels.push(keep);
+    continue;
+  }
   let def = generateLevel(n);
   /* fixed feature-intro levels are authored exactly - minimize would strip the
      teaching obstacle (e.g. the pillow the bunny hops over) */

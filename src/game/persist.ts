@@ -16,16 +16,23 @@ export interface SavedGame {
   li: number;
   def: LevelDef | null;
   results: Record<number, number>;
+  /** levels finished only with hint help — done, no hearts */
+  hinted: Record<number, true>;
   daily: Record<string, number>;
 }
 
 const FRESH: SavedGame = {
-  v: 2, play: { kind: 'campaign' }, li: 0, def: null, results: {}, daily: {}
+  v: 2, play: { kind: 'campaign' }, li: 0, def: null, results: {}, hinted: {}, daily: {}
 };
 
 export function saveGame(s: Session): void {
+  /* debug test plays are never a resume target — persist the campaign pointer */
   const snap: SavedGame = {
-    v: 2, play: s.play, li: s.li, def: s.def, results: s.results, daily: s.daily
+    v: 2,
+    play: s.play.kind === 'debug' ? { kind: 'campaign' } : s.play,
+    li: s.li,
+    def: s.play.kind === 'debug' ? null : s.def,
+    results: s.results, hinted: s.hinted, daily: s.daily
   };
   try {
     localStorage.setItem(KEY_V2, JSON.stringify(snap));
@@ -41,7 +48,7 @@ export function saveGame(s: Session): void {
 export function saveAdvance(s: Session, nextLi: number): void {
   const snap: SavedGame = {
     v: 2, play: { kind: 'campaign' }, li: nextLi, def: null,
-    results: s.results, daily: s.daily
+    results: s.results, hinted: s.hinted, daily: s.daily
   };
   try {
     localStorage.setItem(KEY_V2, JSON.stringify(snap));
@@ -88,10 +95,12 @@ export function loadGame(): SavedGame {
       if (p.v === 2 && typeof p.li === 'number') {
         return {
           v: 2,
+          /* anything but a live daily (incl. a stray debug tag) resumes campaign */
           play: p.play?.kind === 'daily' ? p.play : { kind: 'campaign' },
           li: p.li,
           def: p.def ?? null,
           results: p.results ?? {},
+          hinted: p.hinted ?? {},
           daily: p.daily ?? {}
         };
       }

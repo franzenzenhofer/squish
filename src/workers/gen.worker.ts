@@ -7,18 +7,22 @@ import { makeLevel } from '../engine/core';
 import { solve } from '../engine/solve';
 import type { GameState, LevelDef } from '../engine/types';
 import { generateDaily } from '../gen/daily';
-import { generateLevel } from '../gen/generate';
+import { finalize, generateLevel, tryGenerate } from '../gen/generate';
+import { bakeParams } from '../gen/ramp';
+import { mulberry32 } from '../gen/rng';
 import curated from '../levels.json';
 
 export type WorkerRequest =
   | { type: 'gen'; id: number; n: number }
   | { type: 'daily'; id: number; date: string }
+  | { type: 'bake'; id: number; hardness: number; seed: number }
   | { type: 'analyze'; id: number; def: LevelDef }
   | { type: 'solve'; id: number; def: LevelDef; state: GameState };
 
 export type WorkerResponse =
   | { type: 'gen'; id: number; n: number; def: LevelDef }
   | { type: 'daily'; id: number; date: string; def: LevelDef | null }
+  | { type: 'bake'; id: number; def: LevelDef | null }
   | { type: 'analyze'; id: number; oracle: OracleWire }
   | { type: 'solve'; id: number; status: 'solved' | 'unsolvable' | 'unknown'; solution?: string[] };
 
@@ -44,6 +48,14 @@ scope.onmessage = (ev: MessageEvent<WorkerRequest>): void => {
       console.error('[squishy] daily generation failed:', e);
       scope.postMessage({ type: 'daily', id: msg.id, date: msg.date, def: null });
     }
+    return;
+  }
+  if (msg.type === 'bake') {
+    /* debug baker: one solver-verified level at the requested hardness; the
+       seed varies the cast. No fallback — a failed bake reports null. */
+    const rng = mulberry32(msg.seed >>> 0);
+    const c = tryGenerate(rng, bakeParams(msg.hardness, msg.seed));
+    scope.postMessage({ type: 'bake', id: msg.id, def: c ? finalize(c) : null });
     return;
   }
   if (msg.type === 'analyze') {

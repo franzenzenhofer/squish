@@ -77,13 +77,32 @@ function poolFor(hearts: number): readonly string[] {
   return TIER1;
 }
 
+/* Hinted win: the bulb helped — celebrate warmly, never scold. Asking for
+   help is always okay; the empty hearts alone tell the rest. */
+const HINTED: readonly string[] = [
+  'Solved together - you and the bulb 💡',
+  'Teamwork makes the dream work ✨',
+  'A little help is totally okay 💕',
+  'You found the way - high five!',
+  'Hints are friends too 💡',
+  'Lovely solve, helper and all 💖'
+];
+
 let lastLine: string | null = null;
 
-/** Pick a fresh line for the tier, never repeating the previous one shown. */
-export function pickWinLine(hearts: number): string {
-  const pool = poolFor(hearts);
+function pickFrom(pool: readonly string[]): string {
   const choices = pool.length > 1 ? pool.filter((l) => l !== lastLine) : pool;
   const line = choices[Math.floor(Math.random() * choices.length)] ?? pool[0] ?? '';
   lastLine = line;
   return line;
+}
+
+/** Pick a fresh line for the tier, never repeating the previous one shown. */
+export function pickWinLine(hearts: number): string {
+  return pickFrom(poolFor(hearts));
+}
+
+/** Pick a fresh hinted-win line (the no-hearts celebration). */
+export function pickHintedLine(): string {
+  return pickFrom(HINTED);
 }

@@ -225,16 +225,37 @@
   @keyframes winct { from { transform: scaleX(0); opacity: 1; } to { transform: scaleX(1); opacity: 1; } }
   #winShare svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2.3; stroke-linecap: round; stroke-linejoin: round; }
 
-  #start, #levels {
+  #start, #levels, #settings {
     position: fixed; inset: 0; z-index: 8; display: none;
     flex-direction: column; align-items: center;
     background: radial-gradient(130% 90% at 50% -15%, #FFFAFC 0%, #FFEFF6 42%, #FFE2EE 100%);
   }
-  #levels {
-    z-index: 9; overflow-y: auto;
-    padding: max(8px, env(safe-area-inset-top)) 0 max(8px, env(safe-area-inset-bottom));
+  /* the picker and settings scroll as one page — scrollbars fully hidden
+     (mobile-app feel: content moves, no chrome), momentum scroll kept */
+  #levels, #settings {
+    z-index: 9; overflow-y: auto; touch-action: pan-y;
+    scrollbar-width: none; -ms-overflow-style: none;
+    padding: 0 0 max(14px, env(safe-area-inset-bottom));
   }
-  #start.show, #levels.show { display: flex; }
+  #levels::-webkit-scrollbar, #settings::-webkit-scrollbar { display: none; }
+  #start.show, #levels.show, #settings.show { display: flex; }
+  /* sticky cute top bar: title centred, a round X home on the right */
+  .ovbar {
+    position: sticky; top: 0; z-index: 2; width: 100%;
+    display: flex; align-items: center; justify-content: center;
+    padding: calc(max(10px, env(safe-area-inset-top)) + 4px) 16px 12px;
+    background: linear-gradient(180deg, #FFFAFC 55%, rgba(255,250,252,0));
+  }
+  .ovbar .ovtitle { font-size: 22px; font-weight: 800; color: var(--heart); letter-spacing: .1em; }
+  .ovbar .ovx {
+    position: absolute; right: 14px; top: calc(max(10px, env(safe-area-inset-top)) + 2px);
+    width: 38px; height: 38px; border-radius: 999px; border: 2px solid var(--border);
+    background: #fff; color: var(--dim2); cursor: pointer; padding: 0;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 0 rgba(246,201,220,.5);
+  }
+  .ovbar .ovx:active { transform: translateY(3px); box-shadow: 0 1px 0 rgba(246,201,220,.5); }
+  .ovbar .ovx svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; }
   /* #start fits any iPhone above the fold: a viewport-tall flex column that
      centres when there is spare room and shrinks (clamped gaps + logo) to keep
      logo + shelf + Play + Levels + Daily + Reset all on-screen, no scroll */
@@ -246,8 +267,9 @@
       max(8px, env(safe-area-inset-bottom))
       env(safe-area-inset-left);
   }
-  #levelsInner {
-    display: flex; flex-direction: column; align-items: center; margin: auto; padding: 24px 18px;
+  #levelsInner, #settingsInner {
+    display: flex; flex-direction: column; align-items: center;
+    margin: 0 auto auto; padding: 6px 18px 24px;
     gap: clamp(10px, 2.4vh, 18px);
   }
   #startInner {
@@ -279,15 +301,14 @@
   .bp-main { font-size: 24px; font-weight: 700; }
   .bp-sub { font-size: 13px; font-weight: 600; letter-spacing: .08em; opacity: .92; }
   #bdailyDate { font-size: 12px; font-weight: 600; color: var(--dim); }
-  #breset {
+  #bsettings, #breset {
     font: inherit; background: none; border: none; cursor: pointer; margin-top: 2px;
     font-size: 13px; font-weight: 500; color: var(--link); letter-spacing: .04em; padding: 8px 10px;
     text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1.5px; text-decoration-color: var(--link-ul);
   }
-  #levelsTitle { font-size: 22px; font-weight: 800; color: var(--heart); letter-spacing: .1em; }
+  #breset { color: var(--dim2); }
   #levelsGrid {
-    display: grid; grid-template-columns: repeat(5, 52px); gap: 10px;
-    max-height: 56vh; overflow-y: auto; padding: 6px;
+    display: grid; grid-template-columns: repeat(5, 52px); gap: 10px; padding: 6px;
   }
   .lvchip {
     width: 52px; height: 52px; border-radius: 16px; cursor: pointer;
@@ -309,11 +330,71 @@
   @keyframes lvpulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
   .lvchip.locked { opacity: .42; pointer-events: none; }
   .lvchip .mini { font-size: 8px; color: var(--heart); letter-spacing: 1px; height: 9px; }
-  #blback {
-    font: inherit; font-size: 14px; font-weight: 800; color: var(--ink);
-    background: #fff; border: 2px solid var(--border); border-radius: 999px;
-    padding: 9px 26px; cursor: pointer; box-shadow: 0 4px 0 rgba(246,201,220,.5);
+
+  /* ---- debug-only picker sections (?debug=doit) ---- */
+  .lvsec {
+    width: 100%; text-align: center; margin-top: 10px;
+    font-size: 13px; font-weight: 800; color: var(--dim2); letter-spacing: .14em;
   }
+  .lvtest {
+    display: flex; flex-direction: column; gap: 8px; width: min(300px, 86vw);
+  }
+  .lvtest button {
+    font: inherit; font-size: 14px; font-weight: 700; color: var(--ink);
+    background: #fff; border: 2px solid var(--border); border-radius: 16px;
+    padding: 11px 14px; cursor: pointer; box-shadow: 0 4px 0 rgba(246,201,220,.45);
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  }
+  .lvtest button:active { transform: translateY(3px); box-shadow: 0 1px 0 rgba(246,201,220,.45); }
+  .lvtest .mini { font-size: 10px; font-weight: 700; color: var(--dim); }
+  .lvbake {
+    display: flex; align-items: center; gap: 8px; width: min(300px, 86vw);
+    background: #fff; border: 2px solid var(--border); border-radius: 18px;
+    padding: 10px 12px; box-shadow: 0 4px 0 rgba(246,201,220,.45);
+  }
+  .lvbake .bk { font-size: 13px; font-weight: 700; color: var(--soft); flex: 1; }
+  .lvbake button {
+    font: inherit; font-weight: 800; border: none; cursor: pointer; color: var(--ink);
+    background: #FBEAF1; border-radius: 12px; width: 30px; height: 30px; padding: 0;
+  }
+  .lvbake .bkgo {
+    width: auto; padding: 0 14px; color: #fff;
+    background: linear-gradient(180deg, var(--heart-top), var(--heart));
+    box-shadow: 0 3px 0 var(--heart-edge);
+  }
+  .lvbake .bkgo:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--heart-edge); }
+
+  /* ---- settings rows ---- */
+  .setrow {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    width: min(320px, 88vw); background: #fff; border-radius: 22px;
+    padding: 14px 16px; box-shadow: 0 5px 0 var(--shadow6);
+  }
+  .setlab { display: flex; flex-direction: column; gap: 2px; font-size: 15px; font-weight: 700; color: var(--ink); }
+  .setlab .sethint { font-size: 11px; font-weight: 600; color: var(--dim); }
+  .seg { display: flex; gap: 4px; background: #FBEAF1; border-radius: 999px; padding: 3px; }
+  .seg button {
+    font: inherit; font-size: 12px; font-weight: 700; color: var(--dim2);
+    border: none; background: none; border-radius: 999px; padding: 7px 10px; cursor: pointer;
+    transition: background .12s, color .12s;
+  }
+  .seg button.on {
+    color: #fff; background: linear-gradient(180deg, var(--heart-top), var(--heart));
+    box-shadow: 0 2px 0 var(--heart-edge);
+  }
+  .tog {
+    flex: none; width: 54px; height: 32px; border: none; border-radius: 999px;
+    background: #F1D7E3; cursor: pointer; position: relative; padding: 0;
+    transition: background .15s;
+  }
+  .tog::after {
+    content: ''; position: absolute; top: 3px; left: 3px; width: 26px; height: 26px;
+    border-radius: 50%; background: #fff; box-shadow: 0 2px 4px rgba(107,74,91,.25);
+    transition: transform .18s cubic-bezier(.2,1.3,.4,1);
+  }
+  .tog.on { background: linear-gradient(180deg, var(--heart-top), var(--heart)); }
+  .tog.on::after { transform: translateX(22px); }
+
   .rate { display: flex; gap: 6px; justify-content: center; }
   .rate .rh { width: 26px; height: 24px; transform: scale(.6); transition: transform .35s cubic-bezier(.2,1.6,.4,1); }
   .rate .rh path { fill: #F1D7E3; transition: fill .3s; }
@@ -339,6 +420,15 @@
   footer button:active { transform: translateY(4px); box-shadow: 0 2px 0 var(--shadow6); }
   .tool .lbl { display: none; font-size: 11px; font-weight: 600; color: var(--dim); letter-spacing: .02em; }
   footer.labels .tool .lbl { display: block; }
+  /* settings: the hint bulb can be tucked away entirely */
+  footer.nohint #toolHint { display: none; }
+  /* debug plays (?debug=doit) show a JSON export pill in the header */
+  #dbgExport {
+    display: none; font: inherit; font-size: 12px; font-weight: 700; color: var(--dim2);
+    background: #fff; border: none; border-radius: 999px; padding: 5px 12px;
+    cursor: pointer; box-shadow: 0 4px 0 var(--shadow); white-space: nowrap;
+  }
+  #dbgExport.show { display: block; }
   footer button#hint.on {
     background: linear-gradient(180deg, var(--heart-top), var(--heart)); color: #fff;
     box-shadow: 0 6px 0 var(--heart-edge), 0 10px 14px -6px rgba(255,109,158,.5);
@@ -367,6 +457,7 @@
     <span id="logo"></span>
   </div>
   <div id="hud">
+    <button id="dbgExport">⤓ JSON</button>
     <div id="lvl">01</div>
     <div id="moves"><b>0</b><span class="dim">/1</span></div>
   </div>
@@ -394,7 +485,7 @@
     </button>
     <span class="lbl">Retry</span>
   </div>
-  <div class="tool">
+  <div class="tool" id="toolHint">
     <button id="hint" aria-label="hint">
       <svg viewBox="0 0 24 24"><path d="M12 3 a6 6 0 0 1 6 6 c0 2.2-1.2 3.5-2.2 4.6-.8.9-1.3 1.5-1.3 2.4 H9.5 c0-.9-.5-1.5-1.3-2.4C7.2 12.5 6 11.2 6 9 a6 6 0 0 1 6-6 Z"/><path d="M9.8 19.5 h4.4"/><path d="M10.5 21.5 h3"/></svg>
     </button>
@@ -443,14 +534,43 @@
       <button id="blevels">Levels</button>
       <button id="bdaily">Daily <span id="bdailyDate"></span></button>
     </div>
-    <button id="breset">Reset progress</button>
+    <button id="bsettings">Settings</button>
   </div>
 </div>
 <div id="levels">
+  <div class="ovbar">
+    <span class="ovtitle">Levels</span>
+    <button id="blback" class="ovx" aria-label="back">
+      <svg viewBox="0 0 24 24"><path d="M6 6 L18 18 M18 6 L6 18"/></svg>
+    </button>
+  </div>
   <div id="levelsInner">
-    <div id="levelsTitle">Levels</div>
     <div id="levelsGrid"></div>
-    <button id="blback">Back</button>
+  </div>
+</div>
+<div id="settings">
+  <div class="ovbar">
+    <span class="ovtitle">Settings</span>
+    <button id="bsback" class="ovx" aria-label="back">
+      <svg viewBox="0 0 24 24"><path d="M6 6 L18 18 M18 6 L6 18"/></svg>
+    </button>
+  </div>
+  <div id="settingsInner">
+    <div class="setrow">
+      <div class="setlab">After a win<span class="sethint">wait · auto-next · zoom right in</span></div>
+      <div class="seg" id="segAfterWin">
+        <button data-v="wait">Wait</button><button data-v="auto">Auto</button><button data-v="instant">Zoom!</button>
+      </div>
+    </div>
+    <div class="setrow">
+      <div class="setlab">Hint button<span class="sethint">the little bulb below the board</span></div>
+      <button class="tog" id="togHint" role="switch" aria-label="hint button"></button>
+    </div>
+    <div class="setrow">
+      <div class="setlab">Button labels<span class="sethint">tiny words under the buttons</span></div>
+      <button class="tog" id="togLabels" role="switch" aria-label="button labels"></button>
+    </div>
+    <button id="breset">Reset progress</button>
   </div>
 </div>
 <script type="module" src="/src/game/main.ts"></script>
