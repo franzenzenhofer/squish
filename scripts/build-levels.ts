@@ -5,7 +5,7 @@ import { CODEDIR, DIRCODE, cloneState, isWin, makeLevel } from '../src/engine/co
 import { move } from '../src/engine/move';
 import { solve, spamSolvable } from '../src/engine/solve';
 import type { Dir, DirCode, LevelDef, XY } from '../src/engine/types';
-import { generateLevel, trapFree } from '../src/gen/generate';
+import { FIXED_LEVELS, generateLevel, trapFree } from '../src/gen/generate';
 import { ramp } from '../src/gen/ramp';
 
 const CAPS: Record<number, string> = {
@@ -65,7 +65,9 @@ const t0 = Date.now();
 for (let n = 1; n <= 40; n++) {
   const s = Date.now();
   let def = generateLevel(n);
-  if (n > 3) def = minimize(def);
+  /* fixed feature-intro levels are authored exactly - minimize would strip the
+     teaching obstacle (e.g. the pillow the bunny hops over) */
+  if (n > 3 && !FIXED_LEVELS[n]) def = minimize(def);
   const cap = CAPS[n];
   if (cap) def.cap = cap;
   if (!replayWins(def)) throw new Error('level ' + n + ': sol does not win after minimize');

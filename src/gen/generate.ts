@@ -26,6 +26,19 @@ export const TUTORIALS: LevelDef[] = [
   }
 ];
 
+/* Hand-authored feature-intro levels that must demonstrate a mechanic exactly.
+   The generator's minimality pass would strip a purely-teaching obstacle, so
+   these are returned as-is and skipped by minimize in build-levels. Level 5
+   shows the bunny RUNNING right and hopping over a pillow (the wall at 1,2 and
+   3,4 sit in its run, cleared mid-hop). Heart on row 0 - nothing above it. */
+export const FIXED_LEVELS: Record<number, LevelDef> = {
+  5: {
+    w: 5, h: 5, target: [4, 0], dots: [[0, 4]], bunnies: [[0, 2]],
+    walls: [[1, 2], [0, 1], [3, 4]],
+    par: 5, sol: 'RULDR', cap: 'Bunny hops two squares - right over things'
+  }
+};
+
 export interface Candidate {
   def: LevelDef;
   par: number;
@@ -211,6 +224,8 @@ export function finalize(c: Candidate): LevelDef {
  */
 export function generateLevel(n: number, fallbackPool?: LevelDef[]): LevelDef {
   if (n <= 3) return TUTORIALS[n - 1] as LevelDef;
+  const fixed = FIXED_LEVELS[n];
+  if (fixed) return fixed;
   const rng = levelRng(n);
   let p = ramp(n);
   for (let round = 0; round < 3; round++) {
