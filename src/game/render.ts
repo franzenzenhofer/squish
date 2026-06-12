@@ -262,9 +262,11 @@ function drawIdleActors(ctx: CanvasRenderingContext2D, s: Session, now: number):
     }
   }
   for (const d of s.gs.dots) {
-    const m = mods(s, key(d.x, d.y), now);
+    const dk = key(d.x, d.y);
+    const m = mods(s, dk, now);
+    const petted = s.petKey === dk && now - s.petT0 < 900;
     drawMover(ctx, s, 'dot', cx(s, d.x), cy(s, d.y), dotR(s, d.m), m.sx, m.sy, 0, 0,
-      s.winFace ? 'joy' : s.ohNoFace ? 'worried' : 'happy',
+      s.winFace || petted ? 'joy' : s.ohNoFace ? 'worried' : 'happy',
       d.x * 7 + d.y * 13, now, true, m.rot);
   }
 }

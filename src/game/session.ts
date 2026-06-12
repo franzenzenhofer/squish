@@ -109,6 +109,9 @@ export interface Session {
   ohNoReturn: boolean;
   /** start of the heart-unlock animation (last star collected), or null */
   heartUnlockT0: number | null;
+  /** a petted squishy beams with joy: cell key + start time (or null) */
+  petKey: string | null;
+  petT0: number;
   /** test mode: clamp all animation durations to ~1ms (real code path) */
   instantAnims: boolean;
 }
@@ -130,6 +133,7 @@ export function blankSession(): Session {
     oracle: null, oracleKey: null, hintMode: false,
     hintDir: null, hintT0: 0, lastMovers: null,
     ohNoShown: false, ohNoFace: false, ohNoReturn: false, heartUnlockT0: null,
+    petKey: null, petT0: 0,
     instantAnims: false
   };
 }

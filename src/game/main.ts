@@ -380,11 +380,18 @@ function boardTap(clientX: number, clientY: number): void {
   explainCell(gx, gy);
 }
 
-/** Petting your squishy: a happy bounce + a little heart burst. */
+/** Petting your squishy: a giddy joy-face double-bounce + a heart shower. */
 function petSquishy(x: number, y: number): void {
-  s.pulses.push({ type: 'pop', key: key(x, y), t0: performance.now(), dur: 420, amp: 0.5 });
-  heartBurst(s, cx(s, x), cy(s, y), 14);
-  audio.squish();
+  const now = performance.now();
+  const k = key(x, y);
+  s.petKey = k;
+  s.petT0 = now;
+  s.pulses.push({ type: 'pop', key: k, t0: now, dur: 300, amp: 0.55 });
+  s.pulses.push({ type: 'pop', key: k, t0: now + 280, dur: 340, amp: 0.34 });
+  s.pulses.push({ type: 'squash', key: k, axis: 'y', t0: now + 140, dur: 220, amp: 0.26 });
+  heartBurst(s, cx(s, x), cy(s, y), 16);
+  audio.happy();
+  audio.buzz(12);
 }
 
 bindInput(main, {

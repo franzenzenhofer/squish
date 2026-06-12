@@ -27,6 +27,7 @@ export interface Audio {
   oink: () => void;
   ohno: () => void;
   talk: () => void;
+  happy: () => void;
   buzz: (p: number | number[]) => void;
 }
 
@@ -232,6 +233,12 @@ export function createAudio(): Audio {
       if (!gate('talk')) return;
       tone(SCALE[2] as number, 0.045, 'sine', 0.05);
       tone(SCALE[4] as number, 0.05, 'sine', 0.045, undefined, 0.055);
+    },
+    /* a giddy rising chirp + sparkle — being petted */
+    happy: () => {
+      tone(SCALE[3] as number, 0.08, 'sine', 0.085, SCALE[6]);
+      tone(SCALE[5] as number, 0.1, 'sine', 0.07, SCALE[7], 0.07);
+      tone(SCALE[7] as number, 0.12, 'triangle', 0.04, undefined, 0.14);
     },
     buzz: (p) => {
       try {
