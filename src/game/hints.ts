@@ -80,6 +80,9 @@ export function createHints(s: Session, assist: Assist, hooks: HintHooks): Hints
     if (!s.oracle || s.oracleKey !== currentKey) return; // resolves on arrival
     const w = winnableState(s.oracle, ser(s.gs));
     if (w === false) {
+      /* tutorials (levels 1-2): let beginners explore and learn undo/retry
+         themselves — the eager "oh no" auto-undo only kicks in from level 3 */
+      if (s.play.kind === 'campaign' && s.li < 2) return;
       hooks.onUnwinnable();
       return;
     }

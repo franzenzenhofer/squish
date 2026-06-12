@@ -63,16 +63,15 @@
   body::before { width: 200px; height: 200px; background: #FFE0EC; left: -60px; top: 12%; }
   body::after { width: 240px; height: 240px; background: #FFEAD6; right: -80px; bottom: 8%; }
 
-  /* ---- logo lockup (single source of truth: src/game/logo.ts) ---- */
+  /* ---- logo lockup (single source of truth: src/game/logo.ts) ----
+     exact Fredoka-700 outlines as SVG paths, so the brand is pixel-identical
+     and scalable everywhere (height-driven; width follows the viewBox) */
   .logo-heart { width: 1em; height: 1em; display: block; }
-  .wordmark { display: inline-flex; flex-direction: column; align-items: center; line-height: 1; }
-  .wm-main {
-    font-weight: 700; color: var(--logo); line-height: 1.04;
-    -webkit-text-stroke: .12em #fff; paint-order: stroke fill;
-    filter: drop-shadow(0 .06em 0 rgba(230,120,165,.5)); letter-spacing: .005em;
-  }
-  .wm-sub { font-size: .3em; font-weight: 700; color: var(--ink); letter-spacing: .06em; margin-top: -.08em; }
-  .wm-sub b { color: var(--heart); font-weight: 700; }
+  .logo-svg { display: block; height: 100%; width: auto; overflow: visible; }
+  .wm-d { fill: rgba(230,120,165,.5); }
+  .wm-s { fill: var(--logo); stroke: #fff; stroke-width: 100; paint-order: stroke; stroke-linejoin: round; }
+  .wm-a { fill: var(--heart); }
+  .wm-f { fill: var(--ink); }
 
   header {
     position: relative; z-index: 1;
@@ -88,8 +87,8 @@
   }
   #home:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--shadow6); }
   #home .logo-heart { width: 24px; height: 24px; }
-  #logo { display: flex; min-width: 0; }
-  #logo .wordmark { font-size: 23px; }
+  #logo { display: flex; align-items: center; min-width: 0; }
+  #logo .logo-svg { height: 44px; }
   #hud { display: flex; align-items: center; gap: 10px; flex: none; }
   #lvl {
     font-size: 14px; color: var(--dim2); font-weight: 700; letter-spacing: .04em;
@@ -208,7 +207,8 @@
   }
   #levelsInner { gap: clamp(10px, 2.4vh, 18px); }
   #startInner { gap: clamp(12px, 2.8vh, 22px); width: min(360px, 92vw); }
-  #startLogo .wordmark { font-size: clamp(46px, 15vw, 64px); }
+  #startLogo { display: flex; justify-content: center; width: 100%; }
+  #startLogo .logo-svg { height: clamp(92px, 26vw, 128px); }
   #startc { width: min(300px, 80vw); height: clamp(80px, 14vh, 112px); }
   #nextUp {
     display: flex; align-items: center; gap: 14px;

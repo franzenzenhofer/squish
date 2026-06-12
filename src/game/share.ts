@@ -8,6 +8,7 @@ import * as U from '../lib/draw';
 import type { Dir4 } from '../lib/types';
 import { FLD } from '../fields';
 import { SPR } from '../sprites';
+import { drawWordmark } from './logo';
 import { toast } from './toast';
 
 const CARD_W = 640;
@@ -30,16 +31,12 @@ export function renderBoardCard(def: LevelDef, label: string): HTMLCanvasElement
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, CARD_W, CARD_H);
 
+  /* the exact same logo lockup as the in-app header (SSOT, vector paths) */
+  drawWordmark(ctx, CARD_W / 2, 14, 300);
   ctx.textAlign = 'center';
-  ctx.fillStyle = C.heart;
-  ctx.font = '800 52px Fredoka, ui-rounded, system-ui, sans-serif';
-  ctx.fillText('Squishy', CARD_W / 2, 78);
-  ctx.fillStyle = C.ink;
-  ctx.font = '800 24px Fredoka, ui-rounded, system-ui, sans-serif';
-  ctx.fillText('& Friends', CARD_W / 2, 106);
   ctx.fillStyle = '#C18BA8';
-  ctx.font = '800 22px Fredoka, ui-rounded, system-ui, sans-serif';
-  ctx.fillText(label, CARD_W / 2, 146);
+  ctx.font = '700 22px Fredoka, ui-rounded, system-ui, sans-serif';
+  ctx.fillText(label, CARD_W / 2, 162);
 
   const level = makeLevel(def);
   const n = Math.max(level.w, level.h);
