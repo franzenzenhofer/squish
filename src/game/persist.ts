@@ -37,6 +37,17 @@ export function saveGame(s: Session): void {
   }
 }
 
+/** Wipe campaign progress, results and daily-best times (keeps friend-met
+    flags). Used by the start screen's "Reset progress" link. */
+export function resetProgress(): void {
+  try {
+    localStorage.removeItem(KEY_V2);
+    localStorage.removeItem(KEY_V1);
+  } catch {
+    /* storage blocked — nothing to clear */
+  }
+}
+
 function migrateV1(): SavedGame | null {
   try {
     const raw = localStorage.getItem(KEY_V1);

@@ -204,36 +204,46 @@
   /* margin:auto centers when there is room and scrolls cleanly when not —
      nothing is ever cut off */
   #startInner, #levelsInner {
-    display: flex; flex-direction: column; align-items: center;
-    gap: clamp(10px, 2.4vh, 18px); margin: auto; padding: 18px 14px;
+    display: flex; flex-direction: column; align-items: center; margin: auto; padding: 24px 18px;
   }
-  #startTitle { display: flex; flex-direction: column; align-items: center; line-height: 1; }
-  #st1 {
-    font-size: clamp(34px, 11vw, 48px); font-weight: 800; color: var(--heart);
-    letter-spacing: .04em; transform: rotate(-2.5deg);
-    text-shadow: 0 3px 0 rgba(240,79,136,.18);
+  #levelsInner { gap: clamp(10px, 2.4vh, 18px); }
+  #startInner { gap: clamp(12px, 2.8vh, 22px); width: min(360px, 92vw); }
+  #startLogo .wordmark { font-size: clamp(46px, 15vw, 64px); }
+  #startc { width: min(300px, 80vw); height: clamp(80px, 14vh, 112px); }
+  #nextUp {
+    display: flex; align-items: center; gap: 14px;
+    background: #fff; border-radius: 22px; padding: 11px 18px; box-shadow: 0 6px 0 var(--shadow6);
   }
-  #st2 {
-    font-size: clamp(15px, 4.6vw, 20px); font-weight: 800; color: var(--ink);
-    letter-spacing: .12em; margin-top: -7px; transform: rotate(-2.5deg);
-    background: linear-gradient(180deg, rgba(255,250,252,0) 0%, rgba(255,250,252,.85) 45%);
-    padding: 2px 8px; border-radius: 8px;
-  }
-  #startc { width: min(320px, 84vw); height: clamp(84px, 15vh, 118px); }
-  #startBtns { display: flex; flex-direction: column; gap: clamp(8px, 1.6vh, 12px); width: min(240px, 72vw); }
+  .nu-grid { display: grid; grid-template-columns: repeat(3, 13px); grid-auto-rows: 13px; gap: 4px; flex: none; }
+  .nu-grid i { border-radius: 4px; background: #FCE3EE; }
+  .nu-grid i.mid { background: #ECD6E1; }
+  .nu-grid i.on { background: var(--heart); }
+  .nu-text { line-height: 1.12; }
+  .nu-label { font-size: 10px; font-weight: 600; letter-spacing: .12em; color: var(--dim); }
+  #nuLevel { font-size: 20px; font-weight: 700; color: var(--ink); }
+  #startBtns { display: flex; flex-direction: column; gap: 12px; width: min(300px, 86vw); }
   #startBtns button {
-    font: inherit; font-size: 16px; font-weight: 800; letter-spacing: .06em;
-    padding: clamp(10px, 1.8vh, 13px) 0; border-radius: 999px; cursor: pointer;
-    background: #fff; color: var(--ink); border: 2px solid var(--border);
-    box-shadow: 0 5px 0 rgba(246,201,220,.5);
+    font: inherit; border: none; cursor: pointer; border-radius: 22px;
+    background: #fff; color: var(--ink); font-size: 17px; font-weight: 600; letter-spacing: .03em;
+    padding: 14px 0; box-shadow: 0 5px 0 var(--shadow6);
     transition: transform .08s ease, box-shadow .08s ease;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
   }
-  #startBtns button:active { transform: translateY(4px); box-shadow: 0 1px 0 rgba(246,201,220,.5); }
+  #startBtns button:active { transform: translateY(4px); box-shadow: 0 1px 0 var(--shadow6); }
   #startBtns #bplay {
-    background: var(--heart); color: #fff; border-color: #F04F88;
-    box-shadow: 0 6px 0 rgba(226,101,143,.55); font-size: 18px;
+    flex-direction: column; gap: 1px; line-height: 1.04; padding: 13px 0 15px; border-radius: 24px;
+    background: linear-gradient(180deg, var(--heart-top), var(--heart)); color: #fff;
+    box-shadow: 0 6px 0 var(--heart-edge), 0 12px 18px -8px rgba(255,109,158,.6);
   }
-  #bdailyDate { font-size: 11px; color: #CDA4B7; font-weight: 800; }
+  #startBtns #bplay:active { transform: translateY(4px); box-shadow: 0 2px 0 var(--heart-edge); }
+  .bp-main { font-size: 24px; font-weight: 700; }
+  .bp-sub { font-size: 13px; font-weight: 600; letter-spacing: .08em; opacity: .92; }
+  #bdailyDate { font-size: 12px; font-weight: 600; color: var(--dim); }
+  #breset {
+    font: inherit; background: none; border: none; cursor: pointer; margin-top: 2px;
+    font-size: 13px; font-weight: 500; color: var(--link); letter-spacing: .04em; padding: 8px 10px;
+    text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1.5px; text-decoration-color: var(--link-ul);
+  }
   #levelsTitle { font-size: 22px; font-weight: 800; color: var(--heart); letter-spacing: .1em; }
   #levelsGrid {
     display: grid; grid-template-columns: repeat(5, 52px); gap: 10px;
@@ -390,13 +400,18 @@
 </div>
 <div id="start">
   <div id="startInner">
-    <div id="startTitle"><span id="st1">Squishy</span><span id="st2">&amp; Friends</span></div>
+    <span id="startLogo"></span>
     <canvas id="startc"></canvas>
+    <div id="nextUp">
+      <div class="nu-grid"><i></i><i class="on"></i><i></i><i></i><i class="mid"></i><i></i><i></i><i></i><i class="on"></i></div>
+      <div class="nu-text"><div class="nu-label">NEXT UP</div><div id="nuLevel">Level 1</div></div>
+    </div>
     <div id="startBtns">
-      <button id="bplay">Play</button>
+      <button id="bplay"><span class="bp-main">Play</span><span class="bp-sub" id="bplaySub">LEVEL 1</span></button>
       <button id="blevels">Levels</button>
       <button id="bdaily">Daily <span id="bdailyDate"></span></button>
     </div>
+    <button id="breset">Reset progress</button>
   </div>
 </div>
 <div id="levels">

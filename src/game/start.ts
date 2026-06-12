@@ -3,6 +3,8 @@
    was. The home heart in the header re-opens it. */
 import { SPR } from '../sprites';
 import { localToday } from '../gen/daily';
+import { mountWordmark } from './logo';
+import { resetProgress } from './persist';
 import type { Session } from './session';
 
 const CAST_POOL = [
@@ -28,6 +30,10 @@ export function createStart(d: StartDeps): Start {
   const el = document.getElementById('start') as HTMLElement;
   const sc = document.getElementById('startc') as HTMLCanvasElement;
   let raf = 0;
+
+  /* the one-and-only logo, mounted once (SSOT) */
+  const startLogo = document.getElementById('startLogo');
+  if (startLogo) mountWordmark(startLogo);
 
   /* three friends join Squishy on the shelf, rotating with the date */
   const dayN = Math.abs(localToday().split('-').reduce((a, b) => a + Number(b), 0));
@@ -69,6 +75,12 @@ export function createStart(d: StartDeps): Start {
     el.classList.add('show');
     const dd = document.getElementById('bdailyDate');
     if (dd) dd.textContent = localToday().slice(5);
+    /* Play + NEXT UP reflect the campaign level the player will resume */
+    const n = s.li + 1;
+    const sub = document.getElementById('bplaySub');
+    if (sub) sub.textContent = 'LEVEL ' + n;
+    const nu = document.getElementById('nuLevel');
+    if (nu) nu.textContent = 'Level ' + n;
     cancelAnimationFrame(raf);
     raf = requestAnimationFrame(loop);
   };
@@ -98,6 +110,26 @@ export function createStart(d: StartDeps): Start {
      tapping either returns to the start screen */
   bind('brand', () => {
     if (s.mode === 'idle') open();
+  });
+
+  /* Reset progress — one tap arms, a second within 3s wipes and reloads */
+  const breset = document.getElementById('breset');
+  let armed = false;
+  let armTimer = 0;
+  breset?.addEventListener('click', () => {
+    d.unlockAudio();
+    if (!armed) {
+      armed = true;
+      breset.textContent = 'Tap again to reset';
+      armTimer = window.setTimeout(() => {
+        armed = false;
+        breset.textContent = 'Reset progress';
+      }, 3000);
+      return;
+    }
+    clearTimeout(armTimer);
+    resetProgress();
+    location.reload();
   });
 
   return { open, close, isOpen: () => el.classList.contains('show') };
