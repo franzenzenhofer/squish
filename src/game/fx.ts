@@ -77,22 +77,6 @@ export function buildSprites(s: Session, movers: MoverReport[], t0: number): voi
   });
 }
 
-/** Header star counter: visible only on star levels, bounces on collect,
-    shows a little open heart when the last star is gone. */
-export function updateStarPill(s: Session, bump = false): void {
-  const el = document.getElementById('starpill');
-  if (!el) return;
-  const total = s.level.initState.stars.size;
-  el.hidden = total === 0;
-  if (total === 0) return;
-  el.textContent = s.renderStars.size > 0 ? '★ ' + s.renderStars.size : '♥';
-  if (bump) {
-    el.classList.remove('bump');
-    void el.offsetWidth;
-    el.classList.add('bump');
-  }
-}
-
 export function sparkleBurst(s: Session, x: number, y: number, n: number, cols: string[]): void {
   const now = performance.now();
   for (let i = 0; i < n; i++) {
@@ -175,7 +159,6 @@ export function handleFx(s: Session, audio: Audio, f: Fx, now: number): void {
     sparkleBurst(s, px, py, 12, [C.goldStar, C.yel, '#fff']);
     audio.collect();
     audio.buzz(8);
-    updateStarPill(s, true);
     if (s.renderStars.size === 0) {
       /* last star — the heart unlocks */
       s.heartUnlockT0 = now;

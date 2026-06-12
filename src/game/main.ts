@@ -7,7 +7,7 @@ import type { Dir, LevelDef } from '../engine/types';
 import { createAssist } from './assist';
 import { createAudio } from './audio';
 import { createEndings } from './endings';
-import { buildSprites, cx, cy, handleFx, onEnd, updateStarPill } from './fx';
+import { buildSprites, cx, cy, handleFx, onEnd } from './fx';
 import { drainFlood, fadeSwap } from './transition';
 import { createHints } from './hints';
 import { bindInput } from './input';
@@ -18,6 +18,7 @@ import { createLevelsPick } from './levelsPick';
 import { loadGame, replayLine, restoreReplay, sameDef, saveGame } from './persist';
 import { createDailyWin } from './share';
 import { createStart } from './start';
+import { HEART_SVG, mountWordmark } from './logo';
 import { hideToast, toast } from './toast';
 import { drawFrame, type RenderHooks } from './render';
 import { CURATED, blankSession, type Session } from './session';
@@ -35,6 +36,12 @@ const elMoves = document.getElementById('moves') as HTMLElement;
 const elCap = document.getElementById('cap') as HTMLElement;
 const elHintBtn = document.getElementById('hint') as HTMLButtonElement;
 const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* mount the one-and-only logo (SSOT) into the header heart-home + wordmark */
+const elHome = document.getElementById('home');
+if (elHome) elHome.innerHTML = HEART_SVG;
+const elLogo = document.getElementById('logo');
+if (elLogo) mountWordmark(elLogo);
 
 /* ------------------------------- layout --------------------------------- */
 function layout(): void {
@@ -91,7 +98,6 @@ function hud(): void {
   elMoves.innerHTML =
     '<b class="' + (s.moves > s.def.par ? 'over' : '') + '">' + s.moves +
     '</b><span class="dim">/' + s.def.par + '</span>';
-  updateStarPill(s);
 }
 
 function applyLevel(def: LevelDef): void {

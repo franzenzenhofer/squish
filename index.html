@@ -75,34 +75,31 @@
   .wm-sub b { color: var(--heart); font-weight: 700; }
 
   header {
-    position: relative; z-index: 1; overflow: hidden;
-    display: flex; align-items: center; justify-content: space-between; gap: 8px;
-    padding: 14px 16px; padding-top: calc(14px + env(safe-area-inset-top));
+    position: relative; z-index: 1;
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    padding: 12px 14px; padding-top: calc(12px + env(safe-area-inset-top));
   }
-  #brand {
-    font-weight: 800; font-size: 16px; letter-spacing: .04em;
-    display: flex; align-items: center;
-    flex: 1 1 auto; min-width: 0; overflow: hidden; white-space: nowrap;
+  #brand { display: flex; align-items: center; gap: 10px; min-width: 0; cursor: pointer; }
+  #home {
+    flex: none; width: 44px; height: 44px; border-radius: 15px; border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    background: #fff; color: var(--heart); box-shadow: 0 5px 0 var(--shadow6);
+    transition: transform .08s ease, box-shadow .08s ease;
   }
-  #brand b { color: var(--heart); font-size: 11px; margin-left: 5px; letter-spacing: .06em; }
+  #home:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--shadow6); }
+  #home .logo-heart { width: 24px; height: 24px; }
+  #logo { display: flex; min-width: 0; }
+  #logo .wordmark { font-size: 23px; }
+  #hud { display: flex; align-items: center; gap: 10px; flex: none; }
   #lvl {
-    font-size: 12px; color: #C18BA8; font-weight: 800; letter-spacing: .08em;
-    background: #fff; border: 2px solid var(--border); border-radius: 999px;
-    padding: 4px 12px; box-shadow: 0 3px 0 rgba(246,201,220,.45);
-    flex: none; white-space: nowrap;
+    font-size: 14px; color: var(--dim2); font-weight: 700; letter-spacing: .04em;
+    background: #fff; border-radius: 999px; padding: 5px 14px;
+    box-shadow: 0 4px 0 var(--shadow); white-space: nowrap;
   }
-  #starpill {
-    font-size: 12px; color: #E8AE32; font-weight: 800; letter-spacing: .08em;
-    background: #fff; border: 2px solid #F4D389; border-radius: 999px;
-    padding: 4px 10px; box-shadow: 0 3px 0 rgba(244,211,137,.45);
-    flex: none; white-space: nowrap;
-  }
-  #starpill.bump { animation: bump .4s cubic-bezier(.2,1.6,.4,1); }
-  @keyframes bump { 30% { transform: scale(1.25); } 100% { transform: scale(1); } }
-  #moves { font-size: 16px; flex: none; white-space: nowrap; text-align: right; }
-  #moves b { font-weight: 800; color: var(--ink); }
+  #moves { font-size: 17px; flex: none; white-space: nowrap; }
+  #moves b { font-weight: 700; color: var(--ink); }
   #moves b.over { color: var(--heart); }
-  .dim { color: #CDA4B7; font-weight: 800; }
+  .dim { color: var(--dim); font-weight: 700; }
 
   #main { position: relative; z-index: 1; flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; touch-action: none; }
   /* the board is dead-centre in the play area; messages float above it */
@@ -326,10 +323,14 @@
 </head>
 <body>
 <header>
-  <div id="brand"><button id="home" aria-label="menu">♥</button>Squishy <b>&amp; Friends</b></div>
-  <div id="lvl">01</div>
-  <div id="starpill" hidden></div>
-  <div id="moves"><b>0</b><span class="dim">/1</span></div>
+  <div id="brand">
+    <button id="home" aria-label="home"></button>
+    <span id="logo"></span>
+  </div>
+  <div id="hud">
+    <div id="lvl">01</div>
+    <div id="moves"><b>0</b><span class="dim">/1</span></div>
+  </div>
 </header>
 <main id="main">
   <canvas id="c"></canvas>

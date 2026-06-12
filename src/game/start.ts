@@ -94,7 +94,9 @@ export function createStart(d: StartDeps): Start {
     d.onDaily();
   });
   bind('blevels', () => d.onLevels());
-  bind('home', () => {
+  /* the heart-home button and the logo wordmark both live in #brand —
+     tapping either returns to the start screen */
+  bind('brand', () => {
     if (s.mode === 'idle') open();
   });
 
