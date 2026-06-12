@@ -14,7 +14,7 @@ import { sketch } from './sketch';
 export const TUTORIALS: LevelDef[] = [
   {
     w: 4, h: 4, target: [1, 0], dots: [[1, 3]],
-    par: 1, sol: 'U', cap: 'Swipe! Everybody slides'
+    par: 1, sol: 'U', cap: 'Swipe - Squishy & Friends slide'
   },
   {
     w: 4, h: 4, target: [3, 1], dots: [[0, 1], [1, 1]],

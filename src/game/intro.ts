@@ -146,8 +146,10 @@ export function createIntro(s: Session, onAllDismissed: () => void): Intro {
     const spec = current;
     const dpr = Math.min(window.devicePixelRatio || 1, 3);
     const cell = 62;
+    /* headroom above the tiles so a high hop (frog/bunny) is never clipped */
+    const topPad = Math.round(cell * 0.7);
     const w = cell * 3 + 16;
-    const h = cell + 16;
+    const h = cell + 16 + topPad;
     dc.width = w * dpr;
     dc.height = h * dpr;
     dc.style.width = w + 'px';
@@ -155,12 +157,12 @@ export function createIntro(s: Session, onAllDismissed: () => void): Intro {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     const t = (now - openedAt) % LOOP_MS;
     const cxAt = (gx: number): number => 8 + (gx + 0.5) * cell;
-    const cy = 8 + cell / 2;
+    const cy = 8 + topPad + cell / 2;
     /* tiles */
     for (let i = 0; i < 3; i++) {
       ctx.globalAlpha = i % 2 === 0 ? 0.55 : 0.9;
       ctx.fillStyle = i % 2 === 0 ? C.lattice : C.latticeAlt;
-      U.rrect(ctx, 8 + i * cell + 2, 8 + 2, cell - 4, cell - 4, cell * 0.18);
+      U.rrect(ctx, 8 + i * cell + 2, 8 + topPad + 2, cell - 4, cell - 4, cell * 0.18);
       ctx.fill();
       ctx.globalAlpha = 1;
       const tile = spec.tiles[i] as IntroTile;

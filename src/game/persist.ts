@@ -50,12 +50,19 @@ export function saveAdvance(s: Session, nextLi: number): void {
   }
 }
 
-/** Wipe campaign progress, results and daily-best times (keeps friend-met
-    flags). Used by the start screen's "Reset progress" link. */
+/** Reset EVERYTHING: progress, results, daily bests, the first-meet overlay
+    flags (squishy-met-v2) AND the generated-level cache — every squishy key, so
+    the game is truly fresh and all overlays greet again. One sweep means no key
+    is ever forgotten (SSOT: match by prefix, not a hand-listed set). Used by the
+    start screen's "Reset progress" link. */
 export function resetProgress(): void {
   try {
-    localStorage.removeItem(KEY_V2);
-    localStorage.removeItem(KEY_V1);
+    const keys: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && (k.startsWith('squish-') || k.startsWith('squishy-'))) keys.push(k);
+    }
+    for (const k of keys) localStorage.removeItem(k);
   } catch {
     /* storage blocked — nothing to clear */
   }
