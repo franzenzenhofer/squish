@@ -22,8 +22,8 @@ export const TUTORIALS: LevelDef[] = [
   },
   {
     /* no caption: pillows (walls) are explained by their overlay, not a bubble */
-    w: 4, h: 4, target: [3, 0], dots: [[0, 1], [0, 3]], walls: [[2, 3]],
-    par: 2, sol: 'UR'
+    w: 4, h: 4, target: [3, 3], dots: [[0, 1], [0, 3]], walls: [[2, 1]],
+    par: 2, sol: 'DR'
   }
 ];
 

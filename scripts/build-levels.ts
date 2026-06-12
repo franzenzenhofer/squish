@@ -1,6 +1,18 @@
-/* Build the 40 curated levels: generate, minimality-pass, caption, verify,
-   write src/levels.json. Deterministic — rerunning yields identical output. */
+/* Build the 40 curated levels: generate, minimality-pass, verify, write
+   src/levels.json.
+
+   GUARD: src/levels.json is the canonical PINNED level set (Franz, 2026-06-12:
+   the original hand-tuned curve plays better than a constrained regeneration -
+   never silently replace it). This script REFUSES to overwrite it unless
+   FORCE_LEVELS=1 is set, so a casual rebuild can never destroy the curve. */
 import { writeFileSync } from 'node:fs';
+
+if (process.env.FORCE_LEVELS !== '1') {
+  console.error('refusing to overwrite the pinned src/levels.json - the curated');
+  console.error('curve is hand-tuned. Run with FORCE_LEVELS=1 only if you really');
+  console.error('mean to regenerate every level.');
+  process.exit(1);
+}
 import { CODEDIR, DIRCODE, cloneState, isWin, makeLevel } from '../src/engine/core';
 import { move } from '../src/engine/move';
 import { solve, spamSolvable } from '../src/engine/solve';

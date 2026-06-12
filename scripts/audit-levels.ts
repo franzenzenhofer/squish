@@ -104,8 +104,9 @@ const punishing = rows.filter((r) => r.near3 > 0);
 console.log('levels with dead states within 3 swipes:',
   punishing.length ? punishing.map((r) => 'L' + r.n + ' (' + r.near3 + ')').join(', ') : 'none');
 
-console.log('actors above the heart:',
+/* The original curated set is grandfathered (Franz, 2026-06-12: the originals
+   play better - keep them). The no-actor-above-heart rule is enforced at
+   GENERATION time (tryGenerate) for every new, daily and endless level, so this
+   is informational for the curated set, not a failure. */
+console.log('actors above the heart (curated, grandfathered):',
   aboveHeart.length ? aboveHeart.map((n) => 'L' + n).join(', ') : 'none');
-if (aboveHeart.length > 0) {
-  throw new Error('levels place an actor above the heart: ' + aboveHeart.map((n) => 'L' + n).join(', '));
-}
