@@ -41,8 +41,8 @@ function layout(): void {
   s.dpr = Math.min(window.devicePixelRatio || 1, 3);
   const pad = 14;
   const aw = main.clientWidth - pad * 2;
-  /* 88px under the board is the message strip (toast + caption) */
-  const ah = main.clientHeight - pad * 2 - 88;
+  /* the board fills the play area and sits dead-centre; messages float on top */
+  const ah = main.clientHeight - pad * 2;
   s.cssSize = Math.max(140, Math.floor(Math.min(aw, ah)));
   canvas.style.width = s.cssSize + 'px';
   canvas.style.height = s.cssSize + 'px';
@@ -138,8 +138,11 @@ function applyLevel(def: LevelDef): void {
   hints.levelLoaded(oracleKey());
   if (s.play.kind === 'campaign') assist.prefetch(s.li + 1);
   saveGame(s);
-  intro.maybeShow(s);
-  if (startMenu.isOpen()) s.mode = 'menu'; // menu stays on top until play
+  /* first-meet cards greet new friends/elements only once the player is
+     actually in the level — never behind the start menu, where the 7s
+     auto-dismiss would burn them unseen. The menu fires them on Play. */
+  if (startMenu.isOpen()) s.mode = 'menu';
+  else intro.maybeShow(s);
 }
 
 function loadLevel(li: number, fromWin = false): void {
@@ -345,7 +348,9 @@ const levelsPick = createLevelsPick({
 const startMenu = createStart({
   s,
   onPlay: () => {
-    if (intro.isOpen()) s.mode = 'intro';
+    /* reveal the level the player left under the menu, then greet any
+       not-yet-met friends or elements it holds */
+    intro.maybeShow(s);
   },
   onDaily: () => startDaily(),
   onLevels: () => levelsPick.open(),
@@ -369,6 +374,9 @@ installTestApi({
 const saved = loadGame();
 s.results = saved.results;
 s.daily = saved.daily;
+/* the menu owns the screen on boot — open it first so the level we restore
+   underneath it does not fire its intro cards behind the menu */
+startMenu.open();
 if (saved.play.kind === 'daily' && saved.def && saved.play.date === localToday()) {
   /* resume today's daily exactly where it was left */
   s.li = saved.li;
@@ -401,7 +409,6 @@ if (saved.play.kind === 'daily' && saved.def && saved.play.date === localToday()
 } else {
   loadLevel(saved.li);
 }
-startMenu.open();
 /* bake today's daily in its own worker while the player plays */
 window.setTimeout(() => void assist.getDaily(localToday()), 4000);
 requestAnimationFrame(render);

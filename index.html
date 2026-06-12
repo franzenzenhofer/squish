@@ -17,6 +17,9 @@
     --border: #F6C9DC;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  /* lock the text scale so a bigger iOS system font never inflates the
+     layout out of shape — the tuned px sizes hold on every device */
+  html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
   html, body { margin: 0; height: 100%; }
   body {
     position: fixed; inset: 0;
@@ -65,10 +68,10 @@
   .dim { color: #CDA4B7; font-weight: 800; }
 
   #main { position: relative; z-index: 1; flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; touch-action: none; }
-  /* the board sits a bit high — the strip below it belongs to messages */
-  canvas { display: block; margin-bottom: 88px; }
+  /* the board is dead-centre in the play area; messages float above it */
+  canvas { display: block; }
   #cap {
-    position: absolute; left: 50%; bottom: 6px; transform: translateX(-50%);
+    position: absolute; left: 50%; top: 6px; transform: translateX(-50%);
     max-width: calc(100% - 24px); text-align: center;
     font-size: 12px; color: #C18BA8; font-weight: 800; letter-spacing: .04em;
     background: #fff; border: 2px solid var(--border); border-radius: 999px;
@@ -81,7 +84,7 @@
   #cap.mute { opacity: 0; }
 
   #toast {
-    position: absolute; left: 50%; bottom: 54px;
+    position: absolute; left: 50%; top: 6px;
     transform: translate(-50%, 10px) scale(.88);
     background: #fff; border: 2px solid var(--border); border-radius: 999px;
     padding: 9px 18px; font-size: 14px; font-weight: 800; color: var(--ink);
@@ -108,8 +111,9 @@
   #fade.show { opacity: .95; }
 
   #intro {
-    position: absolute; inset: 0; z-index: 7; display: none;
-    align-items: center; justify-content: center;
+    position: fixed; inset: 0; z-index: 7; display: none;
+    align-items: center; justify-content: center; overflow-y: auto;
+    padding: max(8px, env(safe-area-inset-top)) 8px max(8px, env(safe-area-inset-bottom));
     background: rgba(255,240,247,.55);
   }
   #intro.show { display: flex; }
@@ -127,8 +131,9 @@
   @keyframes tappulse { 50% { opacity: .45; } }
 
   #dailyWin {
-    position: absolute; inset: 0; z-index: 7; display: none;
+    position: fixed; inset: 0; z-index: 7; display: none;
     align-items: center; justify-content: center; overflow-y: auto;
+    padding: max(8px, env(safe-area-inset-top)) 8px max(8px, env(safe-area-inset-bottom));
   }
   #dailyWin.show { display: flex; }
   #dwCardBox {
@@ -155,8 +160,9 @@
   }
 
   #start, #levels {
-    position: absolute; inset: 0; z-index: 8; display: none;
+    position: fixed; inset: 0; z-index: 8; display: none;
     flex-direction: column; align-items: center; overflow-y: auto;
+    padding: max(8px, env(safe-area-inset-top)) 0 max(8px, env(safe-area-inset-bottom));
     background: radial-gradient(130% 90% at 50% -15%, #FFFAFC 0%, #FFEFF6 42%, #FFE2EE 100%);
   }
   #start.show, #levels.show { display: flex; }
@@ -293,46 +299,8 @@
   <div id="cap"></div>
   <div id="toast"></div>
   <div id="fade"></div>
-  <div id="intro">
-    <div id="introCard">
-      <canvas id="introP" width="96" height="96"></canvas>
-      <div id="introName"></div>
-      <canvas id="introD"></canvas>
-      <div id="introLine"></div>
-      <div id="introTap">Tap to play</div>
-    </div>
-  </div>
   <div id="flood"></div>
   <div id="msg"><div id="msgbig"></div><div id="msgsub"></div></div>
-  <div id="dailyWin">
-    <div id="dwCardBox">
-      <div id="dwTitle">Congrats!</div>
-      <div id="dwMoves"></div>
-      <canvas id="dwCard"></canvas>
-      <div id="dwBtns">
-        <button id="dwShare">Share</button>
-        <button id="dwContinue">Keep playing</button>
-      </div>
-    </div>
-  </div>
-  <div id="start">
-    <div id="startInner">
-      <div id="startTitle"><span id="st1">Squishy</span><span id="st2">&amp; Friends</span></div>
-      <canvas id="startc"></canvas>
-      <div id="startBtns">
-        <button id="bplay">Play</button>
-        <button id="blevels">Levels</button>
-        <button id="bdaily">Daily <span id="bdailyDate"></span></button>
-      </div>
-    </div>
-  </div>
-  <div id="levels">
-    <div id="levelsInner">
-      <div id="levelsTitle">Levels</div>
-      <div id="levelsGrid"></div>
-      <button id="blback">Back</button>
-    </div>
-  </div>
 </main>
 <footer>
   <button id="undo" aria-label="undo">
@@ -348,6 +316,47 @@
     <svg viewBox="0 0 24 24"><path d="M5 9.5 H8 L12.5 6 V18 L8 14.5 H5 Z" fill="currentColor" stroke="none"/><path class="wave" d="M16 9.5 a4 4 0 0 1 0 5"/><path class="wave" d="M18.4 7.5 a7 7 0 0 1 0 9"/><path class="slash" d="M16 9 L21 15 M21 9 L16 15"/></svg>
   </button>
 </footer>
+<!-- full-screen overlays live at body level so they sit above header/footer
+     (a child of #main is trapped in its stacking context and the footer,
+     a same-z sibling, would paint over it) -->
+<div id="intro">
+  <div id="introCard">
+    <canvas id="introP" width="96" height="96"></canvas>
+    <div id="introName"></div>
+    <canvas id="introD"></canvas>
+    <div id="introLine"></div>
+    <div id="introTap">Tap to play</div>
+  </div>
+</div>
+<div id="dailyWin">
+  <div id="dwCardBox">
+    <div id="dwTitle">Congrats!</div>
+    <div id="dwMoves"></div>
+    <canvas id="dwCard"></canvas>
+    <div id="dwBtns">
+      <button id="dwShare">Share</button>
+      <button id="dwContinue">Keep playing</button>
+    </div>
+  </div>
+</div>
+<div id="start">
+  <div id="startInner">
+    <div id="startTitle"><span id="st1">Squishy</span><span id="st2">&amp; Friends</span></div>
+    <canvas id="startc"></canvas>
+    <div id="startBtns">
+      <button id="bplay">Play</button>
+      <button id="blevels">Levels</button>
+      <button id="bdaily">Daily <span id="bdailyDate"></span></button>
+    </div>
+  </div>
+</div>
+<div id="levels">
+  <div id="levelsInner">
+    <div id="levelsTitle">Levels</div>
+    <div id="levelsGrid"></div>
+    <button id="blback">Back</button>
+  </div>
+</div>
 <script type="module" src="/src/game/main.ts"></script>
 </body>
 </html>

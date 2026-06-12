@@ -48,6 +48,16 @@ async function boot(page: import('@playwright/test').Page): Promise<void> {
   });
 }
 
+/** Dismiss every queued first-meet card until play resumes. */
+async function clearIntros(page: import('@playwright/test').Page): Promise<void> {
+  await page.evaluate(async () => {
+    for (let i = 0; i < 40 && window.__squishy?.state().mode === 'intro'; i++) {
+      window.__squishy.dismissIntro();
+      await new Promise((r) => setTimeout(r, 16));
+    }
+  });
+}
+
 test('solver beats levels 1-5 with auto-advance', async ({ page }) => {
   await boot(page);
   await page.evaluate(() => localStorage.clear());
@@ -72,7 +82,7 @@ test('solver beats levels 1-5 with auto-advance', async ({ page }) => {
       },
       li, { timeout: 10000 }
     );
-    await page.evaluate(() => window.__squishy?.dismissIntro());
+    await clearIntros(page);
   }
 });
 
@@ -91,7 +101,7 @@ test('a trapping line triggers the oh-no auto-undo', async ({ page }) => {
   await boot(page);
   await page.evaluate(() => localStorage.clear());
   await page.evaluate((n) => window.__squishy?.loadLevel(n), target);
-  await page.evaluate(() => window.__squishy?.dismissIntro());
+  await clearIntros(page);
   await page.waitForFunction(() => window.__squishy?.state().oracleReady === true);
   for (const d of line as Dir[]) {
     await page.evaluate((dir) => window.__squishy?.move(dir as never), d);
@@ -114,11 +124,7 @@ test('daily solve shows the congrats modal and returns to campaign', async ({ pa
     const m = window.__squishy?.state();
     return m !== undefined && m.play.startsWith('daily') && m.mode !== 'loading';
   }, undefined, { timeout: 120000 });
-  await page.evaluate(() => {
-    window.__squishy?.dismissIntro();
-    window.__squishy?.dismissIntro();
-    window.__squishy?.dismissIntro();
-  });
+  await clearIntros(page);
   await page.waitForFunction(() => window.__squishy?.state().oracleReady === true,
     undefined, { timeout: 60000 });
   for (let i = 0; i < 16; i++) {
@@ -144,7 +150,7 @@ test('mid-level state survives a reload', async ({ page }) => {
   await boot(page);
   await page.evaluate(() => localStorage.clear());
   await page.evaluate(() => window.__squishy?.loadLevel(4));
-  await page.evaluate(() => window.__squishy?.dismissIntro());
+  await clearIntros(page);
   await page.waitForFunction(() => window.__squishy?.state().oracleReady === true);
   const sol = await page.evaluate(() => window.__squishy?.solution());
   expect(sol && sol.length).toBeGreaterThan(2);
@@ -162,4 +168,49 @@ test('mid-level state survives a reload', async ({ page }) => {
   expect(after?.li).toBe(before?.li);
   expect(after?.moves).toBe(before?.moves);
   expect(after?.ser).toBe(before?.ser);
+});
+
+test('the board sits dead-centre in the play area', async ({ page }) => {
+  await boot(page);
+  await page.evaluate(() => localStorage.clear());
+  await page.evaluate(() => window.__squishy?.loadLevel(0));
+  await clearIntros(page);
+  await page.waitForFunction(() => window.__squishy?.state().mode === 'idle');
+  const off = await page.evaluate(() => {
+    const c = (document.getElementById('c') as HTMLElement).getBoundingClientRect();
+    const m = (document.getElementById('main') as HTMLElement).getBoundingClientRect();
+    return {
+      dx: c.left + c.width / 2 - (m.left + m.width / 2),
+      dy: c.top + c.height / 2 - (m.top + m.height / 2)
+    };
+  });
+  expect(Math.abs(off.dx), 'board horizontally centred').toBeLessThanOrEqual(1.5);
+  expect(Math.abs(off.dy), 'board vertically centred').toBeLessThanOrEqual(1.5);
+});
+
+test('a fresh player meets new friends and elements on first play', async ({ page }) => {
+  /* first curated level that carries any intro-worthy friend or element */
+  const KINDS = [
+    'walls', 'stars', 'ice', 'jelly', 'mush', 'oneway', 'breeze', 'portals',
+    'split', 'turn', 'sticky', 'noms', 'penguins', 'bears', 'ghosts', 'bunnies',
+    'frogs', 'pandas', 'cats', 'chicks', 'pigs', 'boxes', 'balloons', 'snails'
+  ];
+  const introLevel = LEVELS.findIndex((d) => {
+    const rec = d as unknown as Record<string, unknown[]>;
+    return KINDS.some((k) => Array.isArray(rec[k]) && rec[k].length > 0);
+  });
+  expect(introLevel, 'a curated level with an element exists').toBeGreaterThan(-1);
+  await boot(page);
+  await page.evaluate(() => localStorage.clear());
+  /* never-met cast -> entering the level must raise a first-meet card that
+     sits ON TOP (its own overlay), not behind the closed menu */
+  await page.evaluate((n) => window.__squishy?.loadLevel(n), introLevel);
+  await page.waitForFunction(() => window.__squishy?.state().mode === 'intro',
+    undefined, { timeout: 5000 });
+  expect(await page.evaluate(
+    () => document.getElementById('intro')?.classList.contains('show')
+  )).toBe(true);
+  /* dismissing the whole queue returns to play */
+  await clearIntros(page);
+  expect(await page.evaluate(() => window.__squishy?.state().mode)).toBe('idle');
 });

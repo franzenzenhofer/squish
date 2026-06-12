@@ -1,16 +1,67 @@
-/* First-meet cards — the first time a friend type appears, a cute card pops
-   in: live portrait, a 3-tile looping demo of HOW it moves, one short line.
-   Tap (or 7s) dismisses. Met friends are remembered in localStorage. */
+/* First-meet cards — the first time a friend or board element appears, a cute
+   card pops in: a live portrait, a 3-tile looping demo of how it behaves, and
+   one short line. Tap (or 7s) dismisses. Met kinds are kept in localStorage. */
 import { C } from '../lib/palette';
 import * as U from '../lib/draw';
 import { FLD } from '../fields';
 import { SPR } from '../sprites';
 import { easeOC } from './fx';
+import type { Dir4 } from '../lib/types';
 import type { Session } from './session';
-import { INTRO_SPECS, LOOP_MS, type IntroSpec } from './introSpecs';
+import { INTRO_SPECS, LOOP_MS, type IntroSpec, type IntroTile } from './introSpecs';
 
-const MET_KEY = 'squishy-met-v1';
+/* v2: first-meet now covers elements too, so everyone re-meets the cast once */
+const MET_KEY = 'squishy-met-v2';
 const AUTO_MS = 7000;
+
+/* element kind -> field renderer (FLD) key; nom/star are sprites, handled
+   apart. Mirrors the dispatch in render.ts drawFields(). */
+const TILE_FIELD: Record<string, string> = {
+  wall: 'wall', ice: 'ice', honey: 'honey', oneway: 'oneway',
+  split: 'sparkle', portal: 'portal', turn: 'turner',
+  mushroom: 'mushroom', breeze: 'pinwheel', jelly: 'jelly'
+};
+
+interface TileBox { px: number; py: number; cell: number; now: number; gx: number; gy: number }
+
+/** Draw one demo-strip tile (the element or obstacle that sits on it). */
+function drawTile(
+  ctx: CanvasRenderingContext2D, tile: IntroTile, o: TileBox,
+  dir: Dir4 | undefined, cleared: boolean
+): void {
+  if (tile === 'floor') return;
+  if (tile === 'nom') {
+    if (!cleared) SPR.nomster?.(ctx, { x: o.px, y: o.py, cell: o.cell, now: o.now });
+    return;
+  }
+  if (tile === 'star') {
+    if (!cleared) {
+      SPR.star?.(ctx, { x: o.px, y: o.py, cell: o.cell, now: o.now, r: o.cell * 0.26, seed: 5, idle: true });
+    }
+    return;
+  }
+  if (tile === 'ice' && cleared) {
+    FLD.shards?.(ctx, o);
+    return;
+  }
+  FLD[TILE_FIELD[tile] ?? '']?.(ctx, { ...o, dir });
+}
+
+/** Draw the big portrait icon for a friend/mover sprite or an element field. */
+function drawIcon(ctx: CanvasRenderingContext2D, spec: IntroSpec, now: number): void {
+  if (spec.kind === 'nom') {
+    SPR.nomster?.(ctx, { x: 48, y: 50, cell: 96, now });
+    return;
+  }
+  const fld = TILE_FIELD[spec.kind];
+  if (fld) {
+    FLD[fld]?.(ctx, { px: 48, py: 50, cell: 88, now, gx: 0, gy: 0, dir: spec.tileDir });
+    return;
+  }
+  SPR[spec.kind === 'dot' ? 'star' : spec.kind]?.(ctx, {
+    x: 48, y: 52, cell: 110, now, idle: true, mood: 'happy', seed: 3
+  });
+}
 
 function getMet(): Set<string> {
   try {
@@ -32,16 +83,26 @@ function markMet(kind: string): void {
   }
 }
 
-/** Which intro-spec keys appear in this level? */
+/** Which intro-spec keys appear in this level? Friends first, then the other
+    movers, then board elements — so a card queue greets them in that order. */
 function presentKinds(s: Session): string[] {
   const out: string[] = [];
   const gs = s.level.initState;
+  const lv = s.level;
   const pairs: Array<[number, string]> = [
     [gs.penguins.length, 'penguin'], [gs.bunnies.length, 'bunny'],
     [gs.frogs.length, 'frog'], [gs.bears.length, 'bear'],
     [gs.ghosts.length, 'ghost'], [gs.pigs.length, 'pig'],
     [gs.cats.length, 'cat'], [gs.pandas.length, 'panda'],
-    [gs.chicks.length, 'chick'], [gs.stars.size, 'star']
+    [gs.chicks.length, 'chick'],
+    [gs.boxes.length, 'box'], [gs.balloons.length, 'balloon'],
+    [gs.snails.length, 'snail'],
+    [gs.stars.size, 'star'],
+    [lv.walls.size, 'wall'], [lv.ice.size, 'ice'], [lv.noms.size, 'nom'],
+    [lv.sticky.size, 'honey'], [lv.oneway.size, 'oneway'],
+    [lv.split.size, 'split'], [lv.portal.size, 'portal'],
+    [lv.turn.size, 'turn'], [lv.mush.size, 'mushroom'],
+    [lv.breeze.size, 'breeze'], [lv.jelly.size, 'jelly']
   ];
   for (const [n, kind] of pairs) if (n > 0) out.push(kind);
   return out;
@@ -74,9 +135,7 @@ export function createIntro(s: Session, onAllDismissed: () => void): Intro {
     pc.width = 96 * dpr;
     pc.height = 96 * dpr;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    SPR[current.kind === 'dot' ? 'star' : current.kind]?.(ctx, {
-      x: 48, y: 52, cell: 110, now, idle: true, mood: 'happy', seed: 3
-    });
+    drawIcon(ctx, current, now);
   };
 
   const drawDemo = (now: number): void => {
@@ -102,16 +161,9 @@ export function createIntro(s: Session, onAllDismissed: () => void): Intro {
       U.rrect(ctx, 8 + i * cell + 2, 8 + 2, cell - 4, cell - 4, cell * 0.18);
       ctx.fill();
       ctx.globalAlpha = 1;
-      const tile = spec.tiles[i];
-      const cleared = spec.clearTile && spec.clearTile.at === i && t >= spec.clearTile.t;
-      const o = { px: cxAt(i), py: cy, cell, now, gx: i, gy: 0 };
-      if (tile === 'wall') FLD.wall?.(ctx, o);
-      else if (tile === 'ice') FLD.ice?.(ctx, o);
-      else if (tile === 'nom' && !cleared) {
-        SPR.nomster?.(ctx, { x: cxAt(i), y: cy, cell, now });
-      } else if (tile === 'star' && !cleared) {
-        SPR.star?.(ctx, { x: cxAt(i), y: cy, cell, now, r: cell * 0.26, seed: 5, idle: true });
-      }
+      const tile = spec.tiles[i] as IntroTile;
+      const cleared = !!(spec.clearTile && spec.clearTile.at === i && t >= spec.clearTile.t);
+      drawTile(ctx, tile, { px: cxAt(i), py: cy, cell, now, gx: i, gy: 0 }, spec.tileDir, cleared);
     }
     /* swipe chevron(s) */
     for (const ct of spec.chevrons) {
@@ -131,6 +183,29 @@ export function createIntro(s: Session, onAllDismissed: () => void): Intro {
       ctx.lineTo(px - 8, cy - cell * 0.42);
       ctx.stroke();
       ctx.restore();
+    }
+    /* friends star as themselves; elements are demoed by a plain squishy */
+    const actorName = spec.actor ?? (spec.kind === 'dot' ? 'squishy' : spec.kind);
+    /* splitter: a static twin stays behind once the actor passes */
+    if (spec.clone && t >= spec.clone.t) {
+      SPR[actorName]?.(ctx, {
+        x: cxAt(spec.clone.at), y: cy, cell, now,
+        r: cell * 0.3, mood: 'happy', seed: 12, idle: true
+      });
+    }
+    /* portal: the actor blinks out of one tile and into its twin */
+    if (spec.teleport) {
+      const tp = spec.teleport;
+      let ax = tp.at;
+      let scl = 1;
+      if (t >= tp.t - 200 && t < tp.t) scl = Math.max(0.05, (tp.t - t) / 200);
+      else if (t >= tp.t && t < tp.t + 200) { ax = tp.to; scl = Math.max(0.05, (t - tp.t) / 200); }
+      else if (t >= tp.t + 200) ax = tp.to;
+      SPR[actorName]?.(ctx, {
+        x: cxAt(ax), y: cy, cell, now, r: cell * 0.3 * scl,
+        mood: 'happy', seed: 4, idle: scl === 1
+      });
+      return;
     }
     /* actor position from keyframes */
     const keys = spec.keys;
@@ -161,8 +236,10 @@ export function createIntro(s: Session, onAllDismissed: () => void): Intro {
         r: cell * 0.26, mood: 'happy', seed: 9, idle: q === 0 || q === 1
       });
     }
+    /* gobbled by a nomster — the squishy is gone */
+    if (spec.vanish !== undefined && t >= spec.vanish) return;
     const rot = spec.bumpTurn && t > 900 ? Math.min(1, (t - 900) / 300) * (Math.PI / 2) : 0;
-    SPR[spec.kind]?.(ctx, {
+    SPR[actorName]?.(ctx, {
       x: cxAt(x), y: cy - hopLift, cell, now,
       mood: zzz ? 'sleepy' : 'happy', seed: 4, idle: hopLift === 0, rot
     });
