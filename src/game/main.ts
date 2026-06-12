@@ -36,7 +36,11 @@ const elCap = document.getElementById('cap') as HTMLElement;
 const elCapText = document.getElementById('capText') as HTMLElement;
 const elHintBtn = document.getElementById('hint') as HTMLButtonElement;
 const elFooter = document.querySelector('footer') as HTMLElement;
-const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+/* The game ALWAYS animates (Franz, 2026-06-12): honoring prefers-reduced-motion
+   froze the win replay, the Next countdown and the bloom on devices with iOS
+   Reduce Motion / Low Power, which reads as broken in a game built on cuteness.
+   Animations here are gentle and functional, so the OS flag is ignored. */
+const reduced = false;
 
 /* the current level's goal line, deferred behind first-meet overlays so the
    bubble and an overlay are never on screen together (the hard gate). The bubble

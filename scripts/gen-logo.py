@@ -18,8 +18,9 @@ FONT = 'public/fonts/fredoka-latin.woff2'
 SUB_SCALE = 0.34   # "& Friends" size relative to "Squishy"
 SUB_SPACE = 200    # gap between "&" and "Friends", font units (pre-scale)
 SQUISHY_FOOT = 236 # bottom of the "Squishy" q/y descenders, font units
-SUB_GAP = 12       # vertical gap from those descenders to the "& Friends" cap
+SUB_GAP = -38      # tucked up into the descender zone (Franz: tighter, no whitespace)
 SUB_CAP = 700      # cap height of the subline glyphs (font units, pre-scale)
+SUB_DX = 40        # nudge "& Friends" right of true centre (Franz: a few px right)
 
 
 def main():
@@ -49,7 +50,7 @@ def main():
 
     main_w = width('Squishy')
     sub_nat = width('&') + SUB_SPACE + width('Friends')
-    sub_x = main_w / 2 - (sub_nat * SUB_SCALE) / 2
+    sub_x = main_w / 2 - (sub_nat * SUB_SCALE) / 2 + SUB_DX
     sub_base = SQUISHY_FOOT + SUB_GAP + SUB_SCALE * SUB_CAP
     paths = {
         'S': bake('Squishy', (1, 0, 0, -1, 0, 0)),

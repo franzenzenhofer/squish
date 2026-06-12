@@ -345,17 +345,8 @@
     45% { transform: translate(-5px,-2px); } 60% { transform: translate(4px,3px); }
     75% { transform: translate(-3px,1px); } 90% { transform: translate(2px,-1px); }
   }
-  @media (prefers-reduced-motion: reduce) {
-    .shake { animation: none; } footer button { transition: none; }
-    .rate .rh { transition: none; }
-    #cap.show, #toast.show { animation: none; }
-    #winCard { animation: none; }
-    /* the countdown bar still shows (functional auto-advance indicator); it just
-       jumps to a steady half-drained state instead of sweeping */
-    #winNext.counting::after { animation: none; opacity: 1; transform: scaleX(.5); }
-    #fade { transition: none; }
-    #introCard { animation: none; } #introTap { animation: none; }
-  }
+  /* No prefers-reduced-motion overrides: the game always animates (the gentle
+     animations ARE the product - frozen countdowns/replays read as broken). */
 </style>
 </head>
 <body>
