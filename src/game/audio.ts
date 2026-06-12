@@ -26,6 +26,7 @@ export interface Audio {
   scare: () => void;
   oink: () => void;
   ohno: () => void;
+  talk: () => void;
   buzz: (p: number | number[]) => void;
 }
 
@@ -36,7 +37,8 @@ const MUTE_KEY = 'squishy-muted';
 
 /* repeat-prone sounds get a tiny refractory period so fast play never rattles */
 const GATE_MS: Record<string, number> = {
-  slide: 90, tick: 70, hop: 60, crack: 80, turn: 80, oink: 90, squish: 80, boing: 70
+  slide: 90, tick: 70, hop: 60, crack: 80, turn: 80, oink: 90, squish: 80, boing: 70,
+  talk: 140
 };
 
 export function createAudio(): Audio {
@@ -224,6 +226,12 @@ export function createAudio(): Audio {
     ohno: () => {
       tone(520, 0.18, 'sine', 0.07, 360);
       tone(390, 0.22, 'sine', 0.065, 260, 0.16);
+    },
+    /* a soft "boop-beep" — Squishy piping up when a bubble appears */
+    talk: () => {
+      if (!gate('talk')) return;
+      tone(SCALE[2] as number, 0.045, 'sine', 0.05);
+      tone(SCALE[4] as number, 0.05, 'sine', 0.045, undefined, 0.055);
     },
     buzz: (p) => {
       try {

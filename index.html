@@ -104,37 +104,29 @@
   #main { position: relative; z-index: 1; flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; touch-action: none; }
   /* the board is dead-centre in the play area; messages float above it */
   canvas { display: block; }
-  #cap {
-    position: absolute; left: 50%; top: 6px; transform: translateX(-50%);
-    max-width: calc(100% - 24px); text-align: center;
-    font-size: 12px; color: #C18BA8; font-weight: 800; letter-spacing: .04em;
-    background: #fff; border: 2px solid var(--border); border-radius: 999px;
-    padding: 7px 16px; box-shadow: 0 3px 0 rgba(246,201,220,.4);
-    pointer-events: none; opacity: 0; transition: opacity .4s ease;
+  /* Squishy's speech bubble — every notification is "spoken" from above the
+     board with a soft down-tail and a gentle talking sway. Centred via auto
+     margins so the sway owns `transform`. */
+  #cap, #toast {
+    position: absolute; top: 8px; left: 0; right: 0; margin-inline: auto;
+    width: fit-content; max-width: calc(100% - 28px); z-index: 6;
+    background: #fff; border: 2px solid var(--bubble-bd); border-radius: 18px;
+    padding: 9px 18px; font-size: 14px; font-weight: 600; color: var(--soft);
+    line-height: 1.25; text-align: center; pointer-events: none;
+    box-shadow: 0 12px 22px -10px rgba(255,109,158,.4);
+    opacity: 0; transition: opacity .26s ease; transform-origin: center bottom;
   }
-  #cap.show { opacity: 1; }
-  #cap.bad { color: var(--heart); }
+  #cap.show, #toast.show { opacity: 1; animation: sf-talk 2.6s ease-in-out infinite; }
+  #cap b, #toast b { color: var(--heart); font-weight: 700; }
+  #cap.bad, #toast.bad { color: var(--heart); border-color: #FFB7CE; }
   /* a toast takes the stage — the caption politely dips until it's gone */
-  #cap.mute { opacity: 0; }
-
-  #toast {
-    position: absolute; left: 50%; top: 6px;
-    transform: translate(-50%, 10px) scale(.88);
-    background: #fff; border: 2px solid var(--border); border-radius: 999px;
-    padding: 9px 18px; font-size: 14px; font-weight: 800; color: var(--ink);
-    letter-spacing: .04em; white-space: nowrap; max-width: calc(100% - 28px);
-    overflow: hidden; text-overflow: ellipsis;
-    box-shadow: 0 5px 0 rgba(246,201,220,.5);
-    opacity: 0; pointer-events: none; z-index: 6;
-    transition: opacity .22s ease, transform .26s cubic-bezier(.2,1.4,.4,1);
+  #cap.mute { opacity: 0; animation: none; }
+  #cap::before, #toast::before, #cap::after, #toast::after {
+    content: ''; position: absolute; left: 50%; transform: translateX(-50%); width: 0; height: 0;
   }
-  #toast.show { opacity: 1; transform: translate(-50%, 0) scale(1); }
-  #toast.bad { color: var(--heart); border-color: #FFB7CE; }
-  #toast.bad.show { animation: tug .42s ease; }
-  @keyframes tug {
-    0%, 100% { rotate: 0deg; }
-    25% { rotate: -2.4deg; } 55% { rotate: 2.2deg; } 80% { rotate: -1.2deg; }
-  }
+  #cap::before, #toast::before { bottom: -13px; border-left: 11px solid transparent; border-right: 11px solid transparent; border-top: 13px solid var(--bubble-bd); }
+  #cap::after,  #toast::after  { bottom: -9px;  border-left: 8px solid transparent;  border-right: 8px solid transparent;  border-top: 10px solid #fff; }
+  @keyframes sf-talk { 0%, 100% { transform: translateY(0) rotate(-1.4deg); } 50% { transform: translateY(-3px) rotate(1.4deg); } }
 
   #flood { position: absolute; inset: 0; background: var(--pink); clip-path: circle(0px at 50% 50%); pointer-events: none; z-index: 5; }
   #fade {

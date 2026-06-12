@@ -79,9 +79,12 @@ function setCap(txt: string, bad = false): void {
     s.capTimer = null;
   }
   elCap.classList.toggle('bad', bad);
-  elCap.textContent = txt;
+  /* caption text is app-authored (level data / fixed strings); a <b> keyword
+     is allowed so Squishy can emphasise a word in the bubble */
+  elCap.innerHTML = txt;
   if (txt) {
     elCap.classList.add('show');
+    audio.talk();
     s.capTimer = window.setTimeout(() => elCap.classList.remove('show'), 3600);
   } else {
     elCap.classList.remove('show');
