@@ -216,3 +216,41 @@ test('a fresh player meets new friends and elements on first play', async ({ pag
   await clearIntros(page);
   expect(await page.evaluate(() => window.__squishy?.state().mode)).toBe('idle');
 });
+
+test('tap-to-explain: wall + heart open cards; the squishy is petted', async ({ page }) => {
+  const li = LEVELS.findIndex((d) => Array.isArray(d.walls) && d.walls.length > 0);
+  expect(li, 'a curated level with a wall exists').toBeGreaterThan(-1);
+  const lvl = LEVELS[li] as LevelDef;
+  await boot(page);
+  await page.evaluate(() => localStorage.clear());
+  await page.evaluate((n) => window.__squishy?.loadLevel(n), li);
+  await clearIntros(page);
+  await page.waitForFunction(() => window.__squishy?.state().mode === 'idle');
+
+  const wall = (lvl.walls as [number, number][])[0] as [number, number];
+  await page.evaluate(([x, y]) => window.__squishy?.tapCell(x, y), wall);
+  await page.waitForSelector('#intro.show', { timeout: 4000 });
+  expect(await page.textContent('#introName')).toBe('Wall');
+  await page.evaluate(() => window.__squishy?.dismissIntro());
+
+  await page.evaluate(([x, y]) => window.__squishy?.tapCell(x, y), lvl.target);
+  await page.waitForSelector('#intro.show', { timeout: 4000 });
+  expect(await page.textContent('#introName')).toBe('The Heart');
+  await page.evaluate(() => window.__squishy?.dismissIntro());
+
+  /* tapping your own squishy pets it: stays idle, no card */
+  await page.evaluate(([x, y]) => window.__squishy?.tapCell(x, y), lvl.dots[0]);
+  expect(await page.evaluate(() => window.__squishy?.state().mode)).toBe('idle');
+  expect(await page.evaluate(
+    () => document.getElementById('intro')?.classList.contains('show')
+  )).toBe(false);
+});
+
+test('the header never shows a star pill', async ({ page }) => {
+  await boot(page);
+  await page.evaluate(() => localStorage.clear());
+  const starLi = LEVELS.findIndex((d) => Array.isArray(d.stars) && d.stars.length > 0);
+  await page.evaluate((n) => window.__squishy?.loadLevel(n), starLi >= 0 ? starLi : 0);
+  await clearIntros(page);
+  expect(await page.locator('#starpill').count()).toBe(0);
+});
