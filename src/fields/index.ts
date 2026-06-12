@@ -4,7 +4,7 @@ import { heart } from './heart';
 import { honey } from './honey';
 import { ice } from './ice';
 import { jelly } from './jelly';
-import { mushroom } from './mushroom';
+import { spring } from './spring';
 import { oneway } from './oneway';
 import { pinwheel } from './pinwheel';
 import { portal } from './portal';
@@ -18,7 +18,7 @@ export const FLD: Record<string, FieldFn> = {
   honey,
   ice,
   jelly,
-  mushroom,
+  spring,
   oneway,
   pinwheel,
   portal,

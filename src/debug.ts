@@ -148,7 +148,7 @@ const items: Item[] = [
   { label: 'sparkle (split)', draw: field('sparkle') },
   { label: 'swirl (warp)', draw: field('portal') },
   { label: 'curl (turn)', draw: field('turner') },
-  { label: 'spring (bounce)', draw: field('mushroom') },
+  { label: 'spring (bounce)', draw: field('spring') },
   { label: 'wind →', draw: field('pinwheel', { dir: 'right' }) },
   { label: 'wind ↑', draw: field('pinwheel', { dir: 'up' }) },
   { label: 'jelly (hop)', draw: field('jelly') },

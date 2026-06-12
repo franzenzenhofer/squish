@@ -124,10 +124,9 @@ export interface Session {
   instantAnims: boolean;
 }
 
-/* v4: the endless ladder now climbs forever (marathon star-tour rungs into
-   par 20-30) — levels cached under older keys came from capped ramps and
-   must not survive */
-const GEN_KEY = 'squish-gen-v4:';
+/* v5: the spring field was renamed in the level schema (was "mush") — defs
+   cached under older keys would lose their springs and must not survive */
+const GEN_KEY = 'squish-gen-v5:';
 
 export function blankSession(): Session {
   const def = CURATED[0] as LevelDef;

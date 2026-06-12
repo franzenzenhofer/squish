@@ -67,7 +67,7 @@ export interface LevelDef {
   turn?: XY[];
   ice?: XY[];
   jelly?: XY[];
-  mush?: XY[];
+  spring?: XY[];
   oneway?: XYDir[];
   breeze?: XYDir[];
   portals?: [XY, XY];
@@ -99,7 +99,7 @@ export interface Level {
   turn: Set<string>;
   ice: Set<string>;
   jelly: Set<string>;
-  mush: Set<string>;
+  spring: Set<string>;
   oneway: Map<string, Dir>;
   breeze: Map<string, Dir>;
   portal: Map<string, Pt>;

@@ -1,10 +1,10 @@
-/* fields/mushroom.ts - BOUNCE (new concept: a springy coil that goes boing!).
+/* fields/spring.ts - BOUNCE (new concept: a springy coil that goes boing!).
    A stack of coil rings topped by a smiley dome that bobs up and down and
    opens its mouth on the way up. */
 import { C } from '../lib/palette';
 import type { FieldFn } from '../lib/types';
 
-export const mushroom: FieldFn = (ctx, o) => {
+export const spring: FieldFn = (ctx, o) => {
   const px = o.px, py = o.py, cell = o.cell, now = o.now;
   const gx = o.gx ?? 0, gy = o.gy ?? 0;
   ctx.save(); ctx.translate(px, py);

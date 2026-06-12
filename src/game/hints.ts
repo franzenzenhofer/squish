@@ -5,12 +5,34 @@
    exists for states outside a non-exhausted oracle, which shipped levels
    never produce (generation rejects them); it logs loudly if it ever runs. */
 import { solutionFrom, winnableState } from '../engine/analyze';
-import { DIRCODE, ser } from '../engine/core';
+import { CODEDIR, DIRCODE, REV, cloneState, ser } from '../engine/core';
 import { move } from '../engine/move';
-import type { Dir } from '../engine/types';
+import type { Dir, GameState, Level } from '../engine/types';
 import type { Assist } from './assist';
 import type { Session } from './session';
 import { toast } from './toast';
+
+/** Serialize a state for EQUIVALENCE on this level: parity only matters to
+    pandas and lastDir only to chicks - without them, two states differing
+    only there have identical futures. */
+export function serEquivalent(level: Level, st: GameState): string {
+  const c = cloneState(st);
+  if (level.initState.pandas.length === 0) c.parity = 0;
+  if (level.initState.chicks.length === 0) c.lastDir = null;
+  return ser(c);
+}
+
+/** Franz's reversibility law: if the swipe that produced `state` can be
+    EXACTLY undone by the opposite swipe (back to a state equivalent to
+    `prev`), the state cannot be unsolvable - hop back, then play prev's
+    solution. A correct exhausted oracle already knows this; the game still
+    checks it before every oh-no as a tripwire against pipeline bugs. */
+export function isReversibleEscape(
+  level: Level, state: GameState, lastDir: Dir, prev: GameState
+): boolean {
+  const back = move(level, cloneState(state), REV[lastDir]);
+  return back.moved && serEquivalent(level, back.state) === serEquivalent(level, prev);
+}
 
 export interface HintHooks {
   /** current state is provably unwinnable — trigger the oh-no sequence */
@@ -83,6 +105,18 @@ export function createHints(s: Session, assist: Assist, hooks: HintHooks): Hints
       /* tutorials (levels 1-2): let beginners explore and learn undo/retry
          themselves — the eager "oh no" auto-undo only kicks in from level 3 */
       if (s.play.kind === 'campaign' && s.li < 2) return;
+      /* tripwire: an exactly-undoable swipe can never be a dead end. If the
+         oracle disagrees, something upstream is broken - fail LOUD and never
+         punish the player with a wrong oh-no. */
+      const lastCode = s.line[s.line.length - 1];
+      const prev = s.hist[s.hist.length - 1];
+      if (lastCode && prev &&
+          isReversibleEscape(s.level, s.gs, CODEDIR[lastCode], prev.gs)) {
+        console.error(
+          '[squishy] OH-NO CONTRADICTION: oracle judged a reversible state ' +
+          'dead — oracle/def pipeline bug, state ' + ser(s.gs));
+        return;
+      }
       hooks.onUnwinnable();
       return;
     }

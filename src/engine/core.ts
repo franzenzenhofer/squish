@@ -47,7 +47,7 @@ export function makeLevel(o: LevelDef): Level {
     turn: toSet(o.turn),
     ice: toSet(o.ice),
     jelly: toSet(o.jelly),
-    mush: toSet(o.mush),
+    spring: toSet(o.spring),
     oneway: toDirMap(o.oneway),
     breeze: toDirMap(o.breeze),
     portal,

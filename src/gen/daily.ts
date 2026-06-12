@@ -11,7 +11,7 @@ import {
 import { hashStr, mulberry32, shuffle, type Rng } from './rng';
 
 const DAILY_FIELDS: readonly FieldKind[] = [
-  'sticky', 'oneway', 'split', 'portal', 'turn', 'ice', 'mush', 'breeze', 'jelly', 'nom'
+  'sticky', 'oneway', 'split', 'portal', 'turn', 'ice', 'spring', 'breeze', 'jelly', 'nom'
 ];
 const ROUNDS = 16;
 

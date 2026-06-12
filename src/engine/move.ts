@@ -213,7 +213,7 @@ export function move(level: Level, state: GameState, dir: Dir): MoveResult {
           usedTurn = true;
           d = ROTCW[d];
           fx.push({ type: 'turn', cell: { x: cur.x, y: cur.y }, idx: path.length - 1 });
-        } else if (level.mush.has(k) && !usedBounce) {
+        } else if (level.spring.has(k) && !usedBounce) {
           usedBounce = true;
           d = REV[d];
           fx.push({ type: 'bounce', cell: { x: cur.x, y: cur.y }, idx: path.length - 1 });

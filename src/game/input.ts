@@ -56,7 +56,12 @@ export function bindInput(main: HTMLElement, a: InputActions): void {
     }
     pStart = null;
   });
-  document.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
+  /* swallow page panning/bounce for game input, but the full-screen
+     overlays (picker, settings, privacy) must scroll natively on iOS */
+  document.addEventListener('touchmove', (e) => {
+    if ((e.target as HTMLElement).closest('#levels, #settings, #privacy')) return;
+    e.preventDefault();
+  }, { passive: false });
   document.addEventListener('contextmenu', (e) => e.preventDefault());
 
   document.addEventListener('keydown', (e) => {

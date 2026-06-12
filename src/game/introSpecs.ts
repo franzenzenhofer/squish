@@ -7,7 +7,7 @@ import type { Dir4 } from '../lib/types';
 export type IntroTile =
   | 'floor' | 'wall' | 'ice' | 'nom' | 'star' | 'heart'
   | 'honey' | 'oneway' | 'split' | 'portal' | 'turn'
-  | 'mushroom' | 'breeze' | 'jelly';
+  | 'spring' | 'breeze' | 'jelly';
 
 export interface IntroKey {
   /** keyframe time inside the loop (ms) */
@@ -174,9 +174,9 @@ export const INTRO_SPECS: Record<string, IntroSpec> = {
     keys: [{ t: 0, x: 0 }, { t: 300, x: 0 }, { t: 900, x: 1 }, { t: 1100, x: 1 }],
     bumpTurn: true
   },
-  mushroom: {
-    kind: 'mushroom', name: 'Mushroom', line: 'Bouncy - springs you back the way you came',
-    actor: 'squishy', tiles: ['floor', 'floor', 'mushroom'], chevrons: [200],
+  spring: {
+    kind: 'spring', name: 'Spring', line: 'Boing! Springs you back the way you came',
+    actor: 'squishy', tiles: ['floor', 'floor', 'spring'], chevrons: [200],
     keys: [{ t: 0, x: 0 }, { t: 300, x: 0 }, { t: 900, x: 2 }, { t: 1500, x: 0 }]
   },
   breeze: {

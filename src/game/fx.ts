@@ -135,7 +135,7 @@ export function handleFx(s: Session, audio: Audio, f: Fx, now: number): void {
     audio.turn();
   } else if (t === 'bounce') {
     s.pulses.push({ type: 'squash', key: key(c.x, c.y), axis: 'y', t0: now, dur: 200 });
-    sparkleBurst(s, px, py, 5, [C.mush, '#fff']);
+    sparkleBurst(s, px, py, 5, [C.spring, '#fff']);
     audio.boing();
   } else if (t === 'wind') {
     sparkleBurst(s, px, py, 6, [C.portal, C.bibi, '#fff']);

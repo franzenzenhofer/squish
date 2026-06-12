@@ -7,7 +7,7 @@ export type FriendKind =
 
 export type FieldKind =
   | 'sticky' | 'oneway' | 'split' | 'portal' | 'turn'
-  | 'ice' | 'mush' | 'breeze' | 'jelly' | 'nom';
+  | 'ice' | 'spring' | 'breeze' | 'jelly' | 'nom';
 
 export type ClassicKind = 'box' | 'balloon' | 'snail';
 
@@ -28,6 +28,11 @@ export interface RampParams {
       'exact' takes the one closest above parTarget — the endless ladder uses
       'exact' so wide acceptance bands don't overshoot the rung */
   parPrefer?: 'exact' | 'max';
+  /** density floor for walls (default 2) — boards must not feel empty */
+  wallMin?: number;
+  /** already-introduced elements placed as living decoration: on the board
+      but never required by featuredOk, so intro levels stay focused */
+  extras?: FieldKind[];
   dots: number;
   friends: FriendKind[];
   fields: FieldKind[];
@@ -62,59 +67,64 @@ export const FIELD_FLAGS: Record<FieldKind, string[]> = {
   portal: ['beam'],
   turn: ['turn'],
   ice: ['crack', 'penguinmove'],
-  mush: ['bounce'],
+  spring: ['bounce'],
   breeze: ['wind'],
   jelly: ['hop'],
   nom: ['nom', 'feed', 'scare', 'shove']
 };
 
 /* Curated 4..40: every friend introduced solo, then paired with fields,
-   then combined. Tutorials 1..3 are hand-made elsewhere. */
+   then combined. Tutorials 1..3 are hand-made elsewhere.
+   From 7 on, boards carry a density floor (wallMin, dots 2) and `extras` —
+   ONLY elements the player already met (intro order: pillows@3, ice@4,
+   nomster@7, star@9, flower@14, oneway@15, portal@16, split@17, jelly@19,
+   spinner@20, spring@21, breeze@22) — so levels read full, while featuredOk
+   still demands the level's NEW thing on the optimal line (paramount). */
 const CURATED: Record<number, Partial<RampParams>> = {
   4: { friends: ['penguin'], fields: ['ice'] },
   5: { friends: ['bunny'], fields: [] },
   6: { friends: ['frog'], fields: [] },
-  7: { friends: ['bear'], fields: ['nom'] },
-  8: { friends: ['ghost'], fields: [] },
-  9: { friends: ['star'], fields: [] },
-  10: { friends: ['pig'], fields: ['nom'] },
-  11: { friends: ['cat'], fields: [] },
-  12: { friends: ['panda'], fields: [] },
-  13: { friends: ['chick'], fields: [] },
-  14: { friends: ['penguin'], fields: ['ice', 'sticky'] },
-  15: { friends: ['bunny'], fields: ['oneway'] },
-  16: { friends: ['frog'], fields: ['portal'] },
-  17: { friends: ['bear'], fields: ['nom', 'split'] },
-  18: { friends: ['ghost'], fields: ['ice'] },
-  19: { friends: ['star'], fields: ['jelly'] },
-  20: { friends: ['pig'], fields: ['nom', 'turn'] },
-  21: { friends: ['cat'], fields: ['mush'] },
-  22: { friends: ['panda'], fields: ['breeze'] },
-  23: { friends: ['chick'], fields: ['sticky'] },
-  24: { friends: [], fields: ['nom', 'split'], classics: ['box', 'balloon'] },
-  25: { friends: [], fields: ['split', 'portal'], classics: ['snail'] },
+  7: { friends: ['bear'], fields: ['nom'], dots: 2, wallMin: 3, extras: ['ice'] },
+  8: { friends: ['ghost'], fields: [], dots: 2, wallMin: 4, extras: ['ice'] },
+  9: { friends: ['star'], fields: [], dots: 2, wallMin: 3, extras: ['ice'] },
+  10: { friends: ['pig'], fields: ['nom'], dots: 2, wallMin: 3, extras: ['ice'] },
+  11: { friends: ['cat'], fields: [], dots: 2, wallMin: 4, extras: ['ice'] },
+  12: { friends: ['panda'], fields: [], dots: 2, wallMin: 4, extras: ['ice'] },
+  13: { friends: ['chick'], fields: [], dots: 2, wallMin: 4, extras: ['ice'] },
+  14: { friends: ['penguin'], fields: ['ice', 'sticky'], wallMin: 3 },
+  15: { friends: ['bunny'], fields: ['oneway'], wallMin: 4, extras: ['sticky'] },
+  16: { friends: ['frog'], fields: ['portal'], wallMin: 4, extras: ['sticky'] },
+  17: { friends: ['bear'], fields: ['nom', 'split'], wallMin: 3, extras: ['ice'] },
+  18: { friends: ['ghost'], fields: ['ice'], wallMin: 4, extras: ['sticky'] },
+  19: { friends: ['star'], fields: ['jelly'], wallMin: 4, extras: ['oneway'] },
+  20: { friends: ['pig'], fields: ['nom', 'turn'], wallMin: 3, extras: ['ice'] },
+  21: { friends: ['cat'], fields: ['spring'], wallMin: 4, extras: ['sticky'] },
+  22: { friends: ['panda'], fields: ['breeze'], wallMin: 4, extras: ['ice'] },
+  23: { friends: ['chick'], fields: ['sticky'], wallMin: 4, extras: ['oneway'] },
+  24: { friends: [], fields: ['nom', 'split'], classics: ['box', 'balloon'], wallMin: 4, extras: ['ice'] },
+  25: { friends: [], fields: ['split', 'portal'], classics: ['snail'], wallMin: 4, extras: ['sticky'] },
   /* first multi-friend levels ramp gently: 5-6 -> 7 -> 7, no par-9 cliff */
   26: { friends: ['penguin', 'bunny'], fields: ['ice'], parTarget: 5, parMax: 6 },
   27: { friends: ['frog', 'star'], fields: ['portal'], parMax: 7 },
   /* parMin floors on 28/33/34/40: the audited curve dipped there (par 5/6/6/8
      between par-8..10 neighbours) — the late game must never get easier */
-  28: { friends: ['bear', 'pig'], fields: ['nom'], parMin: 6, parMax: 7 },
+  28: { friends: ['bear', 'pig'], fields: ['nom'], parMin: 6, parMax: 7, wallMin: 3, extras: ['ice'] },
   29: { friends: ['ghost', 'cat'], fields: ['oneway'] },
-  30: { friends: ['panda', 'chick'], fields: [] },
+  30: { friends: ['panda', 'chick'], fields: [], wallMin: 4, extras: ['sticky'] },
   31: { friends: ['bunny', 'star'], fields: ['jelly'] },
-  32: { friends: ['penguin', 'frog'], fields: ['ice', 'mush'] },
-  33: { friends: ['bear', 'ghost'], fields: ['nom', 'split'], parMin: 7 },
-  34: { friends: ['cat', 'pig'], fields: ['turn'], parMin: 7 },
+  32: { friends: ['penguin', 'frog'], fields: ['ice', 'spring'] },
+  33: { friends: ['bear', 'ghost'], fields: ['nom', 'split'], parMin: 7, wallMin: 3, extras: ['ice'] },
+  34: { friends: ['cat', 'pig'], fields: ['turn'], parMin: 7, wallMin: 4, extras: ['sticky'] },
   35: { friends: ['star', 'chick'], fields: ['sticky'] },
   36: { friends: ['bunny', 'pig'], fields: ['nom', 'oneway'] },
   37: { friends: ['penguin', 'cat'], fields: ['ice', 'breeze'] },
   38: { friends: ['frog', 'ghost'], fields: ['portal'] },
-  39: { friends: ['bear', 'star'], fields: ['split'] },
+  39: { friends: ['bear', 'star'], fields: ['split'], wallMin: 4, extras: ['ice'] },
   40: { friends: ['pig', 'star', 'bunny'], fields: ['nom', 'jelly'], parMin: 9, parTarget: 9 }
 };
 
 const ENDLESS_FIELDS: readonly FieldKind[] = [
-  'sticky', 'oneway', 'split', 'portal', 'turn', 'ice', 'mush', 'breeze', 'jelly', 'nom'
+  'sticky', 'oneway', 'split', 'portal', 'turn', 'ice', 'spring', 'breeze', 'jelly', 'nom'
 ];
 
 export function ramp(n: number): RampParams {

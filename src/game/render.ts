@@ -120,7 +120,7 @@ function drawFields(ctx: CanvasRenderingContext2D, s: Session, now: number): voi
       if (L.split.has(k)) FLD.sparkle?.(ctx, o);
       if (L.portal.has(k)) FLD.portal?.(ctx, o);
       if (L.turn.has(k)) FLD.turner?.(ctx, o);
-      if (L.mush.has(k)) FLD.mushroom?.(ctx, o);
+      if (L.spring.has(k)) FLD.spring?.(ctx, o);
       if (L.breeze.has(k)) FLD.pinwheel?.(ctx, { ...o, dir: L.breeze.get(k) as Dir4 });
       if (L.jelly.has(k)) FLD.jelly?.(ctx, o);
       if (L.walls.has(k)) FLD.wall?.(ctx, o);

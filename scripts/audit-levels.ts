@@ -40,7 +40,7 @@ function mechanics(def: LevelDef): number {
   const rec = def as unknown as Record<string, unknown[]>;
   const groups = [
     ...FRIEND_KEYS, 'boxes', 'balloons', 'snails',
-    'noms', 'sticky', 'split', 'turn', 'ice', 'jelly', 'mush',
+    'noms', 'sticky', 'split', 'turn', 'ice', 'jelly', 'spring',
     'oneway', 'breeze', 'portals', 'stars'
   ];
   return groups.filter((k) => Array.isArray(rec[k]) && rec[k].length > 0).length;

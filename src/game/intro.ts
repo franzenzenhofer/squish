@@ -19,7 +19,7 @@ const AUTO_MS = 7000;
 const TILE_FIELD: Record<string, string> = {
   wall: 'wall', ice: 'ice', honey: 'honey', oneway: 'oneway',
   split: 'sparkle', portal: 'portal', turn: 'turner',
-  mushroom: 'mushroom', breeze: 'pinwheel', jelly: 'jelly', heart: 'heart'
+  spring: 'spring', breeze: 'pinwheel', jelly: 'jelly', heart: 'heart'
 };
 
 interface TileBox { px: number; py: number; cell: number; now: number; gx: number; gy: number }
@@ -101,7 +101,7 @@ function presentKinds(s: Session): string[] {
     [lv.walls.size, 'wall'], [lv.ice.size, 'ice'], [lv.noms.size, 'nom'],
     [lv.sticky.size, 'honey'], [lv.oneway.size, 'oneway'],
     [lv.split.size, 'split'], [lv.portal.size, 'portal'],
-    [lv.turn.size, 'turn'], [lv.mush.size, 'mushroom'],
+    [lv.turn.size, 'turn'], [lv.spring.size, 'spring'],
     [lv.breeze.size, 'breeze'], [lv.jelly.size, 'jelly']
   ];
   for (const [n, kind] of pairs) if (n > 0) out.push(kind);

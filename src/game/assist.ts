@@ -26,7 +26,8 @@ export interface Assist {
   deepSolve: (def: LevelDef, state: GameState) => Promise<DeepSolveResult>;
 }
 
-const DAILY_KEY = 'squish-daily-v1:';
+/* v2: the spring field was renamed in the level schema (was "mush") */
+const DAILY_KEY = 'squish-daily-v2:';
 
 function cachedDaily(date: string): LevelDef | null {
   try {

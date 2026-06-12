@@ -1,7 +1,7 @@
 /* Seeded board sketcher — proposes a random level for the solver to judge.
    Hard placement rules: pieces spawn on plain floor only, squishies never on
    the heart, every cell holds at most one thing. */
-import type { LevelDef, XY } from '../engine/types';
+import type { LevelDef, XY, XYDir } from '../engine/types';
 import type { FieldKind, RampParams } from './ramp';
 import { pick, randInt, shuffle, type Rng } from './rng';
 
@@ -31,8 +31,8 @@ export function sketch(rng: Rng, p: RampParams): LevelDef | null {
   if (!target) return null;
   const def: LevelDef = { w: p.w, h: p.h, target, dots: [], par: 0 };
 
-  /* walls */
-  const wallCount = randInt(rng, Math.min(2, p.wallMax), p.wallMax);
+  /* walls — wallMin raises the density floor (boards must not feel empty) */
+  const wallCount = randInt(rng, Math.min(p.wallMin ?? 2, p.wallMax), p.wallMax);
   const walls: XY[] = [];
   for (let i = 0; i < wallCount; i++) {
     const c = slots.take();
@@ -40,13 +40,12 @@ export function sketch(rng: Rng, p: RampParams): LevelDef | null {
   }
   if (walls.length > 0) def.walls = walls;
 
-  /* featured fields */
-  for (const kind of new Set(p.fields)) {
+  const placeField = (kind: FieldKind): void => {
     if (kind === 'portal') {
       const a = slots.take();
       const b = slots.take();
       if (a && b) def.portals = [a, b];
-      continue;
+      return;
     }
     const cells: XY[] = [];
     const count = fieldCellCount(rng, kind);
@@ -54,16 +53,32 @@ export function sketch(rng: Rng, p: RampParams): LevelDef | null {
       const c = slots.take();
       if (c) cells.push(c);
     }
-    if (cells.length === 0) continue;
-    if (kind === 'sticky') def.sticky = cells;
-    else if (kind === 'split') def.split = cells;
-    else if (kind === 'turn') def.turn = cells;
-    else if (kind === 'ice') def.ice = cells;
-    else if (kind === 'mush') def.mush = cells;
-    else if (kind === 'jelly') def.jelly = cells;
-    else if (kind === 'nom') def.noms = cells;
-    else if (kind === 'oneway') def.oneway = cells.map((c) => [c[0], c[1], pick(rng, DIR_CODES)]);
-    else if (kind === 'breeze') def.breeze = cells.map((c) => [c[0], c[1], pick(rng, DIR_CODES)]);
+    if (cells.length === 0) return;
+    if (kind === 'sticky') def.sticky = [...(def.sticky ?? []), ...cells];
+    else if (kind === 'split') def.split = [...(def.split ?? []), ...cells];
+    else if (kind === 'turn') def.turn = [...(def.turn ?? []), ...cells];
+    else if (kind === 'ice') def.ice = [...(def.ice ?? []), ...cells];
+    else if (kind === 'spring') def.spring = [...(def.spring ?? []), ...cells];
+    else if (kind === 'jelly') def.jelly = [...(def.jelly ?? []), ...cells];
+    else if (kind === 'nom') def.noms = [...(def.noms ?? []), ...cells];
+    else if (kind === 'oneway') {
+      def.oneway = [...(def.oneway ?? []), ...cells.map(
+        (c): XYDir => [c[0], c[1], pick(rng, DIR_CODES)])];
+    } else if (kind === 'breeze') {
+      def.breeze = [...(def.breeze ?? []), ...cells.map(
+        (c): XYDir => [c[0], c[1], pick(rng, DIR_CODES)])];
+    }
+  };
+
+  /* featured fields (the optimal line must use them — see featuredOk) */
+  const featured = new Set(p.fields);
+  for (const kind of featured) placeField(kind);
+  /* extras: already-introduced elements as living decoration — placed the
+     same way but NEVER required by featuredOk, so intro levels stay focused
+     on their new thing while boards read full */
+  for (const kind of new Set(p.extras ?? [])) {
+    if (kind === 'portal' || featured.has(kind)) continue;
+    placeField(kind);
   }
 
   /* featured friends (1 piece each; stars are pickups, 1-2 of them) */

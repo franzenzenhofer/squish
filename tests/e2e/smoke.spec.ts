@@ -196,7 +196,7 @@ test('the board sits dead-centre in the play area', async ({ page }) => {
 test('a fresh player meets new friends and elements on first play', async ({ page }) => {
   /* first curated level that carries any intro-worthy friend or element */
   const KINDS = [
-    'walls', 'stars', 'ice', 'jelly', 'mush', 'oneway', 'breeze', 'portals',
+    'walls', 'stars', 'ice', 'jelly', 'spring', 'oneway', 'breeze', 'portals',
     'split', 'turn', 'sticky', 'noms', 'penguins', 'bears', 'ghosts', 'bunnies',
     'frogs', 'pandas', 'cats', 'chicks', 'pigs', 'boxes', 'balloons', 'snails'
   ];
@@ -436,6 +436,47 @@ test('a win fires one anonymous beacon to /t', async ({ page }) => {
     if (k !== 'e' && k !== 'k') expect(typeof v).toBe('number');
   }
   expect(win.li).toBe(3);
+});
+
+test.describe('mobile touch', () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+
+  test('the level picker scrolls with a real touch gesture (iOS contract)', async ({ page }) => {
+    /* short viewport so today's content overflows - like a small iPhone */
+    await page.setViewportSize({ width: 390, height: 480 });
+    await boot(page);
+    await page.evaluate(() => localStorage.clear());
+    await page.evaluate(() => document.getElementById('blevels')?.click());
+    await page.waitForSelector('#levels.show', { timeout: 5000 });
+    const before = await page.evaluate(() => document.getElementById('levels')?.scrollTop ?? 0);
+    /* a real swipe-up through the browser input pipeline - if anything
+       preventDefaults touchmove globally, this scroll dies (the iPhone bug) */
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send('Input.synthesizeScrollGesture', {
+      x: 195, y: 300, xDistance: 0, yDistance: -250,
+      gestureSourceType: 'touch', speed: 800
+    });
+    await page.waitForTimeout(400);
+    const after = await page.evaluate(() => document.getElementById('levels')?.scrollTop ?? 0);
+    expect(after, 'picker must scroll under a touch gesture').toBeGreaterThan(before + 50);
+  });
+
+  test('board swipes still work after the scroll fix', async ({ page }) => {
+    await boot(page);
+    await page.evaluate(() => localStorage.clear());
+    await page.evaluate(() => window.__squishy?.loadLevel(0));
+    await clearIntros(page);
+    /* finger moves UP on the board (negative distance): L1 solves in one move */
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send('Input.synthesizeScrollGesture', {
+      x: 195, y: 480, xDistance: 0, yDistance: -120,
+      gestureSourceType: 'touch', speed: 600
+    });
+    await page.waitForFunction(() => {
+      const m = window.__squishy?.state();
+      return m !== undefined && (m.moves > 0 || m.mode === 'win');
+    }, undefined, { timeout: 5000 });
+  });
 });
 
 test('the header never shows a star pill', async ({ page }) => {

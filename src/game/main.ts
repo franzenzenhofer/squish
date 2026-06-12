@@ -526,7 +526,7 @@ function fieldKindAt(k: string): string | null {
   if (L.split.has(k)) return 'split';
   if (L.portal.has(k)) return 'portal';
   if (L.turn.has(k)) return 'turn';
-  if (L.mush.has(k)) return 'mushroom';
+  if (L.spring.has(k)) return 'spring';
   if (L.breeze.has(k)) return 'breeze';
   if (L.jelly.has(k)) return 'jelly';
   if (L.oneway.has(k)) return 'oneway';
