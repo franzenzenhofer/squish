@@ -248,15 +248,16 @@
     background: linear-gradient(180deg, #FFFAFC 55%, rgba(255,250,252,0));
   }
   .ovbar .ovtitle { font-size: 22px; font-weight: 800; color: var(--heart); letter-spacing: .1em; }
+  /* the close X is BIG and unmissable — one tap out of any overlay */
   .ovbar .ovx {
-    position: absolute; right: 14px; top: calc(max(10px, env(safe-area-inset-top)) + 2px);
-    width: 38px; height: 38px; border-radius: 999px; border: 2px solid var(--border);
-    background: #fff; color: var(--dim2); cursor: pointer; padding: 0;
+    position: absolute; right: 12px; top: max(10px, env(safe-area-inset-top));
+    width: 52px; height: 52px; border-radius: 999px; border: 2px solid var(--border);
+    background: #fff; color: var(--heart); cursor: pointer; padding: 0;
     display: flex; align-items: center; justify-content: center;
-    box-shadow: 0 4px 0 rgba(246,201,220,.5);
+    box-shadow: 0 5px 0 rgba(246,201,220,.55);
   }
-  .ovbar .ovx:active { transform: translateY(3px); box-shadow: 0 1px 0 rgba(246,201,220,.5); }
-  .ovbar .ovx svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; }
+  .ovbar .ovx:active { transform: translateY(3px); box-shadow: 0 2px 0 rgba(246,201,220,.55); }
+  .ovbar .ovx svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 3.2; stroke-linecap: round; }
   /* #start fits any iPhone above the fold: a viewport-tall flex column that
      centres when there is spare room and shrinks (clamped gaps + logo) to keep
      logo + shelf + Play + Levels + Daily + Reset all on-screen, no scroll */
