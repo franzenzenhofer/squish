@@ -19,7 +19,7 @@ const AUTO_MS = 7000;
 const TILE_FIELD: Record<string, string> = {
   wall: 'wall', ice: 'ice', honey: 'honey', oneway: 'oneway',
   split: 'sparkle', portal: 'portal', turn: 'turner',
-  mushroom: 'mushroom', breeze: 'pinwheel', jelly: 'jelly'
+  mushroom: 'mushroom', breeze: 'pinwheel', jelly: 'jelly', heart: 'heart'
 };
 
 interface TileBox { px: number; py: number; cell: number; now: number; gx: number; gy: number }
@@ -111,6 +111,8 @@ function presentKinds(s: Session): string[] {
 export interface Intro {
   /** call after applyLevel — shows cards for unmet friends, true if shown */
   maybeShow: (s: Session) => boolean;
+  /** show one specific card on demand (tap-to-explain), regardless of "met" */
+  showKind: (kind: string) => void;
   /** dismiss the current card (next queued card or back to idle) */
   dismiss: () => void;
   isOpen: () => boolean;
@@ -300,6 +302,13 @@ export function createIntro(s: Session, onAllDismissed: () => void): Intro {
       sess.mode = 'intro';
       show(specs[0] as IntroSpec);
       return true;
+    },
+    showKind: (kind: string): void => {
+      const spec = INTRO_SPECS[kind];
+      if (!spec) return;
+      queue = [];
+      s.mode = 'intro';
+      show(spec);
     },
     dismiss,
     isOpen: () => current !== null

@@ -144,16 +144,22 @@
   }
   #intro.show { display: flex; }
   #introCard {
+    position: relative;
     display: flex; flex-direction: column; align-items: center; gap: 6px;
-    background: #fff; border: 2px solid var(--border); border-radius: 28px;
-    padding: 18px 22px 14px; box-shadow: 0 10px 0 rgba(246,201,220,.45);
-    animation: cardpop .3s cubic-bezier(.2,1.4,.4,1) both;
+    background: #fff; border-radius: 28px;
+    padding: 22px 22px 14px; box-shadow: 0 14px 0 var(--shadow);
+    animation: sf-pop .35s cubic-bezier(.2,1.4,.4,1) both;
   }
-  @keyframes cardpop { 0% { transform: scale(.82); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+  #introX {
+    position: absolute; top: 12px; right: 12px; width: 30px; height: 30px; border-radius: 12px;
+    border: none; cursor: pointer; background: #FBEAF1; color: var(--dim2);
+    display: flex; align-items: center; justify-content: center; padding: 0;
+  }
+  #introX svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; }
   #introP { width: 96px; height: 96px; }
-  #introName { font-size: 19px; font-weight: 800; color: var(--heart); letter-spacing: .06em; }
-  #introLine { font-size: 13px; color: #C18BA8; max-width: 230px; text-align: center; }
-  #introTap { font-size: 11px; color: #D7B9C7; margin-top: 4px; animation: tappulse 1.4s ease-in-out infinite; }
+  #introName { font-size: 20px; font-weight: 700; color: var(--heart); letter-spacing: .02em; }
+  #introLine { font-size: 14px; font-weight: 600; color: var(--soft); max-width: 230px; text-align: center; }
+  #introTap { font-size: 11px; font-weight: 600; color: var(--dim); margin-top: 4px; animation: tappulse 1.4s ease-in-out infinite; }
   @keyframes tappulse { 50% { opacity: .45; } }
 
   /* unified win card — one celebration for campaign and daily */
@@ -364,6 +370,9 @@
      a same-z sibling, would paint over it) -->
 <div id="intro">
   <div id="introCard">
+    <button id="introX" aria-label="close">
+      <svg viewBox="0 0 24 24"><path d="M6 6 L18 18 M18 6 L6 18"/></svg>
+    </button>
     <canvas id="introP" width="96" height="96"></canvas>
     <div id="introName"></div>
     <canvas id="introD"></canvas>

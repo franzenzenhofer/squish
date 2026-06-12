@@ -15,6 +15,7 @@ export interface TestApiDeps {
   toggleHintMode: () => void;
   dismissIntro: () => void;
   closeMenu: () => void;
+  tapCell: (x: number, y: number) => void;
   solution: () => Dir[] | null;
 }
 
@@ -32,6 +33,7 @@ export interface SquishyTestApi {
   toggleHintMode: () => void;
   dismissIntro: () => void;
   closeMenu: () => void;
+  tapCell: (x: number, y: number) => void;
   setInstantAnims: (b: boolean) => void;
   waitIdle: () => Promise<Mode>;
 }
@@ -96,6 +98,7 @@ export function installTestApi(d: TestApiDeps): void {
     toggleHintMode: d.toggleHintMode,
     dismissIntro: d.dismissIntro,
     closeMenu: d.closeMenu,
+    tapCell: d.tapCell,
     setInstantAnims: (b: boolean) => {
       s.instantAnims = b;
     },

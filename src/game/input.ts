@@ -11,6 +11,8 @@ export interface InputActions {
   toggleMute: () => void;
   /** true while the win modal is up — taps advance instead of swiping */
   inWin: () => boolean;
+  /** a tap (no drag) on the board — show what that cell holds */
+  onTap: (clientX: number, clientY: number) => void;
   unlockAudio: () => void;
 }
 
@@ -50,6 +52,7 @@ export function bindInput(main: HTMLElement, a: InputActions): void {
       const dx = e.clientX - pStart.x;
       const dy = e.clientY - pStart.y;
       if (Math.max(Math.abs(dx), Math.abs(dy)) >= 16) fireSwipe(dx, dy);
+      else a.onTap(e.clientX, e.clientY);
     }
     pStart = null;
   });

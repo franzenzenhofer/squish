@@ -7,7 +7,7 @@ import type { Dir, LevelDef } from '../engine/types';
 import { createAssist } from './assist';
 import { createAudio } from './audio';
 import { createEndings } from './endings';
-import { buildSprites, cx, cy, handleFx, onEnd } from './fx';
+import { buildSprites, cx, cy, handleFx, heartBurst, onEnd } from './fx';
 import { drainFlood, fadeSwap } from './transition';
 import { createHints } from './hints';
 import { bindInput } from './input';
@@ -319,6 +319,74 @@ function toggleMute(): void {
 /* reflect the persisted mute state on boot */
 document.getElementById('mute')?.classList.toggle('off', audio.isMuted());
 
+/* ------------------------- tap-to-explain / pet -------------------------- */
+function moverKindAt(x: number, y: number): string | null {
+  const g = s.gs;
+  const hit = (arr: { x: number; y: number }[]): boolean => arr.some((p) => p.x === x && p.y === y);
+  if (hit(g.penguins)) return 'penguin';
+  if (hit(g.bunnies)) return 'bunny';
+  if (hit(g.frogs)) return 'frog';
+  if (hit(g.bears)) return 'bear';
+  if (hit(g.ghosts)) return 'ghost';
+  if (hit(g.pandas)) return 'panda';
+  if (hit(g.cats)) return 'cat';
+  if (hit(g.chicks)) return 'chick';
+  if (hit(g.pigs)) return 'pig';
+  if (hit(g.boxes)) return 'box';
+  if (hit(g.balloons)) return 'balloon';
+  if (hit(g.snails)) return 'snail';
+  return null;
+}
+
+function fieldKindAt(k: string): string | null {
+  const L = s.level;
+  if (L.noms.has(k) && !s.renderFed.has(k)) return 'nom';
+  if (L.ice.has(k) && !s.renderBroken.has(k)) return 'ice';
+  if (L.sticky.has(k)) return 'honey';
+  if (L.split.has(k)) return 'split';
+  if (L.portal.has(k)) return 'portal';
+  if (L.turn.has(k)) return 'turn';
+  if (L.mush.has(k)) return 'mushroom';
+  if (L.breeze.has(k)) return 'breeze';
+  if (L.jelly.has(k)) return 'jelly';
+  if (L.oneway.has(k)) return 'oneway';
+  if (L.walls.has(k)) return 'wall';
+  return null;
+}
+
+/** Pet your own squishy, or explain whatever sits on cell (gx, gy). */
+function explainCell(gx: number, gy: number): void {
+  if (s.mode !== 'idle') return;
+  if (gx < 0 || gy < 0 || gx >= s.level.w || gy >= s.level.h) return;
+  const k = key(gx, gy);
+  if (s.gs.dots.some((p) => p.x === gx && p.y === gy)) {
+    petSquishy(gx, gy);
+    return;
+  }
+  const mover = moverKindAt(gx, gy);
+  if (mover) return intro.showKind(mover);
+  if (s.renderStars.has(k)) return intro.showKind('star');
+  if (gx === s.level.tx && gy === s.level.ty) return intro.showKind('heart');
+  const field = fieldKindAt(k);
+  if (field) intro.showKind(field);
+}
+
+/** Tap on the board: convert the screen point to a cell, then explain/pet. */
+function boardTap(clientX: number, clientY: number): void {
+  const r = canvas.getBoundingClientRect();
+  if (r.width === 0) return;
+  const gx = Math.floor(((clientX - r.left) * (s.cssSize / r.width) - s.ox) / s.cell);
+  const gy = Math.floor(((clientY - r.top) * (s.cssSize / r.height) - s.oy) / s.cell);
+  explainCell(gx, gy);
+}
+
+/** Petting your squishy: a happy bounce + a little heart burst. */
+function petSquishy(x: number, y: number): void {
+  s.pulses.push({ type: 'pop', key: key(x, y), t0: performance.now(), dur: 420, amp: 0.5 });
+  heartBurst(s, cx(s, x), cy(s, y), 14);
+  audio.squish();
+}
+
 bindInput(main, {
   doMove,
   undo,
@@ -332,6 +400,7 @@ bindInput(main, {
   toggleMute,
   /* the win card has its own Next button — taps no longer auto-advance */
   inWin: () => false,
+  onTap: boardTap,
   unlockAudio: () => audio.unlock()
 });
 window.addEventListener('resize', () => layout());
@@ -375,6 +444,7 @@ installTestApi({
   toggleHintMode: () => hints.toggleHintMode(),
   dismissIntro: () => intro.dismiss(),
   closeMenu: () => startMenu.close(),
+  tapCell: (x, y) => explainCell(x, y),
   solution: () => hints.solution()
 });
 

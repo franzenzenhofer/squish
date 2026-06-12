@@ -5,7 +5,7 @@
 import type { Dir4 } from '../lib/types';
 
 export type IntroTile =
-  | 'floor' | 'wall' | 'ice' | 'nom' | 'star'
+  | 'floor' | 'wall' | 'ice' | 'nom' | 'star' | 'heart'
   | 'honey' | 'oneway' | 'split' | 'portal' | 'turn'
   | 'mushroom' | 'breeze' | 'jelly';
 
@@ -136,10 +136,15 @@ export const INTRO_SPECS: Record<string, IntroSpec> = {
     clearTile: { at: 1, t: 1000 }
   },
   nom: {
-    kind: 'nom', name: 'Nomster', line: 'Keep away - it gobbles squishies',
+    kind: 'nom', name: 'Nomster', line: 'Keep away - it gobbles you up!',
     actor: 'squishy', tiles: ['floor', 'floor', 'nom'], chevrons: [200],
     keys: [{ t: 0, x: 0 }, { t: 300, x: 0 }, { t: 1000, x: 2 }],
     vanish: 1050
+  },
+  heart: {
+    kind: 'heart', name: 'The Heart', line: 'Slide onto the heart to win!',
+    actor: 'squishy', tiles: ['floor', 'floor', 'heart'], chevrons: [200],
+    keys: [{ t: 0, x: 0 }, { t: 300, x: 0 }, { t: 1000, x: 2 }]
   },
   honey: {
     kind: 'honey', name: 'Honey', line: 'Sticky - you stop the moment you touch it',
