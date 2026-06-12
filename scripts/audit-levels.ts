@@ -4,6 +4,7 @@
 import { analyzeLevel, winnableState } from '../src/engine/analyze';
 import { DIRNAMES, cloneState, makeLevel, ser } from '../src/engine/core';
 import { move } from '../src/engine/move';
+import { noAboveHeart } from '../src/gen/generate';
 import type { GameState, LevelDef } from '../src/engine/types';
 import levels from '../src/levels.json';
 
@@ -22,8 +23,10 @@ interface Row {
 }
 
 const rows: Row[] = [];
+const aboveHeart: number[] = [];
 for (let i = 0; i < (levels as LevelDef[]).length; i++) {
   const def = (levels as LevelDef[])[i] as LevelDef;
+  if (!noAboveHeart(def)) aboveHeart.push(i + 1);
   const level = makeLevel(def);
   const oracle = analyzeLevel(level);
   if (!oracle.exhausted) throw new Error('level ' + (i + 1) + ': oracle not exhausted');
@@ -100,3 +103,9 @@ console.log('\nhighest trap density:', worst.map((r) => 'L' + r.n + ' (' + r.tra
 const punishing = rows.filter((r) => r.near3 > 0);
 console.log('levels with dead states within 3 swipes:',
   punishing.length ? punishing.map((r) => 'L' + r.n + ' (' + r.near3 + ')').join(', ') : 'none');
+
+console.log('actors above the heart:',
+  aboveHeart.length ? aboveHeart.map((n) => 'L' + n).join(', ') : 'none');
+if (aboveHeart.length > 0) {
+  throw new Error('levels place an actor above the heart: ' + aboveHeart.map((n) => 'L' + n).join(', '));
+}

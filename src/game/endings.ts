@@ -3,9 +3,14 @@
    One card serves campaign and daily; campaign no longer auto-advances. */
 import type { Audio } from './audio';
 import { cx, cy, heartBurst } from './fx';
-import { saveGame } from './persist';
-import { CARD_H, CARD_W, renderBoardCard, shareCard } from './share';
+import { saveAdvance, saveGame } from './persist';
+import { shareCard } from './share';
 import type { Session } from './session';
+import { pickWinLine } from './winLines';
+import { startWinReplay, type WinReplay } from './winReplay';
+
+/** No-interaction auto-advance window on the Next button. */
+const AUTO_ADVANCE_MS = 7000;
 
 export interface EndingsDeps {
   s: Session;
@@ -47,6 +52,23 @@ export function createEndings(d: EndingsDeps): Endings {
   const elWinSub = document.getElementById('winSub') as HTMLElement;
   const elWinTag = document.getElementById('winTag') as HTMLElement;
   const elShot = document.getElementById('winShot') as HTMLCanvasElement;
+  const elNext = document.getElementById('winNext') as HTMLElement;
+
+  let replay: WinReplay | null = null;
+  let autoTimer: number | null = null;
+
+  /** Tear down the looping replay + the no-interaction auto-advance ring. */
+  const stopReplay = (): void => {
+    replay?.stop();
+    replay = null;
+  };
+  const cancelAuto = (): void => {
+    if (autoTimer !== null) {
+      clearTimeout(autoTimer);
+      autoTimer = null;
+    }
+    elNext.classList.remove('counting');
+  };
 
   const floodAt = (px: number, py: number): void => {
     const r = d.canvas.getBoundingClientRect();
@@ -63,6 +85,8 @@ export function createEndings(d: EndingsDeps): Endings {
   const hideFlood = (): void => {
     elFlood.style.transition = 'none';
     elFlood.style.clipPath = 'circle(0px at 50% 50%)';
+    stopReplay();
+    cancelAuto();
     elWin.classList.remove('show');
   };
 
@@ -71,6 +95,8 @@ export function createEndings(d: EndingsDeps): Endings {
       clearTimeout(s.winTimer);
       s.winTimer = null;
     }
+    stopReplay();
+    cancelAuto();
     /* keep the flood up — the next level drains it into its own heart */
     elWin.classList.remove('show');
     d.next();
@@ -79,28 +105,39 @@ export function createEndings(d: EndingsDeps): Endings {
   const showCard = (label: string, hearts: number): void => {
     const mv = s.moves + (s.moves === 1 ? ' move' : ' moves');
     elWinSub.innerHTML = label + ' · solved in <b>' + mv + '</b>';
-    elWinTag.innerHTML = 'Squishy-tastic! ✨' + ratingHearts(hearts);
-    /* the shareable postcard, scaled into the card preview */
-    const card = renderBoardCard(s.def, label);
-    const w = 300;
-    elShot.width = w;
-    elShot.height = Math.round((CARD_H / CARD_W) * w);
-    elShot.getContext('2d')?.drawImage(card, 0, 0, elShot.width, elShot.height);
+    elWinTag.innerHTML = pickWinLine(hearts) + ratingHearts(hearts);
+    /* the in-app card REPLAYS the player's recorded solution, looping */
+    const line = s.line.join('');
+    stopReplay();
+    replay = startWinReplay(elShot, s.def, label, line, d.reduced);
     elWin.dataset.def = JSON.stringify(s.def);
     elWin.dataset.label = label;
-    elWin.dataset.moves = String(s.moves);
     elWin.classList.add('show');
+    /* 7s no-interaction auto-advance with a countdown ring on Next */
+    cancelAuto();
+    void elNext.offsetWidth; /* reflow so the ring animation restarts each win */
+    elNext.classList.add('counting');
+    autoTimer = window.setTimeout(() => {
+      autoTimer = null;
+      advance();
+    }, AUTO_ADVANCE_MS);
   };
 
   document.getElementById('winShare')?.addEventListener('click', () => {
+    /* any interaction with the card cancels the auto-advance countdown */
+    cancelAuto();
     const ds = elWin.dataset;
     if (ds.def && ds.label) {
-      void shareCard(JSON.parse(ds.def) as Session['def'], ds.label, Number(ds.moves));
+      void shareCard(JSON.parse(ds.def) as Session['def'], ds.label);
     }
   });
-  document.getElementById('winNext')?.addEventListener('click', () => {
+  elNext.addEventListener('click', () => {
     audio.unlock();
     advance();
+  });
+  /* tapping the card itself (not a button) also cancels the auto-advance */
+  document.getElementById('winCard')?.addEventListener('pointerdown', (e) => {
+    if ((e.target as HTMLElement).closest('button') === null) cancelAuto();
   });
 
   const winSeq = (): void => {
@@ -113,11 +150,14 @@ export function createEndings(d: EndingsDeps): Endings {
     if (s.play.kind === 'daily') {
       const prev = s.daily[s.play.date];
       if (prev === undefined || s.moves < prev) s.daily[s.play.date] = s.moves;
+      saveGame(s);
     } else {
       const prev = s.results[s.li];
       if (prev === undefined || s.moves < prev) s.results[s.li] = s.moves;
+      /* advance the saved resume pointer now, so quitting during the win card
+         still resumes on the next level */
+      saveAdvance(s, s.li + 1);
     }
-    saveGame(s);
     const hearts = s.moves <= s.def.par ? 3 : s.moves <= s.def.par + 1 ? 2 : 1;
     const label = levelLabel(s);
     setTimeout(() => {

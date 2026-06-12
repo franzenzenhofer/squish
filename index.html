@@ -103,11 +103,13 @@
   #main { position: relative; z-index: 1; flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; touch-action: none; }
   /* the board is dead-centre in the play area; messages float above it */
   canvas { display: block; }
-  /* Squishy's speech bubble — every notification is "spoken" from above the
-     board with a soft down-tail and a gentle talking sway. Centred via auto
-     margins so the sway owns `transform`. */
+  /* Squishy's speech bubble — every notification is "spoken" from the header
+     band at the very top of the play area, lifted up so it overlaps the header
+     and its down-tail points back at it; it never covers the centred grid.
+     Centred via auto margins so the sway owns `transform`. */
   #cap, #toast {
-    position: absolute; top: 8px; left: 0; right: 0; margin-inline: auto;
+    position: fixed; top: calc(env(safe-area-inset-top) + 34px);
+    left: 0; right: 0; margin-inline: auto;
     width: fit-content; max-width: calc(100% - 28px); z-index: 6;
     background: #fff; border: 2px solid var(--bubble-bd); border-radius: 18px;
     padding: 9px 18px; font-size: 14px; font-weight: 600; color: var(--soft);
@@ -115,11 +117,22 @@
     box-shadow: 0 12px 22px -10px rgba(255,109,158,.4);
     opacity: 0; transition: opacity .26s ease; transform-origin: center bottom;
   }
+  /* the caption carries an X, so it needs room on the right; the toast doesn't */
+  #cap { padding-right: 34px; }
   #cap.show, #toast.show { opacity: 1; animation: sf-talk 2.6s ease-in-out infinite; }
   #cap b, #toast b { color: var(--heart); font-weight: 700; }
   #cap.bad, #toast.bad { color: var(--heart); border-color: #FFB7CE; }
   /* a toast takes the stage — the caption politely dips until it's gone */
   #cap.mute { opacity: 0; animation: none; }
+  /* tiny dismiss control: only the X catches taps; the bubble body stays
+     non-blocking so the board beneath it keeps receiving input */
+  #capX {
+    position: absolute; top: 50%; right: 8px; transform: translateY(-50%);
+    width: 20px; height: 20px; padding: 0; border: none; border-radius: 999px;
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+    background: var(--bubble-bd); color: #fff; pointer-events: auto;
+  }
+  #capX svg { width: 11px; height: 11px; fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; }
   #cap::before, #toast::before, #cap::after, #toast::after {
     content: ''; position: absolute; left: 50%; transform: translateX(-50%); width: 0; height: 0;
   }
@@ -161,23 +174,28 @@
   #introTap { font-size: 11px; font-weight: 600; color: var(--dim); margin-top: 4px; animation: tappulse 1.4s ease-in-out infinite; }
   @keyframes tappulse { 50% { opacity: .45; } }
 
-  /* unified win card — one celebration for campaign and daily */
+  /* unified win card — one celebration for campaign and daily; sized to fit
+     even a short iPhone viewport (clamped gaps + capped board) with no scroll */
   #win {
     position: fixed; inset: 0; z-index: 8; display: none;
     align-items: center; justify-content: center; overflow-y: auto;
-    padding: max(10px, env(safe-area-inset-top)) 16px max(10px, env(safe-area-inset-bottom));
+    height: 100svh; height: 100dvh;
+    padding: max(8px, env(safe-area-inset-top)) 14px max(8px, env(safe-area-inset-bottom));
     background: rgba(107,74,91,.28);
   }
   #win.show { display: flex; }
   #winCard {
-    display: flex; flex-direction: column; align-items: center; gap: 10px; margin: auto;
-    width: min(340px, 92vw); background: #fff; border-radius: 30px; padding: 22px 22px 20px;
+    display: flex; flex-direction: column; align-items: center;
+    gap: clamp(6px, 1.4vh, 10px); margin: auto;
+    width: min(340px, 92vw); max-height: 100%; background: #fff; border-radius: 30px;
+    padding: clamp(14px, 2.4vh, 22px) 22px clamp(12px, 2vh, 20px);
     box-shadow: 0 14px 0 var(--shadow); animation: sf-pop .35s cubic-bezier(.2,1.4,.4,1) both;
   }
-  #winTitle { font-size: 36px; font-weight: 700; color: var(--heart); letter-spacing: .01em; }
+  #winTitle { font-size: clamp(24px, 7vw, 32px); font-weight: 700; color: var(--heart); letter-spacing: .01em; }
   #winSub { font-size: 15px; font-weight: 600; color: var(--dim2); text-align: center; }
   #winSub b { color: var(--ink); font-weight: 700; }
-  #winShot { width: 100%; border-radius: 18px; display: block; }
+  /* the board canvas is a tall postcard — cap its height so the whole card fits */
+  #winShot { width: 100%; max-height: 46vh; object-fit: contain; border-radius: 18px; display: block; }
   #winTag { font-size: 15px; font-weight: 700; color: var(--ink); text-align: center; }
   #winBtns { display: flex; gap: 10px; width: 100%; margin-top: 4px; }
   #winBtns button {
@@ -188,40 +206,54 @@
   }
   #winShare { background: linear-gradient(180deg, var(--heart-top), var(--heart)); box-shadow: 0 5px 0 var(--heart-edge); }
   #winShare:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--heart-edge); }
-  #winNext { background: var(--dark); box-shadow: 0 5px 0 var(--dark-edge); }
+  #winNext { position: relative; overflow: hidden; background: var(--dark); box-shadow: 0 5px 0 var(--dark-edge); }
   #winNext:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--dark-edge); }
+  /* countdown ring: a sweeping progress bar drains over the 7s auto-advance */
+  #winNext::after {
+    content: ''; position: absolute; left: 0; bottom: 0; height: 3px; width: 100%;
+    background: rgba(255,255,255,.85); transform-origin: left; transform: scaleX(0); opacity: 0;
+  }
+  #winNext.counting::after { animation: winct 7s linear forwards; }
+  @keyframes winct { from { transform: scaleX(1); opacity: .9; } to { transform: scaleX(0); opacity: .9; } }
   #winShare svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2.3; stroke-linecap: round; stroke-linejoin: round; }
 
   #start, #levels {
     position: fixed; inset: 0; z-index: 8; display: none;
-    flex-direction: column; align-items: center; overflow-y: auto;
-    padding: max(8px, env(safe-area-inset-top)) 0 max(8px, env(safe-area-inset-bottom));
+    flex-direction: column; align-items: center;
     background: radial-gradient(130% 90% at 50% -15%, #FFFAFC 0%, #FFEFF6 42%, #FFE2EE 100%);
   }
+  #levels {
+    z-index: 9; overflow-y: auto;
+    padding: max(8px, env(safe-area-inset-top)) 0 max(8px, env(safe-area-inset-bottom));
+  }
   #start.show, #levels.show { display: flex; }
-  #levels { z-index: 9; }
-  /* margin:auto centers when there is room and scrolls cleanly when not —
-     nothing is ever cut off */
-  #startInner, #levelsInner {
+  /* #start fits any iPhone above the fold: a viewport-tall flex column that
+     centres when there is spare room and shrinks (clamped gaps + logo) to keep
+     logo + shelf + Play + Levels + Daily + Reset all on-screen, no scroll */
+  #start {
+    height: 100svh; height: 100dvh; justify-content: center;
+    padding:
+      max(8px, env(safe-area-inset-top))
+      env(safe-area-inset-right)
+      max(8px, env(safe-area-inset-bottom))
+      env(safe-area-inset-left);
+  }
+  #levelsInner {
     display: flex; flex-direction: column; align-items: center; margin: auto; padding: 24px 18px;
+    gap: clamp(10px, 2.4vh, 18px);
   }
-  #levelsInner { gap: clamp(10px, 2.4vh, 18px); }
-  #startInner { gap: clamp(12px, 2.8vh, 22px); width: min(360px, 92vw); }
-  #startLogo { display: flex; justify-content: center; width: 100%; }
-  #startLogo .logo-svg { height: clamp(92px, 26vw, 128px); }
-  #startc { width: min(300px, 80vw); height: clamp(80px, 14vh, 112px); }
-  #nextUp {
-    display: flex; align-items: center; gap: 14px;
-    background: #fff; border-radius: 22px; padding: 11px 18px; box-shadow: 0 6px 0 var(--shadow6);
+  #startInner {
+    display: flex; flex-direction: column; align-items: center;
+    width: min(360px, 92vw); padding: clamp(8px, 2vh, 24px) 18px;
+    gap: clamp(8px, 2.2vh, 22px);
+    /* last-resort safety: if a viewport is shorter than the floor heights can
+       fit, allow a quiet scroll rather than clipping the reset link */
+    max-height: 100%; overflow-y: auto;
   }
-  .nu-grid { display: grid; grid-template-columns: repeat(3, 13px); grid-auto-rows: 13px; gap: 4px; flex: none; }
-  .nu-grid i { border-radius: 4px; background: #FCE3EE; }
-  .nu-grid i.mid { background: #ECD6E1; }
-  .nu-grid i.on { background: var(--heart); }
-  .nu-text { line-height: 1.12; }
-  .nu-label { font-size: 10px; font-weight: 600; letter-spacing: .12em; color: var(--dim); }
-  #nuLevel { font-size: 20px; font-weight: 700; color: var(--ink); }
-  #startBtns { display: flex; flex-direction: column; gap: 12px; width: min(300px, 86vw); }
+  #startLogo { display: flex; justify-content: center; width: 100%; flex: none; }
+  #startLogo .logo-svg { height: clamp(76px, 22vw, 128px); }
+  #startc { width: min(300px, 80vw); height: clamp(72px, 13vh, 112px); flex: none; }
+  #startBtns { display: flex; flex-direction: column; gap: clamp(8px, 1.6vh, 12px); width: min(300px, 86vw); }
   #startBtns button {
     font: inherit; border: none; cursor: pointer; border-radius: 22px;
     background: #fff; color: var(--ink); font-size: 17px; font-weight: 600; letter-spacing: .03em;
@@ -257,6 +289,16 @@
     font: inherit; font-size: 14px; font-weight: 800; color: var(--ink); gap: 1px;
   }
   .lvchip:active { transform: translateY(3px); box-shadow: 0 1px 0 rgba(246,201,220,.45); }
+  .lvchip.done { background: linear-gradient(180deg, #FFF4F8, #FFE7F0); border-color: var(--heart); }
+  .lvchip.done span:first-child { color: var(--heart); }
+  .lvchip.open {
+    background: linear-gradient(180deg, var(--heart-top), var(--heart)); color: #fff;
+    border-color: var(--heart-edge);
+    box-shadow: 0 5px 0 var(--heart-edge), 0 12px 18px -8px rgba(255,109,158,.6);
+    animation: lvpulse 1.6s ease-in-out infinite;
+  }
+  .lvchip.open .mini { color: #fff; }
+  @keyframes lvpulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
   .lvchip.locked { opacity: .42; pointer-events: none; }
   .lvchip .mini { font-size: 8px; color: var(--heart); letter-spacing: 1px; height: 9px; }
   #blback {
@@ -316,6 +358,7 @@
     .rate .rh { transition: none; }
     #cap.show, #toast.show { animation: none; }
     #winCard { animation: none; }
+    #winNext.counting::after { animation: none; opacity: 0; }
     #fade { transition: none; }
     #introCard { animation: none; } #introTap { animation: none; }
   }
@@ -334,11 +377,14 @@
 </header>
 <main id="main">
   <canvas id="c"></canvas>
-  <div id="cap"></div>
-  <div id="toast"></div>
   <div id="fade"></div>
   <div id="flood"></div>
 </main>
+<!-- Squishy speaks from over the header band, at body level so the lift is
+     not clipped by #main's overflow; the down-tail points back at the header -->
+<div id="cap"><span id="capText"></span><button id="capX" aria-label="dismiss">
+  <svg viewBox="0 0 24 24"><path d="M6 6 L18 18 M18 6 L6 18"/></svg></button></div>
+<div id="toast"></div>
 <footer>
   <div class="tool">
     <button id="undo" aria-label="undo">
@@ -396,10 +442,6 @@
   <div id="startInner">
     <span id="startLogo"></span>
     <canvas id="startc"></canvas>
-    <div id="nextUp">
-      <div class="nu-grid"><i></i><i class="on"></i><i></i><i></i><i class="mid"></i><i></i><i></i><i></i><i class="on"></i></div>
-      <div class="nu-text"><div class="nu-label">NEXT UP</div><div id="nuLevel">Level 1</div></div>
-    </div>
     <div id="startBtns">
       <button id="bplay"><span class="bp-main">Play</span><span class="bp-sub" id="bplaySub">LEVEL 1</span></button>
       <button id="blevels">Levels</button>

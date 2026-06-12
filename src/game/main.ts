@@ -15,7 +15,7 @@ import { createIntro } from './intro';
 import { localToday } from '../gen/daily';
 import { createOhNo } from './ohno';
 import { createLevelsPick } from './levelsPick';
-import { loadGame, replayLine, restoreReplay, sameDef, saveGame } from './persist';
+import { loadGame, saveGame } from './persist';
 import { createStart } from './start';
 import { HEART_SVG, mountWordmark } from './logo';
 import { hideToast, toast } from './toast';
@@ -33,9 +33,14 @@ const main = document.getElementById('main') as HTMLElement;
 const elLvl = document.getElementById('lvl') as HTMLElement;
 const elMoves = document.getElementById('moves') as HTMLElement;
 const elCap = document.getElementById('cap') as HTMLElement;
+const elCapText = document.getElementById('capText') as HTMLElement;
 const elHintBtn = document.getElementById('hint') as HTMLButtonElement;
 const elFooter = document.querySelector('footer') as HTMLElement;
 const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* the current level's goal line, deferred behind first-meet overlays so the
+   bubble and an overlay are never on screen together (the hard gate) */
+let goalCap = '';
 
 /* mount the one-and-only logo (SSOT) into the header heart-home + wordmark */
 const elHome = document.getElementById('home');
@@ -79,8 +84,9 @@ function setCap(txt: string, bad = false): void {
   }
   elCap.classList.toggle('bad', bad);
   /* caption text is app-authored (level data / fixed strings); a <b> keyword
-     is allowed so Squishy can emphasise a word in the bubble */
-  elCap.innerHTML = txt;
+     is allowed so Squishy can emphasise a word in the bubble. Text lands in
+     #capText so the always-present X dismiss button survives the update */
+  elCapText.innerHTML = txt;
   if (txt) {
     elCap.classList.add('show');
     audio.talk();
@@ -89,6 +95,16 @@ function setCap(txt: string, bad = false): void {
     elCap.classList.remove('show');
   }
 }
+
+/** The bubble's tiny X: clear Squishy's current saying right away. */
+function dismissCap(): void {
+  if (s.capTimer !== null) {
+    clearTimeout(s.capTimer);
+    s.capTimer = null;
+  }
+  elCap.classList.remove('show');
+}
+document.getElementById('capX')?.addEventListener('click', dismissCap);
 
 function oracleKey(): string {
   return s.play.kind === 'daily' ? 'daily:' + s.play.date : 'lvl:' + s.li;
@@ -133,7 +149,10 @@ function applyLevel(def: LevelDef): void {
   s.heartUnlockT0 = null;
   hideToast();
   document.getElementById('win')?.classList.remove('show');
-  setCap(def.cap ?? '');
+  /* remember the level goal but do not speak it yet — the gate below decides
+     whether an overlay greets first; clear any stale bubble from last level */
+  goalCap = def.cap ?? '';
+  setCap('');
   layout();
   hud();
   s.boardScale = reduced ? 1 : 0.86;
@@ -151,9 +170,20 @@ function applyLevel(def: LevelDef): void {
   saveGame(s);
   /* first-meet cards greet new friends/elements only once the player is
      actually in the level — never behind the start menu, where the 7s
-     auto-dismiss would burn them unseen. The menu fires them on Play. */
+     auto-dismiss would burn them unseen. The menu fires them on Play.
+     The hard gate: an overlay and Squishy's goal bubble are never up at the
+     same time. If overlays greet, the goal bubble waits for onAllDismissed. */
   if (startMenu.isOpen()) s.mode = 'menu';
-  else intro.maybeShow(s);
+  else if (!intro.maybeShow(s)) showGoalCap();
+}
+
+/** Speak the level goal once, but only when no overlay owns the screen. The
+    goal is consumed so a later tap-to-explain dismissal does not re-speak it. */
+function showGoalCap(): void {
+  if (s.mode === 'intro' || s.mode === 'menu') return;
+  if (!goalCap) return;
+  setCap(goalCap);
+  goalCap = '';
 }
 
 function loadLevel(li: number, fromWin = false): void {
@@ -412,8 +442,12 @@ bindInput(main, {
 });
 window.addEventListener('resize', () => layout());
 
-/* friend first-meet cards: any tap or key dismisses */
-const intro = createIntro(s, () => hints.afterStateChange());
+/* friend first-meet cards: any tap or key dismisses. When the last overlay
+   closes, re-arm hints and let Squishy finally speak the deferred level goal. */
+const intro = createIntro(s, () => {
+  hints.afterStateChange();
+  showGoalCap();
+});
 document.getElementById('intro')?.addEventListener('pointerdown', () => intro.dismiss());
 document.addEventListener('keydown', () => {
   if (s.mode === 'intro') intro.dismiss();
@@ -432,8 +466,9 @@ const startMenu = createStart({
   s,
   onPlay: () => {
     /* reveal the level the player left under the menu, then greet any
-       not-yet-met friends or elements it holds */
-    intro.maybeShow(s);
+       not-yet-met friends or elements it holds. Same gate as applyLevel:
+       an overlay speaks first; only with no overlay does the goal bubble show */
+    if (!intro.maybeShow(s)) showGoalCap();
   },
   onDaily: () => startDaily(),
   onLevels: () => levelsPick.open(),
@@ -458,38 +493,22 @@ installTestApi({
 const saved = loadGame();
 s.results = saved.results;
 s.daily = saved.daily;
+const dailyResume = saved.play.kind === 'daily' && saved.def && saved.play.date === localToday();
+/* restore the resume level index BEFORE the menu paints, so the Play/Continue
+   button reads the correct level on its very first frame (no "Level 1" flash).
+   s.play only becomes the daily tag for a live daily-resume; otherwise it stays
+   the default campaign tag, matching the branch handling below */
+s.li = saved.li;
+if (dailyResume) s.play = saved.play;
 /* the menu owns the screen on boot — open it first so the level we restore
    underneath it does not fire its intro cards behind the menu */
 startMenu.open();
-if (saved.play.kind === 'daily' && saved.def && saved.play.date === localToday()) {
-  /* resume today's daily exactly where it was left */
-  s.li = saved.li;
-  s.play = saved.play;
+if (dailyResume && saved.def) {
+  /* today's daily - fresh at its initial state (mid-level progress is never saved) */
   applyLevel(saved.def);
-  if (saved.line) {
-    const rp = replayLine(s.level, saved.line);
-    if (rp) {
-      restoreReplay(s, rp);
-      hud();
-      hints.afterStateChange();
-    }
-  }
 } else if (saved.play.kind === 'campaign' && saved.li < CURATED.length) {
-  /* restore exactly where the player was, replaying the saved line */
-  const cur = CURATED[saved.li] as LevelDef;
-  s.li = saved.li;
-  applyLevel(cur);
-  if (saved.line && sameDef(saved.def, cur)) {
-    const rp = replayLine(s.level, saved.line);
-    if (rp) {
-      restoreReplay(s, rp);
-      hud();
-      hints.afterStateChange();
-      saveGame(s);
-    } else {
-      console.warn('[squishy] saved line no longer replays — starting level fresh');
-    }
-  }
+  /* the resume level, fresh - in-between states are never persisted */
+  applyLevel(CURATED[saved.li] as LevelDef);
 } else {
   loadLevel(saved.li);
 }

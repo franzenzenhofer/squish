@@ -1,11 +1,10 @@
-/* Persistence — the whole running game survives a reload. The level def and
-   the line of swipes played are stored; on boot the line is replayed through
-   the engine, reconstructing the exact state AND the undo stack. A line that
-   no longer replays (engine changed) is discarded and the level starts
-   fresh — loud, never corrupt. */
-import { CODEDIR, cloneState } from '../engine/core';
-import { move } from '../engine/move';
-import type { DirCode, GameState, Level, LevelDef } from '../engine/types';
+/* Persistence — what survives a reload is WHICH level you are on, plus your
+   per-level best results and daily-best times. Mid-level progress is never
+   stored: a reloaded or revisited level always starts fresh at its initial
+   state. Finishing a level advances the saved resume pointer immediately (see
+   saveAdvance), so quitting during the win card still resumes on the next
+   level. Fail loud, never corrupt. */
+import type { LevelDef } from '../engine/types';
 import type { PlayTag, Session } from './session';
 
 const KEY_V2 = 'squish-progress-v2';
@@ -16,19 +15,33 @@ export interface SavedGame {
   play: PlayTag;
   li: number;
   def: LevelDef | null;
-  line: string;
   results: Record<number, number>;
   daily: Record<string, number>;
 }
 
 const FRESH: SavedGame = {
-  v: 2, play: { kind: 'campaign' }, li: 0, def: null, line: '', results: {}, daily: {}
+  v: 2, play: { kind: 'campaign' }, li: 0, def: null, results: {}, daily: {}
 };
 
 export function saveGame(s: Session): void {
   const snap: SavedGame = {
-    v: 2, play: s.play, li: s.li, def: s.def,
-    line: s.line.join(''), results: s.results, daily: s.daily
+    v: 2, play: s.play, li: s.li, def: s.def, results: s.results, daily: s.daily
+  };
+  try {
+    localStorage.setItem(KEY_V2, JSON.stringify(snap));
+  } catch {
+    /* storage full or blocked — play on */
+  }
+}
+
+/** Persist a finished campaign level by advancing the saved resume pointer to
+    the next level, so a cold restart resumes there even if the player quits
+    during the win card. Keeps results + daily bests; clears the stored def
+    (the next level supplies its own). */
+export function saveAdvance(s: Session, nextLi: number): void {
+  const snap: SavedGame = {
+    v: 2, play: { kind: 'campaign' }, li: nextLi, def: null,
+    results: s.results, daily: s.daily
   };
   try {
     localStorage.setItem(KEY_V2, JSON.stringify(snap));
@@ -71,7 +84,6 @@ export function loadGame(): SavedGame {
           play: p.play?.kind === 'daily' ? p.play : { kind: 'campaign' },
           li: p.li,
           def: p.def ?? null,
-          line: typeof p.line === 'string' ? p.line : '',
           results: p.results ?? {},
           daily: p.daily ?? {}
         };
@@ -81,48 +93,4 @@ export function loadGame(): SavedGame {
     /* unreadable — fall through */
   }
   return migrateV1() ?? { ...FRESH };
-}
-
-export interface Replayed {
-  gs: GameState;
-  hist: Array<{ gs: GameState; moves: number }>;
-  line: DirCode[];
-  moves: number;
-}
-
-/** Replay a DirCode line from the level start. Null = line does not replay
-    (engine or level changed since the save). */
-export function replayLine(level: Level, line: string): Replayed | null {
-  const codes = line.split('') as DirCode[];
-  let gs = cloneState(level.initState);
-  const hist: Replayed['hist'] = [];
-  const played: DirCode[] = [];
-  for (let i = 0; i < codes.length; i++) {
-    const c = codes[i] as DirCode;
-    if (!(c in CODEDIR)) return null;
-    const r = move(level, gs, CODEDIR[c]);
-    if (!r.moved) return null;
-    hist.push({ gs, moves: i });
-    gs = r.state;
-    played.push(c);
-    if (gs.dots.length === 0) return null; // saved mid-lose? start fresh
-  }
-  return { gs, hist, line: played, moves: played.length };
-}
-
-/** Apply a replayed line onto a freshly applied level. */
-export function restoreReplay(s: Session, rp: Replayed): void {
-  s.gs = rp.gs;
-  s.hist = rp.hist;
-  s.line = rp.line;
-  s.moves = rp.moves;
-  s.renderBroken = new Set(s.gs.broken);
-  s.renderFed = new Set(s.gs.fed);
-  s.renderStars = new Set(s.gs.stars);
-}
-
-/** True when the saved level def matches the current curated def — a changed
-    def means the save's line belongs to an older build of the level. */
-export function sameDef(a: LevelDef | null, b: LevelDef): boolean {
-  return a !== null && JSON.stringify(a) === JSON.stringify(b);
 }

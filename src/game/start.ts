@@ -75,12 +75,13 @@ export function createStart(d: StartDeps): Start {
     el.classList.add('show');
     const dd = document.getElementById('bdailyDate');
     if (dd) dd.textContent = localToday().slice(5);
-    /* Play + NEXT UP reflect the campaign level the player will resume */
+    /* the primary button reflects the campaign level the player will resume:
+       no progress (li 0) reads "Play / LEVEL 1"; otherwise "Continue / LEVEL N" */
     const n = s.li + 1;
+    const main = el.querySelector('.bp-main');
+    if (main) main.textContent = s.li > 0 ? 'Continue' : 'Play';
     const sub = document.getElementById('bplaySub');
     if (sub) sub.textContent = 'LEVEL ' + n;
-    const nu = document.getElementById('nuLevel');
-    if (nu) nu.textContent = 'Level ' + n;
     cancelAnimationFrame(raf);
     raf = requestAnimationFrame(loop);
   };

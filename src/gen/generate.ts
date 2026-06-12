@@ -5,7 +5,8 @@ import { analyzeLevel, winnableState } from '../engine/analyze';
 import { DIRCODE, DIRNAMES, cloneState, makeLevel, ser } from '../engine/core';
 import { move } from '../engine/move';
 import { featureUse, solve, spamSolvable } from '../engine/solve';
-import type { Dir, GameState, Level, LevelDef } from '../engine/types';
+import { FRIEND_KEYS } from '../engine/types';
+import type { Dir, GameState, Level, LevelDef, XY } from '../engine/types';
 import { FIELD_FLAGS, FRIEND_FLAGS, ramp, type RampParams } from './ramp';
 import { levelRng, type Rng } from './rng';
 import { sketch } from './sketch';
@@ -20,8 +21,8 @@ export const TUTORIALS: LevelDef[] = [
     par: 1, sol: 'R', cap: 'Squishies merge - end with one on the heart'
   },
   {
-    w: 4, h: 4, target: [3, 3], dots: [[0, 1], [0, 3]], walls: [[2, 1]],
-    par: 2, sol: 'DR', cap: 'Pillows are walls'
+    w: 4, h: 4, target: [3, 0], dots: [[0, 1], [0, 3]], walls: [[2, 3]],
+    par: 2, sol: 'UR', cap: 'Pillows are walls'
   }
 ];
 
@@ -58,6 +59,20 @@ function reachable(def: LevelDef): boolean {
     }
   }
   return def.dots.every((d) => seen.has(d[0] + ',' + d[1]));
+}
+
+/** Mover arrays whose pieces must never spawn above the heart (with dots). */
+const MOVER_KEYS = ['boxes', 'balloons', 'snails'] as const;
+
+/** No actor may spawn on a row above the heart: every squishy, friend and
+    mover needs y >= target[1] ("above" = a smaller row index). Stars are
+    pickups, not actors, so they are exempt. */
+export function noAboveHeart(def: LevelDef): boolean {
+  const ty = def.target[1];
+  const pieces: XY[] = [...def.dots];
+  for (const key of MOVER_KEYS) pieces.push(...(def[key] ?? []));
+  for (const key of FRIEND_KEYS) pieces.push(...(def[key] ?? []));
+  return pieces.every((c) => c[1] >= ty);
 }
 
 /** How many opening swipes immediately kill every squishy. */
@@ -140,6 +155,7 @@ export function tryGenerate(rng: Rng, p: RampParams): Candidate | null {
     const level = makeLevel(def);
     const res = solve(level, { maxStates: p.maxStates, maxDepth: p.parTarget + 3 });
     if (res.status !== 'solved') continue;
+    if (!noAboveHeart(def)) continue;
     if (res.par < p.parMin || res.par > p.parMax) continue;
     if (res.ways > 8) continue;
     if (suicideDirs(level) >= 2) continue;
