@@ -249,3 +249,18 @@ export function createAudio(): Audio {
     }
   };
 }
+
+/** Silent Audio (null object) - the win-card replay re-fires the exact gameplay
+    fx pipeline (handleFx / onEnd) for its visuals, but must stay quiet: the win
+    jingle already owns the soundscape. One silent sink keeps those functions an
+    SSOT instead of forking sound-free copies. */
+export function silentAudio(): Audio {
+  const none = (): void => undefined;
+  return {
+    unlock: none, toggleMute: () => true, isMuted: () => true,
+    slide: none, merge: none, split: none, beam: none, turn: none, boing: none,
+    windy: none, hop: none, crack: none, nom: none, yum: none, squish: none,
+    win: none, tick: none, collect: none, unlockHeart: none, scare: none,
+    oink: none, ohno: none, talk: none, happy: none, buzz: none
+  };
+}

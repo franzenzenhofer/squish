@@ -108,10 +108,11 @@ export function createEndings(d: EndingsDeps): Endings {
     const mv = s.moves + (s.moves === 1 ? ' move' : ' moves');
     elWinSub.innerHTML = label + ' · solved in <b>' + mv + '</b>';
     elWinTag.innerHTML = pickWinLine(hearts) + ratingHearts(hearts);
-    /* the in-app card REPLAYS the player's recorded solution, looping */
+    /* the in-app card REPLAYS the player's recorded solution, looping - always
+       animated, painted by the one gameplay renderer */
     const line = s.line.join('');
     stopReplay();
-    replay = startWinReplay(elShot, s.def, label, line, d.reduced);
+    replay = startWinReplay(elShot, s.def, label, line);
     elWin.dataset.def = JSON.stringify(s.def);
     elWin.dataset.label = label;
     elWin.classList.add('show');

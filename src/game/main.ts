@@ -124,8 +124,12 @@ function hud(): void {
   elMoves.innerHTML =
     '<b class="' + (s.moves > s.def.par ? 'over' : '') + '">' + s.moves +
     '</b><span class="dim">/' + s.def.par + '</span>';
-  /* teach the tools on the first few levels, then go icon-only */
-  if (elFooter) elFooter.classList.toggle('labels', s.play.kind === 'campaign' && s.li < 3);
+  /* teach the tools on the first few levels and on dailies (the hard ones,
+     where Hint matters most), then go icon-only */
+  if (elFooter) {
+    elFooter.classList.toggle('labels',
+      s.play.kind === 'daily' || (s.play.kind === 'campaign' && s.li < 3));
+  }
 }
 
 function applyLevel(def: LevelDef): void {
