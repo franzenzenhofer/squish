@@ -35,6 +35,7 @@ const elLvl = document.getElementById('lvl') as HTMLElement;
 const elMoves = document.getElementById('moves') as HTMLElement;
 const elCap = document.getElementById('cap') as HTMLElement;
 const elHintBtn = document.getElementById('hint') as HTMLButtonElement;
+const elFooter = document.querySelector('footer') as HTMLElement;
 const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 /* mount the one-and-only logo (SSOT) into the header heart-home + wordmark */
@@ -98,6 +99,8 @@ function hud(): void {
   elMoves.innerHTML =
     '<b class="' + (s.moves > s.def.par ? 'over' : '') + '">' + s.moves +
     '</b><span class="dim">/' + s.def.par + '</span>';
+  /* teach the tools on the first few levels, then go icon-only */
+  if (elFooter) elFooter.classList.toggle('labels', s.play.kind === 'campaign' && s.li < 3);
 }
 
 function applyLevel(def: LevelDef): void {
