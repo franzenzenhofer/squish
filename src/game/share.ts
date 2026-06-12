@@ -32,13 +32,13 @@ export function renderBoardCard(def: LevelDef, date: string): HTMLCanvasElement 
 
   ctx.textAlign = 'center';
   ctx.fillStyle = C.heart;
-  ctx.font = '800 52px ui-rounded, "Quicksand", system-ui, sans-serif';
+  ctx.font = '800 52px Fredoka, ui-rounded, system-ui, sans-serif';
   ctx.fillText('Squishy', CARD_W / 2, 78);
   ctx.fillStyle = C.ink;
-  ctx.font = '800 24px ui-rounded, "Quicksand", system-ui, sans-serif';
+  ctx.font = '800 24px Fredoka, ui-rounded, system-ui, sans-serif';
   ctx.fillText('& Friends', CARD_W / 2, 106);
   ctx.fillStyle = '#C18BA8';
-  ctx.font = '800 22px ui-rounded, "Quicksand", system-ui, sans-serif';
+  ctx.font = '800 22px Fredoka, ui-rounded, system-ui, sans-serif';
   ctx.fillText('Daily ' + date, CARD_W / 2, 146);
 
   const level = makeLevel(def);
@@ -115,10 +115,10 @@ export function renderBoardCard(def: LevelDef, date: string): HTMLCanvasElement 
   }
 
   ctx.fillStyle = C.heart;
-  ctx.font = '800 26px ui-rounded, "Quicksand", system-ui, sans-serif';
+  ctx.font = '800 26px Fredoka, ui-rounded, system-ui, sans-serif';
   ctx.fillText('Can you solve it?', CARD_W / 2, CARD_H - 44);
   ctx.fillStyle = '#C18BA8';
-  ctx.font = '800 20px ui-rounded, "Quicksand", system-ui, sans-serif';
+  ctx.font = '800 20px Fredoka, ui-rounded, system-ui, sans-serif';
   ctx.fillText('squishy.franzai.com', CARD_W / 2, CARD_H - 14);
   return cv;
 }

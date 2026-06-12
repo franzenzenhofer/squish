@@ -245,7 +245,7 @@ export function createIntro(s: Session, onAllDismissed: () => void): Intro {
     });
     if (zzz) {
       ctx.fillStyle = C.ink;
-      ctx.font = '700 13px ui-rounded, system-ui';
+      ctx.font = '700 13px Fredoka, ui-rounded, system-ui';
       ctx.fillText('z z', cxAt(x) + cell * 0.3, cy - cell * 0.38);
     }
   };

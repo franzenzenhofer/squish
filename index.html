@@ -15,6 +15,32 @@
     --heart: #FF6D9E;
     --yel: #FFD56A;
     --border: #F6C9DC;
+    /* redesign tokens */
+    --logo: #FF7FAE;
+    --heart-top: #FF85AC;
+    --heart-edge: #E2557F;
+    --soft: #8A6E7C;
+    --dim: #C99BB2;
+    --dim2: #C18BA8;
+    --link: #C9A6B8;
+    --link-ul: #EAC9D8;
+    --bubble-bd: #FCDDEB;
+    --shadow: rgba(246,201,220,.5);
+    --shadow6: rgba(246,201,220,.6);
+    --dark: #6B4A5B;
+    --dark-edge: rgba(60,38,48,.45);
+  }
+  /* Fredoka — self-hosted (SIL OFL 1.1, see public/fonts/OFL.txt) so the
+     iOS adaptation can bundle the same face; no CDN dependency */
+  @font-face {
+    font-family: 'Fredoka'; font-style: normal; font-weight: 300 700; font-display: swap;
+    src: url('/fonts/fredoka-latin.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+  }
+  @font-face {
+    font-family: 'Fredoka'; font-style: normal; font-weight: 300 700; font-display: swap;
+    src: url('/fonts/fredoka-latin-ext.woff2') format('woff2');
+    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   /* lock the text scale so a bigger iOS system font never inflates the
@@ -25,7 +51,7 @@
     position: fixed; inset: 0;
     background: radial-gradient(130% 90% at 50% -15%, #FFFAFC 0%, #FFEFF6 42%, #FFE2EE 100%);
     color: var(--ink);
-    font: 800 14px/1.25 ui-rounded, "Hiragino Maru Gothic ProN", "Quicksand", "Varela Round", system-ui, sans-serif;
+    font: 600 14px/1.25 'Fredoka', ui-rounded, "Hiragino Maru Gothic ProN", system-ui, sans-serif;
     letter-spacing: .02em;
     user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
     touch-action: none; overscroll-behavior: none;
@@ -36,6 +62,17 @@
   }
   body::before { width: 200px; height: 200px; background: #FFE0EC; left: -60px; top: 12%; }
   body::after { width: 240px; height: 240px; background: #FFEAD6; right: -80px; bottom: 8%; }
+
+  /* ---- logo lockup (single source of truth: src/game/logo.ts) ---- */
+  .logo-heart { width: 1em; height: 1em; display: block; }
+  .wordmark { display: inline-flex; flex-direction: column; align-items: center; line-height: 1; }
+  .wm-main {
+    font-weight: 700; color: var(--logo); line-height: 1.04;
+    -webkit-text-stroke: .12em #fff; paint-order: stroke fill;
+    filter: drop-shadow(0 .06em 0 rgba(230,120,165,.5)); letter-spacing: .005em;
+  }
+  .wm-sub { font-size: .3em; font-weight: 700; color: var(--ink); letter-spacing: .06em; margin-top: -.08em; }
+  .wm-sub b { color: var(--heart); font-weight: 700; }
 
   header {
     position: relative; z-index: 1; overflow: hidden;

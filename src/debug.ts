@@ -229,7 +229,7 @@ function frame(now: number): void {
   for (const p of placed) {
     if ('sec' in p) {
       ctx.fillStyle = '#C18BA8';
-      ctx.font = '800 13px ui-rounded, system-ui, sans-serif';
+      ctx.font = '800 13px Fredoka, ui-rounded, system-ui, sans-serif';
       ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
       ctx.fillText(p.sec.toUpperCase(), 6, p.y + HEADH * 0.62);
@@ -262,7 +262,7 @@ function frame(now: number): void {
     p.draw(p.x + CW / 2, cardY + chh * 0.44, now);
 
     ctx.fillStyle = '#8A6076';
-    ctx.font = '800 12.5px ui-rounded, system-ui, sans-serif';
+    ctx.font = '800 12.5px Fredoka, ui-rounded, system-ui, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(p.label, p.x + CW / 2, cardY + chh - 18);
