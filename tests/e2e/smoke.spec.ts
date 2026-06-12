@@ -315,6 +315,32 @@ test('a hinted win earns zero hearts and a friendly line', async ({ page }) => {
   expect(await page.locator('#winTag .rate .rh.on').count()).toBe(0);
 });
 
+test('a clean replay after a hinted win earns the hearts back', async ({ page }) => {
+  await boot(page);
+  await page.evaluate(() => localStorage.clear());
+  await page.evaluate(() => window.__squishy?.setSettings({ afterWin: 'wait' }));
+  /* hinted first run: done, zero hearts */
+  await page.evaluate(() => window.__squishy?.loadLevel(3));
+  await clearIntros(page);
+  await page.evaluate(() => window.__squishy?.toggleHintMode());
+  await solveCurrent(page);
+  await page.waitForSelector('#win.show', { timeout: 10000 });
+  let saved = JSON.parse(await page.evaluate(
+    () => localStorage.getItem('squish-progress-v2') ?? '{}'));
+  expect(saved.hinted?.['3']).toBe(true);
+  expect(saved.results?.['3']).toBeUndefined();
+  /* clean replay: hearts earned, the hinted mark dissolves */
+  await page.evaluate(() => window.__squishy?.loadLevel(3));
+  await clearIntros(page);
+  await solveCurrent(page);
+  await page.waitForSelector('#win.show', { timeout: 10000 });
+  expect(await page.locator('#winTag .rate .rh.on').count()).toBe(3);
+  saved = JSON.parse(await page.evaluate(
+    () => localStorage.getItem('squish-progress-v2') ?? '{}'));
+  expect(saved.hinted?.['3']).toBeUndefined();
+  expect(typeof saved.results?.['3']).toBe('number');
+});
+
 test('?debug=doit: picker unlocks everything, test levels fire the oh-no', async ({ page }) => {
   await page.goto('/?test=1&debug=doit');
   await page.waitForFunction(() => window.__squishy !== undefined);
@@ -328,9 +354,18 @@ test('?debug=doit: picker unlocks everything, test levels fire the oh-no', async
   await page.evaluate(() => document.getElementById('blevels')?.click());
   await page.waitForSelector('#levels.show', { timeout: 5000 });
   expect(await page.locator('#levelsGrid .lvchip.locked').count()).toBe(0);
-  expect(await page.locator('#levelsGen .lvchip').count()).toBe(10);
+  /* 10 ladder chips (41-50) + 7 marathon milestone chips (60..200) */
+  expect(await page.locator('#levelsGen .lvchip').count()).toBe(17);
   expect(await page.locator('.lvtest button').count()).toBeGreaterThanOrEqual(8);
   expect(await page.locator('.lvbake .bkgo').count()).toBe(1);
+  /* baking closes the picker and drops you into the fresh level */
+  await page.click('.lvbake .bkgo');
+  await page.waitForFunction(() => {
+    const m = window.__squishy?.state();
+    return m?.play === 'debug:-1' && (m.mode === 'idle' || m.mode === 'intro');
+  }, undefined, { timeout: 60000 });
+  expect(await page.evaluate(
+    () => document.getElementById('levels')?.classList.contains('show'))).toBe(false);
   /* the oh-no trap level: a dead opening must hop back automatically */
   await page.evaluate(() => window.__squishy?.loadTestLevel(0));
   await clearIntros(page);
@@ -340,6 +375,28 @@ test('?debug=doit: picker unlocks everything, test levels fire the oh-no', async
     const m = window.__squishy?.state();
     return m?.mode === 'idle' && m.moves === 0 && m.winnable === true;
   }, undefined, { timeout: 10000 });
+});
+
+test('holding the win replay pauses the auto-advance countdown', async ({ page }) => {
+  await boot(page);
+  await page.evaluate(() => localStorage.clear());
+  await page.evaluate(() => window.__squishy?.loadLevel(3));
+  await clearIntros(page);
+  await solveCurrent(page);
+  await page.waitForSelector('#win.show', { timeout: 10000 });
+  expect(await page.evaluate(
+    () => document.getElementById('winNext')?.classList.contains('counting'))).toBe(true);
+  /* press and hold the replay: the countdown pauses for the hold */
+  await page.dispatchEvent('#winShot', 'pointerdown');
+  expect(await page.evaluate(
+    () => document.getElementById('winNext')?.classList.contains('paused'))).toBe(true);
+  /* the card must NOT auto-advance while held (well past the 4s window) */
+  await page.waitForTimeout(4600);
+  expect(await page.evaluate(
+    () => document.getElementById('win')?.classList.contains('show'))).toBe(true);
+  await page.dispatchEvent('body', 'pointerup');
+  expect(await page.evaluate(
+    () => document.getElementById('winNext')?.classList.contains('paused'))).toBe(false);
 });
 
 test('settings link opens the closeable privacy statement', async ({ page }) => {

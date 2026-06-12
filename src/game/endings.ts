@@ -12,8 +12,11 @@ import type { PlayKind } from '../lib/trackSchema';
 import { pickHintedLine, pickWinLine, pickWinTitle } from './winLines';
 import { startWinReplay, type WinReplay } from './winReplay';
 
-/** No-interaction auto-advance window on the Next button. */
-const AUTO_ADVANCE_MS = 7000;
+/** No-interaction auto-advance window on the Next button. 4s = the Material
+    default for transient dismissible surfaces (toasts 2-4s, snackbars 4-10s):
+    long enough to read the card, short enough to keep the flow - and holding
+    the replay pauses it, so watching is never cut short. */
+const AUTO_ADVANCE_MS = 4000;
 
 export interface EndingsDeps {
   s: Session;
@@ -70,18 +73,49 @@ export function createEndings(d: EndingsDeps): Endings {
 
   let replay: WinReplay | null = null;
   let autoTimer: number | null = null;
+  let autoRemain = 0;
+  let autoT0 = 0;
+  let holding = false;
 
   /** Tear down the looping replay + the no-interaction auto-advance ring. */
   const stopReplay = (): void => {
     replay?.stop();
     replay = null;
   };
+  const startAuto = (ms: number): void => {
+    autoT0 = performance.now();
+    autoRemain = ms;
+    autoTimer = window.setTimeout(() => {
+      autoTimer = null;
+      advance();
+    }, ms);
+  };
   const cancelAuto = (): void => {
     if (autoTimer !== null) {
       clearTimeout(autoTimer);
       autoTimer = null;
     }
-    elNext.classList.remove('counting');
+    holding = false;
+    elNext.classList.remove('counting', 'paused');
+  };
+
+  /* Holding a finger on the replay pauses the countdown (ring freezes with
+     it) so the solution can be watched in peace; release resumes. */
+  const pauseAuto = (): void => {
+    if (autoTimer === null) return;
+    clearTimeout(autoTimer);
+    autoTimer = null;
+    autoRemain = Math.max(400, autoRemain - (performance.now() - autoT0));
+    holding = true;
+    elNext.classList.add('paused');
+  };
+  const resumeAuto = (): void => {
+    if (!holding) return;
+    holding = false;
+    elNext.classList.remove('paused');
+    if (elWin.classList.contains('show') && elNext.classList.contains('counting')) {
+      startAuto(autoRemain);
+    }
   };
 
   const floodAt = (px: number, py: number): void => {
@@ -131,15 +165,12 @@ export function createEndings(d: EndingsDeps): Endings {
     elWin.dataset.label = label;
     elWin.classList.add('show');
     cancelAuto();
-    /* 7s no-interaction auto-advance with a countdown ring on Next — only in
+    /* 4s no-interaction auto-advance with a countdown ring on Next — only in
        the default 'auto' mode; 'wait' keeps the card up until a tap */
     if (getSettings().afterWin !== 'auto') return;
     void elNext.offsetWidth; /* reflow so the ring animation restarts each win */
     elNext.classList.add('counting');
-    autoTimer = window.setTimeout(() => {
-      autoTimer = null;
-      advance();
-    }, AUTO_ADVANCE_MS);
+    startAuto(AUTO_ADVANCE_MS);
   };
 
   document.getElementById('winShare')?.addEventListener('click', () => {
@@ -155,9 +186,17 @@ export function createEndings(d: EndingsDeps): Endings {
     audio.unlock();
     advance();
   });
-  /* tapping the card itself (not a button) also cancels the auto-advance */
+  /* touch-and-hold ON THE REPLAY pauses the countdown for the hold */
+  elShot.addEventListener('pointerdown', (e) => {
+    e.stopPropagation();
+    pauseAuto();
+  });
+  window.addEventListener('pointerup', resumeAuto);
+  window.addEventListener('pointercancel', resumeAuto);
+  /* tapping the card itself (not a button, not the replay) cancels it */
   document.getElementById('winCard')?.addEventListener('pointerdown', (e) => {
-    if ((e.target as HTMLElement).closest('button') === null) cancelAuto();
+    const t = e.target as HTMLElement;
+    if (t.closest('button') === null && t !== elShot) cancelAuto();
   });
 
   const winSeq = (): void => {

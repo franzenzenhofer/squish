@@ -15,7 +15,8 @@
     "deploy": "npm run gates && wrangler deploy",
     "levels:audit": "tsx scripts/audit-levels.ts",
     "daily:verify": "tsx scripts/verify-daily.ts",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "levels:ladder": "tsx scripts/audit-ladder.ts"
   },
   "devDependencies": {
     "@eslint/js": "^9.28.0",

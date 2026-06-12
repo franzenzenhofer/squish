@@ -38,6 +38,11 @@ describe('trackSchema.sanitizeEvent (the anonymity contract)', () => {
     expect(sanitizeEvent({ e: 'win', mv: Number.NaN })).toEqual({ e: 'win' });
   });
 
+  it('clamps the hinted flag to a boolean 0/1', () => {
+    expect(sanitizeEvent({ e: 'win', hd: 7 })).toEqual({ e: 'win', hd: 1 });
+    expect(sanitizeEvent({ e: 'win', hd: 0 })).toEqual({ e: 'win', hd: 0 });
+  });
+
   it('restricts the play-kind to single known letters', () => {
     expect(sanitizeEvent({ e: 'start', k: 'c' })).toEqual({ e: 'start', k: 'c' });
     expect(sanitizeEvent({ e: 'start', k: 'd' })).toEqual({ e: 'start', k: 'd' });

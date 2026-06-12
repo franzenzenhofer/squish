@@ -212,16 +212,22 @@
   }
   #winShare { background: linear-gradient(180deg, var(--heart-top), var(--heart)); box-shadow: 0 5px 0 var(--heart-edge); }
   #winShare:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--heart-edge); }
-  #winNext { position: relative; overflow: hidden; background: var(--dark); box-shadow: 0 5px 0 var(--dark-edge); }
-  #winNext:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--dark-edge); }
-  /* countdown bar: fills left-to-right over the 7s auto-advance to "next" */
+  /* Next is warm gold — celebratory, clearly distinct from the pink Share */
+  #winBtns #winNext {
+    position: relative; overflow: hidden; color: var(--ink);
+    background: linear-gradient(180deg, #FFE092, #FFC94F); box-shadow: 0 5px 0 #E2A93E;
+  }
+  #winNext:active { transform: translateY(3px); box-shadow: 0 2px 0 #E2A93E; }
+  /* countdown bar: fills left-to-right over the 4s auto-advance to "next";
+     holding the replay pauses it (.paused) so the solution can be watched */
   #winNext::after {
     content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 4px;
-    background: rgba(255,255,255,.55);
+    background: rgba(107,74,91,.45);
     transform-origin: left center; transform: scaleX(0); opacity: 0;
     pointer-events: none;
   }
-  #winNext.counting::after { animation: winct 7s linear forwards; }
+  #winNext.counting::after { animation: winct 4s linear forwards; }
+  #winNext.counting.paused::after { animation-play-state: paused; }
   @keyframes winct { from { transform: scaleX(0); opacity: 1; } to { transform: scaleX(1); opacity: 1; } }
   #winShare svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2.3; stroke-linecap: round; stroke-linejoin: round; }
 

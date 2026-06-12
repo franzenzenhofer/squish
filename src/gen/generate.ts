@@ -163,12 +163,20 @@ function quickTrapScan(level: Level, par: number, depth = 2): boolean {
 
 export function tryGenerate(rng: Rng, p: RampParams): Candidate | null {
   const pool: Candidate[] = [];
+  /* exact mode (the endless ladder) must see its whole acceptance band — a
+     candidate whose par exceeds the depth cap comes back 'unknown' and is
+     wasted. Other callers (dailies, curated builds, bakes) keep the original
+     depth EXACTLY: the daily is deterministic per date for every player, and
+     a deeper search would silently change which level a date produces. */
+  const maxDepth = p.parPrefer === 'exact'
+    ? Math.max(p.parTarget + 3, p.parMax + 1)
+    : p.parTarget + 3;
   for (let a = 0; a < p.attempts; a++) {
     const def = sketch(rng, p);
     if (!def) continue;
     if (!reachable(def)) continue;
     const level = makeLevel(def);
-    const res = solve(level, { maxStates: p.maxStates, maxDepth: p.parTarget + 3 });
+    const res = solve(level, { maxStates: p.maxStates, maxDepth });
     if (res.status !== 'solved') continue;
     if (!noAboveHeart(def)) continue;
     if (res.par < p.parMin || res.par > p.parMax) continue;
@@ -178,9 +186,17 @@ export function tryGenerate(rng: Rng, p: RampParams): Candidate | null {
     const fu = featureUse(level, res.solution);
     if (!fu.win) continue;
     if (!featuredOk(p, fu.used)) continue;
-    const score = res.par * 3 + fu.used.size * 2 - res.ways;
+    /* 'max' chases the hardest candidate; 'exact' (the endless ladder) wants
+       the one closest above the rung so the curve stays smooth */
+    const parScore = p.parPrefer === 'exact'
+      ? (p.parTarget - (res.par - p.parTarget)) * 3
+      : res.par * 3;
+    const score = parScore + fu.used.size * 2 - res.ways;
     pool.push({ def, par: res.par, ways: res.ways, solution: res.solution, score });
-    if (score >= p.parTarget * 3 + 4 && quickTrapScan(level, res.par) && trapFree(def)) {
+    const goodEnough = p.parPrefer === 'exact'
+      ? res.par <= p.parTarget + 1
+      : score >= p.parTarget * 3 + 4;
+    if (goodEnough && quickTrapScan(level, res.par) && trapFree(def)) {
       return pool[pool.length - 1] as Candidate;
     }
   }
@@ -219,6 +235,41 @@ export function finalize(c: Candidate): LevelDef {
   };
 }
 
+/** The proven high-par cast (parlab, 2026-06-12): a star tour with bunny +
+    frog in a wall maze reaches par 25-34 within a few hundred cheap attempts
+    — the rescue rounds reach for it before EVER relaxing a par floor. */
+function rescueParams(p: RampParams): RampParams {
+  return {
+    ...p,
+    friends: ['star', 'bunny', 'frog'],
+    starMax: Math.max(3, p.starMax ?? 2),
+    wallMax: Math.max(12, p.wallMax),
+    featureUseMin: 2
+  };
+}
+
+/** Endless levels NEVER step back: rescue rounds keep the par floor (fresh
+    seeds, then the proven star-tour cast) and concede at most ONE breathing
+    notch — simplify(), which resets floors, is never used here. */
+function generateEndless(n: number, fallbackPool?: LevelDef[]): LevelDef {
+  const p = ramp(n);
+  const rounds: Array<[number, RampParams]> = [
+    [n, p],
+    [n * 7919 + 101, p],
+    [n * 104729 + 7, rescueParams(p)],
+    [n * 999983 + 13, { ...rescueParams(p), parMin: p.parMin - 1 }]
+  ];
+  for (const [seed, q] of rounds) {
+    const c = tryGenerate(levelRng(seed), q);
+    if (c) return finalize(c);
+  }
+  console.error('[squishy] endless generation exhausted every rescue round for n=' + n);
+  if (fallbackPool && fallbackPool.length > 0) {
+    return fallbackPool[n % fallbackPool.length] as LevelDef;
+  }
+  throw new Error('level generation failed for n=' + n);
+}
+
 /**
  * Deterministic level for number n (1-based). Levels 1..3 are tutorials;
  * everything after is generated, solver-verified, par >= 4, never with a
@@ -228,6 +279,7 @@ export function generateLevel(n: number, fallbackPool?: LevelDef[]): LevelDef {
   if (n <= 3) return TUTORIALS[n - 1] as LevelDef;
   const fixed = FIXED_LEVELS[n];
   if (fixed) return fixed;
+  if (n > 40) return generateEndless(n, fallbackPool);
   const rng = levelRng(n);
   let p = ramp(n);
   for (let round = 0; round < 3; round++) {

@@ -236,7 +236,7 @@ function applyLevel(def: LevelDef): void {
   quitSent = false;
   track('start', { k: playKind(), li: s.li });
   /* first-meet cards greet new friends/elements only once the player is
-     actually in the level — never behind the start menu, where the 7s
+     actually in the level — never behind the start menu, where the timed
      auto-dismiss would burn them unseen. The menu fires them on Play.
      The hard gate: an overlay and Squishy's goal bubble are never up at the
      same time. If overlays greet, the goal bubble waits for onAllDismissed. */
@@ -269,6 +269,16 @@ function loadLevel(li: number, fromWin = false): void {
   s.play = { kind: 'campaign' };
   s.mode = 'loading';
   const defP = assist.getLevel(li);
+  /* deep endless levels bake in the worker — cover a cold bake cutely (the
+     usual case is instant: prefetched during the previous level, then cached) */
+  if (li >= CURATED.length) {
+    const slow = window.setTimeout(
+      () => toast('Baking level ' + (li + 1) + '…', { ms: 120000 }), 600);
+    void defP.then(() => {
+      clearTimeout(slow);
+      hideToast();
+    });
+  }
   if (fromWin) {
     /* the screen is flooded pink — apply beneath, then drain into the new heart */
     void defP.then((def) => {
@@ -393,20 +403,22 @@ function loadTestLevel(di: number): void {
   fadeSwap(reduced, async () => applyLevel(t.def));
 }
 
-/** Bake a one-off level at the requested hardness and play it. */
-async function bakeAndPlay(hardness: number): Promise<void> {
+/** Bake a one-off level at the requested hardness and play it.
+    Resolves true on success so the picker knows to close. */
+async function bakeAndPlay(hardness: number): Promise<boolean> {
   const seed = (Math.random() * 0xffffffff) >>> 0;
   toast('Baking hardness ' + hardness + '…', { ms: 30000 });
   const def = await assist.bake(hardness, seed);
   hideToast();
   if (!def) {
     toast('That bake fell flat - try again!', { ms: 2200 });
-    return;
+    return false;
   }
   bakeSeq++;
   s.play = { kind: 'debug', di: -1 };
   s.mode = 'loading';
   fadeSwap(reduced, async () => applyLevel(def));
+  return true;
 }
 
 /** Download + copy the current level def — paste it to Claude to keep it. */
@@ -613,7 +625,7 @@ const levelsPick = createLevelsPick({
   },
   onBake: async (hardness) => {
     startMenu.close();
-    await bakeAndPlay(hardness);
+    return bakeAndPlay(hardness);
   },
   unlockAudio: () => audio.unlock()
 });

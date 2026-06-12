@@ -21,6 +21,13 @@ export interface RampParams {
   /** how many featured friend/field groups the optimal line must actually
       use; omitted = all of them */
   featureUseMin?: number;
+  /** most stars a sketch may place when 'star' features (default 2) — more
+      stars force longer collection tours, the main lever for very high par */
+  starMax?: number;
+  /** candidate choice within the par band: 'max' (default) takes the hardest,
+      'exact' takes the one closest above parTarget — the endless ladder uses
+      'exact' so wide acceptance bands don't overshoot the rung */
+  parPrefer?: 'exact' | 'max';
   dots: number;
   friends: FriendKind[];
   fields: FieldKind[];
@@ -130,55 +137,80 @@ export function ramp(n: number): RampParams {
     base.maxStates = 400000;
     return { ...base, friends: [], fields: [], classics: [], ...c };
   }
-  /* endless 41+ — one continuous progression: picks up at late-campaign
-     hardness and climbs visibly (41..50 step from par 7 to 10, then on).
-     Never resets, never gets easier. */
+  /* endless 41+ — one continuous, NEVER-regressing progression. The campaign
+     finale (par 10) is the climax of its arc; the ladder then climbs 7 → 10
+     across 41-50 and keeps stepping up forever: +1 par rung every 8 levels
+     into marathon territory (par ~16 at L100, ~22 at L150, ~28 at L200, cap
+     30), with walls, fields and friends growing alongside. Measured fact
+     (parlab, 2026-06-12): long optimal lines live in SMALL state graphs when
+     the board is a wall maze with a star tour - so marathon rungs always
+     carry stars, and panda/chick (whose state space forces small boards that
+     cap par) step off the ladder at those rungs. */
   const k = n - 41;
   base.w = base.h = k < 20 ? 6 : 7;
-  /* endless is its own journey: the campaign finale (par 10) is the climax,
-     then 41-50 climb 7 → 10 among themselves and the tail keeps inching up.
-     The band is FLOOR-ONLY (target .. target+1): a level may run one move
-     hot but never below its rung, so the ladder reads harder-and-harder. */
   base.parTarget = k < 9
     ? 7 + Math.floor(k / 3)
-    : Math.min(12, 10 + Math.floor((k - 9) / 10));
+    : Math.min(30, 10 + Math.floor((k - 9) / 8));
+  /* FLOOR-ONLY band: the floor is law, the ceiling breathes. Par disperses
+     at high rungs (measured: rung 23 found only 26-34 candidates), so the
+     acceptance window opens upward and 'exact' preference picks the
+     candidate closest above the rung — never one below it. */
   base.parMin = base.parTarget;
-  base.parMax = base.parTarget + 1;
-  base.dots = k < 40 ? 2 : 2 + (k % 2);
-  base.wallMax = Math.min(9, 7 + Math.floor(k / 30));
-  /* the first ten rungs are the visible debug ladder — spend more attempts
-     there so the floor holds without simplify ever relaxing it */
-  base.attempts = k < 10 ? 200 : 80;
-  base.maxStates = 120000;
+  base.parMax = base.parTarget +
+    (base.parTarget >= 18 ? 8 : base.parTarget >= 12 ? 3 : 2);
+  base.parPrefer = 'exact';
+  const marathon = base.parTarget >= 12;
+  base.dots = 2;
+  base.wallMax = Math.min(16, 7 + Math.floor(k / 6));
+  /* generous attempts: rungs must hold without ever relaxing the floor.
+     Marathon attempts stay cheap BY DESIGN: true marathon candidates live in
+     small maze graphs, so a low state cap fails the sprawling non-maze
+     sketches fast instead of burning the full search on boards that could
+     never carry the rung (measured: this cuts deep-rung baking 3-5x). */
+  base.attempts = k < 10 ? 200 : Math.min(320, 120 + k * 2);
+  base.maxStates = base.parTarget >= 12 ? 50000 : 120000;
   /* the optimal line must use at least two featured groups — keeps
      on-device generation fast while boards stay busy */
   base.featureUseMin = 2;
-  /* on the visible 41-50 ladder, panda/chick are swapped out: their state
-     space forces a 5x5 board, which caps par below the ladder's rung. They
-     return from 51 on (and star throughout the campaign). */
+  if (marathon) {
+    base.starMax = Math.min(5, 3 + Math.floor((base.parTarget - 12) / 6));
+  }
+  /* panda/chick are swapped out on the visible 41-50 ladder AND on marathon
+     rungs (board shrink caps par); 'star' is added explicitly on marathon
+     rungs, so rotation picks skip it there to avoid duplicates */
+  const skipHeavy = k < 10 || marathon;
   const pickFriend = (i: number): FriendKind => {
     let f = FRIEND_ROTATION[i % 10] as FriendKind;
-    while (k < 10 && (f === 'panda' || f === 'chick')) {
+    while ((skipHeavy && (f === 'panda' || f === 'chick')) || (marathon && f === 'star')) {
       i++;
       f = FRIEND_ROTATION[i % 10] as FriendKind;
     }
     return f;
   };
-  base.friends = [pickFriend(k), pickFriend(k * 3 + 1)];
-  if (base.friends[0] === base.friends[1]) {
-    base.friends[1] = pickFriend(k * 3 + 2);
-  }
+  /* the exclusion walk can collapse neighbours onto the same friend — walk
+     the second pick forward until the pair is genuinely two friends */
+  base.friends = [pickFriend(k)];
+  let j = k * 3 + 1;
+  let mate = pickFriend(j);
+  while (mate === base.friends[0]) mate = pickFriend(++j);
+  base.friends.push(mate);
   if (k >= 30) {
-    const third = pickFriend(k * 7 + 5);
-    if (!base.friends.includes(third)) base.friends.push(third);
+    /* the third slot always fills — walk the rotation past duplicates */
+    let i = k * 7 + 5;
+    let third = pickFriend(i);
+    while (base.friends.includes(third)) third = pickFriend(++i);
+    base.friends.push(third);
   }
-  /* panda/chick multiply the BFS state space — shrink the board for them */
+  if (marathon) base.friends.unshift('star');
+  /* panda/chick multiply the BFS state space — shrink the board for them
+     (never reached on marathon rungs, where they are excluded) */
   if (base.friends.includes('panda') || base.friends.includes('chick')) {
     base.w = base.h = Math.max(5, base.w - 1);
     base.maxStates = Math.floor(base.maxStates / 2);
   }
   base.fields = [ENDLESS_FIELDS[(k * 7 + 3) % ENDLESS_FIELDS.length] as FieldKind];
   if (k >= 6) base.fields.push(ENDLESS_FIELDS[(k * 5 + 1) % ENDLESS_FIELDS.length] as FieldKind);
+  if (k >= 45) base.fields.push(ENDLESS_FIELDS[(k * 11 + 4) % ENDLESS_FIELDS.length] as FieldKind);
   if (k % 3 === 1) base.classics = [(['box', 'balloon', 'snail'] as const)[k % 3] as ClassicKind];
   return base;
 }

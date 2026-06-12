@@ -69,7 +69,7 @@ export function sketch(rng: Rng, p: RampParams): LevelDef | null {
   /* featured friends (1 piece each; stars are pickups, 1-2 of them) */
   for (const f of new Set(p.friends)) {
     if (f === 'star') {
-      const n = randInt(rng, 1, 2);
+      const n = randInt(rng, 1, Math.max(1, p.starMax ?? 2));
       const cells: XY[] = [];
       for (let i = 0; i < n; i++) {
         const c = slots.take();

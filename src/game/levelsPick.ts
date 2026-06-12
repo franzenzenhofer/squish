@@ -15,8 +15,8 @@ export interface LevelsDeps {
   onPick: (li: number) => void;
   /** play a hand-authored test level (index into DEBUG_LEVELS) */
   onPickTest: (di: number) => void;
-  /** bake + play a one-off level at hardness 1..10; resolves when settled */
-  onBake: (hardness: number) => Promise<void>;
+  /** bake + play a one-off level at hardness 1..10; true = now playing */
+  onBake: (hardness: number) => Promise<boolean>;
   unlockAudio: () => void;
 }
 
@@ -99,6 +99,10 @@ export function createLevelsPick(d: LevelsDeps): LevelsPick {
     inner.appendChild(h);
   };
 
+  /* milestone rungs of the endless ladder — jump straight to the marathon
+     levels (par climbs ~16 at L100 to ~28 at L200) to see them */
+  const MILESTONES = [60, 80, 100, 125, 150, 175, 200];
+
   /* debug-only: the test-level list and the hardness baker */
   const buildDebugSections = (): void => {
     section('GENERATED');
@@ -110,6 +114,13 @@ export function createLevelsPick(d: LevelsDeps): LevelsPick {
       const b = chip(isDone(s, li) ? 'done' : '', () => d.onPick(li));
       const num = document.createElement('span');
       num.textContent = isDone(s, li) ? '✓' : String(li + 1);
+      b.appendChild(num);
+      g.appendChild(b);
+    }
+    for (const n of MILESTONES) {
+      const b = chip(isDone(s, n - 1) ? 'done' : '', () => d.onPick(n - 1));
+      const num = document.createElement('span');
+      num.textContent = String(n);
       b.appendChild(num);
       g.appendChild(b);
     }
@@ -162,10 +173,15 @@ export function createLevelsPick(d: LevelsDeps): LevelsPick {
       d.unlockAudio();
       go.disabled = true;
       go.textContent = 'Baking…';
-      void d.onBake(bakeHardness).finally(() => {
-        go.disabled = false;
-        go.textContent = 'Bake';
-      });
+      void d.onBake(bakeHardness)
+        .then((ok) => {
+          /* success: reveal the fresh level; failure: stay to retry */
+          if (ok) close();
+        })
+        .finally(() => {
+          go.disabled = false;
+          go.textContent = 'Bake';
+        });
     });
     reflect();
     bake.append(lab, minus, plus, go);

@@ -44,5 +44,7 @@ export function sanitizeEvent(raw: unknown): TrackEvent | null {
     const n = cleanNum(r[f]);
     if (n !== null) ev[f as NumField] = n;
   }
+  /* hinted is a boolean counter — clamp to 0/1 */
+  if (ev.hd !== undefined) ev.hd = Math.min(1, ev.hd);
   return ev;
 }
