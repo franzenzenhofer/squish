@@ -126,11 +126,14 @@ export function analyzeLevel(level: Level, opts?: AnalyzeOptions): Oracle {
   return { exhausted, states: nodes.length, policy, dist };
 }
 
-/** true = winnable, false = provably dead, null = state not in the graph
-    (only possible when the oracle is not exhausted). */
+/** true = winnable, false = provably dead, null = cannot judge.
+    "Provably dead" requires an EXHAUSTED oracle: in a truncated graph (state or
+    deadline budget hit) a state with no winning path may simply lead through
+    unexplored territory - reporting false there made the oh-no rewind perfectly
+    winnable moves. Truncated graphs only ever answer true or null. */
 export function winnableState(oracle: Oracle, stateKey: string): boolean | null {
   if (oracle.dist.has(stateKey)) return true;
-  if (oracle.policy.has(stateKey)) return false;
+  if (oracle.exhausted && oracle.policy.has(stateKey)) return false;
   return null;
 }
 

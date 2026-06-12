@@ -202,15 +202,15 @@
   #winShare:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--heart-edge); }
   #winNext { position: relative; overflow: hidden; background: var(--dark); box-shadow: 0 5px 0 var(--dark-edge); }
   #winNext:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--dark-edge); }
-  /* countdown bar: a bright sweep drains over the 7s auto-advance to "next" */
+  /* countdown bar: fills left-to-right over the 7s auto-advance to "next" */
   #winNext::after {
-    content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 7px;
-    background: linear-gradient(90deg, var(--heart-top), #fff);
+    content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 4px;
+    background: rgba(255,255,255,.55);
     transform-origin: left center; transform: scaleX(0); opacity: 0;
-    box-shadow: 0 0 8px rgba(255,255,255,.6); pointer-events: none;
+    pointer-events: none;
   }
   #winNext.counting::after { animation: winct 7s linear forwards; }
-  @keyframes winct { from { transform: scaleX(1); opacity: 1; } to { transform: scaleX(0); opacity: 1; } }
+  @keyframes winct { from { transform: scaleX(0); opacity: 1; } to { transform: scaleX(1); opacity: 1; } }
   #winShare svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2.3; stroke-linecap: round; stroke-linejoin: round; }
 
   #start, #levels {

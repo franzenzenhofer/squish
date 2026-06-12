@@ -107,3 +107,57 @@ describe('level oracle', () => {
     expect(winnableState(o, ser(st))).toBe(true);
   });
 });
+
+/* The oh-no contract, in BOTH directions. The oh-no rewind fires exactly on
+   winnableState === false, so:
+   1. a TRUNCATED oracle (state/deadline budget hit) must NEVER call a winnable
+      state dead - that blocked legal, winnable moves in play (the overbearing
+      oh-no bug);
+   2. an EXHAUSTED oracle must still prove every dead state dead (the
+      protection keeps protecting) and every winnable state winnable. */
+describe('oh-no fires exactly on proven-dead states', () => {
+  for (const li of [3, 9, 17, 25, 33]) {
+    it(`level ${li + 1}: truncated oracles never call winnable states dead`, () => {
+      const level = makeLevel(LEVELS[li] as LevelDef);
+      const full = analyzeLevel(level);
+      expect(full.exhausted).toBe(true);
+      for (const cap of [10, 50, 200, 1000]) {
+        const cut = analyzeLevel(level, { maxStates: cap });
+        if (cut.exhausted) continue; // graph fit the cap - nothing was truncated
+        let checked = 0;
+        for (const k of cut.policy.keys()) {
+          if (full.dist.has(k)) {
+            /* winnable by full proof: truncated may answer true or null, never false */
+            expect(winnableState(cut, k)).not.toBe(false);
+            checked++;
+          }
+        }
+        expect(checked).toBeGreaterThan(0);
+      }
+    });
+  }
+
+  it('exhausted verdicts exact across levels - winnable true, dead false', () => {
+    let dead = 0;
+    let winnable = 0;
+    for (const li of [0, 1, 3, 9, 17, 25, 30, 33]) {
+      const level = makeLevel(LEVELS[li] as LevelDef);
+      const o = analyzeLevel(level);
+      expect(o.exhausted).toBe(true);
+      for (const k of o.policy.keys()) {
+        if (o.dist.has(k)) {
+          expect(winnableState(o, k)).toBe(true);
+          winnable++;
+        } else {
+          /* dead by exhaustive proof - the protection must still fire here */
+          expect(winnableState(o, k)).toBe(false);
+          dead++;
+        }
+      }
+    }
+    expect(winnable).toBeGreaterThan(0);
+    /* the sample includes levels with real dead ends (audit: L1, L2, L31) so
+       the protective direction is genuinely exercised, not vacuous */
+    expect(dead).toBeGreaterThan(0);
+  });
+});

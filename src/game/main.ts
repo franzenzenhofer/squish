@@ -249,7 +249,14 @@ function doMove(dir: Dir): void {
   }
   const r = move(s.level, s.gs, dir);
   if (!r.moved) {
+    /* nothing can move that way — say so visibly, not just a faint tick, so a
+       refused swipe never reads as the game eating input */
     audio.tick();
+    const now = performance.now();
+    const axis = dir === 'left' || dir === 'right' ? 'x' : 'y';
+    for (const dd of s.gs.dots) {
+      s.pulses.push({ type: 'squash', key: key(dd.x, dd.y), axis, t0: now, dur: 240, amp: 0.18 });
+    }
     return;
   }
   s.hist.push({ gs: cloneState(s.gs), moves: s.moves });
