@@ -239,7 +239,8 @@ test('tap-to-explain: wall + heart open cards; the squishy is petted', async ({ 
   await page.evaluate(() => window.__squishy?.dismissIntro());
 
   /* tapping your own squishy pets it: stays idle, no card */
-  await page.evaluate(([x, y]) => window.__squishy?.tapCell(x, y), lvl.dots[0]);
+  const dot = lvl.dots[0] as [number, number];
+  await page.evaluate(([x, y]) => window.__squishy?.tapCell(x, y), dot);
   expect(await page.evaluate(() => window.__squishy?.state().mode)).toBe('idle');
   expect(await page.evaluate(
     () => document.getElementById('intro')?.classList.contains('show')
