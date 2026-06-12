@@ -139,7 +139,8 @@ test('daily solve shows the win card and returns to campaign', async ({ page }) 
   expect(await page.evaluate(() => window.__squishy?.state().mode)).toBe('win');
   /* the unified win card must appear (no auto-advance) */
   await page.waitForSelector('#win.show', { timeout: 10000 });
-  expect(await page.textContent('#winTitle')).toBe('You did it!');
+  /* the headline is a dynamic celebratory line - just assert one rendered */
+  expect((await page.textContent('#winTitle'))?.trim().length).toBeGreaterThan(0);
   expect(await page.textContent('#winSub')).toMatch(/Daily .+ · solved in \d+ moves?/);
   await page.click('#winNext');
   await page.waitForFunction(() => {

@@ -6,7 +6,7 @@ import { cx, cy, heartBurst } from './fx';
 import { saveAdvance, saveGame } from './persist';
 import { shareCard } from './share';
 import type { Session } from './session';
-import { pickWinLine } from './winLines';
+import { pickWinLine, pickWinTitle } from './winLines';
 import { startWinReplay, type WinReplay } from './winReplay';
 
 /** No-interaction auto-advance window on the Next button. */
@@ -49,6 +49,7 @@ export function createEndings(d: EndingsDeps): Endings {
   const { s, audio } = d;
   const elFlood = document.getElementById('flood') as HTMLElement;
   const elWin = document.getElementById('win') as HTMLElement;
+  const elWinTitle = document.getElementById('winTitle') as HTMLElement;
   const elWinSub = document.getElementById('winSub') as HTMLElement;
   const elWinTag = document.getElementById('winTag') as HTMLElement;
   const elShot = document.getElementById('winShot') as HTMLCanvasElement;
@@ -103,6 +104,7 @@ export function createEndings(d: EndingsDeps): Endings {
   };
 
   const showCard = (label: string, hearts: number): void => {
+    elWinTitle.textContent = pickWinTitle();
     const mv = s.moves + (s.moves === 1 ? ' move' : ' moves');
     elWinSub.innerHTML = label + ' · solved in <b>' + mv + '</b>';
     elWinTag.innerHTML = pickWinLine(hearts) + ratingHearts(hearts);

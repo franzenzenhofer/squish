@@ -44,6 +44,33 @@ const TIER1: readonly string[] = [
   'Got there in the end 💖'
 ];
 
+/* The big celebratory headline — dynamic so the win never feels canned. Any of
+   these fits any solve (you got there!); the tier line below adds the nuance. */
+const TITLES: readonly string[] = [
+  'You did it!',
+  'Hooray!',
+  'Woohoo!',
+  'Nailed it!',
+  'You rock!',
+  'Squish-cess!',
+  'Well done!',
+  'Bravo!',
+  'Amazing!',
+  'Yes yes yes!',
+  'Solved it!',
+  'Sweet win!'
+];
+
+let lastTitle: string | null = null;
+
+/** Pick a fresh celebratory headline, never repeating the previous one. */
+export function pickWinTitle(): string {
+  const choices = TITLES.filter((t) => t !== lastTitle);
+  const title = choices[Math.floor(Math.random() * choices.length)] ?? TITLES[0] ?? 'You did it!';
+  lastTitle = title;
+  return title;
+}
+
 function poolFor(hearts: number): readonly string[] {
   if (hearts >= 3) return TIER3;
   if (hearts === 2) return TIER2;
