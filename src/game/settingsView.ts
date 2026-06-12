@@ -73,9 +73,22 @@ export function createSettingsView(d: SettingsViewDeps): SettingsView {
     location.reload();
   });
 
+  /* the privacy & data statement — a closeable card over the settings */
+  const elPrivacy = document.getElementById('privacy') as HTMLElement;
+  document.getElementById('bprivacy')?.addEventListener('click', () => {
+    d.unlockAudio();
+    elPrivacy.classList.add('show');
+    elPrivacy.scrollTop = 0;
+  });
+  document.getElementById('bpback')?.addEventListener('click', () => {
+    d.unlockAudio();
+    elPrivacy.classList.remove('show');
+  });
+
   const open = (): void => {
     reflect();
     el.classList.add('show');
+    el.scrollTop = 0;
   };
   const close = (): void => {
     el.classList.remove('show');

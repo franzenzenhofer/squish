@@ -225,20 +225,21 @@
   @keyframes winct { from { transform: scaleX(0); opacity: 1; } to { transform: scaleX(1); opacity: 1; } }
   #winShare svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2.3; stroke-linecap: round; stroke-linejoin: round; }
 
-  #start, #levels, #settings {
+  #start, #levels, #settings, #privacy {
     position: fixed; inset: 0; z-index: 8; display: none;
     flex-direction: column; align-items: center;
     background: radial-gradient(130% 90% at 50% -15%, #FFFAFC 0%, #FFEFF6 42%, #FFE2EE 100%);
   }
   /* the picker and settings scroll as one page — scrollbars fully hidden
      (mobile-app feel: content moves, no chrome), momentum scroll kept */
-  #levels, #settings {
+  #levels, #settings, #privacy {
     z-index: 9; overflow-y: auto; touch-action: pan-y;
     scrollbar-width: none; -ms-overflow-style: none;
     padding: 0 0 max(14px, env(safe-area-inset-bottom));
   }
-  #levels::-webkit-scrollbar, #settings::-webkit-scrollbar { display: none; }
-  #start.show, #levels.show, #settings.show { display: flex; }
+  #privacy { z-index: 10; }
+  #levels::-webkit-scrollbar, #settings::-webkit-scrollbar, #privacy::-webkit-scrollbar { display: none; }
+  #start.show, #levels.show, #settings.show, #privacy.show { display: flex; }
   /* sticky cute top bar: title centred, a round X home on the right */
   .ovbar {
     position: sticky; top: 0; z-index: 2; width: 100%;
@@ -267,7 +268,7 @@
       max(8px, env(safe-area-inset-bottom))
       env(safe-area-inset-left);
   }
-  #levelsInner, #settingsInner {
+  #levelsInner, #settingsInner, .ovinner {
     display: flex; flex-direction: column; align-items: center;
     margin: 0 auto auto; padding: 6px 18px 24px;
     gap: clamp(10px, 2.4vh, 18px);
@@ -394,6 +395,22 @@
   }
   .tog.on { background: linear-gradient(180deg, var(--heart-top), var(--heart)); }
   .tog.on::after { transform: translateX(22px); }
+  #bprivacy {
+    font: inherit; background: none; border: none; cursor: pointer;
+    font-size: 13px; font-weight: 500; color: var(--link); letter-spacing: .04em; padding: 8px 10px;
+    text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1.5px; text-decoration-color: var(--link-ul);
+  }
+  #privacyCard {
+    width: min(340px, 90vw); background: #fff; border-radius: 24px;
+    padding: 20px 22px; box-shadow: 0 8px 0 var(--shadow6);
+    font-size: 13.5px; font-weight: 500; color: var(--soft); line-height: 1.5;
+    text-align: left;
+  }
+  #privacyCard h3 { margin: 0 0 8px; font-size: 16px; font-weight: 700; color: var(--heart); }
+  #privacyCard p { margin: 0 0 10px; }
+  #privacyCard ul { margin: 0 0 10px; padding-left: 18px; }
+  #privacyCard li { margin: 2px 0; }
+  #privacyCard b { color: var(--ink); font-weight: 700; }
 
   .rate { display: flex; gap: 6px; justify-content: center; }
   .rate .rh { width: 26px; height: 24px; transform: scale(.6); transition: transform .35s cubic-bezier(.2,1.6,.4,1); }
@@ -571,6 +588,31 @@
       <button class="tog" id="togLabels" role="switch" aria-label="button labels"></button>
     </div>
     <button id="breset">Reset progress</button>
+    <button id="bprivacy">Privacy &amp; data</button>
+  </div>
+</div>
+<div id="privacy">
+  <div class="ovbar">
+    <span class="ovtitle">Privacy</span>
+    <button id="bpback" class="ovx" aria-label="back">
+      <svg viewBox="0 0 24 24"><path d="M6 6 L18 18 M18 6 L6 18"/></svg>
+    </button>
+  </div>
+  <div class="ovinner">
+    <div id="privacyCard">
+      <h3>Made with love - zero snooping 💕</h3>
+      <p>To make the game better we count, <b>completely anonymously</b>, how it is played:</p>
+      <ul>
+        <li>when the game is opened</li>
+        <li>which level starts, is won, is lost or is left</li>
+        <li>how many swipes a level took, and whether the hint bulb helped</li>
+        <li>when a result is shared</li>
+      </ul>
+      <p>That is everything. Each count stands alone - <b>nothing links the counts to you or to each other</b>.</p>
+      <p><b>No cookies.</b> No tracking pixels, no fingerprinting, no ads. We store no names, no e-mail addresses, no device IDs and no IP addresses. Nothing is ever sold or shared with anyone.</p>
+      <p>Like every website, our host (Cloudflare) briefly processes your IP address to deliver the page itself; it is not stored with the play counters.</p>
+      <p>Because no personal data is collected or stored, no consent banner is required under EU rules (GDPR / ePrivacy).</p>
+    </div>
   </div>
 </div>
 <script type="module" src="/src/game/main.ts"></script>

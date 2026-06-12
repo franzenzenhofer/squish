@@ -26,10 +26,31 @@ import { hideToast, toast } from './toast';
 import { drawFrame, type RenderHooks } from './render';
 import { CURATED, blankSession, type Session } from './session';
 import { installTestApi } from './testapi';
+import { createTracker } from '../lib/track';
+import type { PlayKind } from '../lib/trackSchema';
 
 const audio = createAudio();
 const assist = createAssist();
 const s: Session = blankSession();
+
+/* Anonymous play counters (see the Privacy & data card in settings): a
+   whitelisted event name + small numbers, fire-and-forget via sendBeacon.
+   No cookies, no IDs, events stand alone. Debug plays are not counted. */
+const { track } = createTracker({
+  enabled: !isDebug(),
+  send: (body) => navigator.sendBeacon('/t', body)
+});
+const playKind = (): PlayKind =>
+  s.play.kind === 'daily' ? 'd' : s.play.kind === 'debug' ? 'g' : 'c';
+/* one quit beacon per level attempt: backgrounding mid-level counts once */
+let quitSent = false;
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'hidden' || quitSent) return;
+  if ((s.mode === 'idle' || s.mode === 'anim' || s.mode === 'ohno') && s.moves > 0) {
+    quitSent = true;
+    track('quit', { k: playKind(), li: s.li, mv: s.moves });
+  }
+});
 
 const canvas = document.getElementById('c') as HTMLCanvasElement;
 const ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
@@ -212,6 +233,8 @@ function applyLevel(def: LevelDef): void {
   hints.levelLoaded(oracleKey());
   if (s.play.kind === 'campaign') assist.prefetch(s.li + 1);
   saveGame(s);
+  quitSent = false;
+  track('start', { k: playKind(), li: s.li });
   /* first-meet cards greet new friends/elements only once the player is
      actually in the level — never behind the start menu, where the 7s
      auto-dismiss would burn them unseen. The menu fires them on Play.
@@ -267,7 +290,10 @@ const ohno = createOhNo({
 });
 
 const hints = createHints(s, assist, {
-  onUnwinnable: () => ohno.trigger(),
+  onUnwinnable: () => {
+    track('ohno', { k: playKind(), li: s.li, mv: s.moves });
+    ohno.trigger();
+  },
   onHintChange: (on) => elHintBtn.classList.toggle('on', on),
   caption: setCap
 });
@@ -425,7 +451,7 @@ function startDaily(): void {
 
 /* --------------------------- endings / render ---------------------------- */
 const endings = createEndings({
-  s, audio, main, canvas, reduced,
+  s, audio, main, canvas, reduced, track,
   caption: setCap,
   reload: () => fadeSwap(reduced, async () => applyLevel(await currentDef())),
   /* daily solved -> back to the campaign; debug solved -> back to the picker */
@@ -545,7 +571,10 @@ bindInput(main, {
     if (!getSettings().hintButton) return;
     /* tapping the bulb under an intro card means "let me play with hints" */
     if (s.mode === 'intro') intro.dismiss();
-    if (s.mode === 'idle' || s.mode === 'anim') hints.toggleHintMode();
+    if (s.mode === 'idle' || s.mode === 'anim') {
+      hints.toggleHintMode();
+      if (s.hintMode) track('hint', { k: playKind(), li: s.li });
+    }
   },
   advance: () => endings.advance(),
   toggleMute,
@@ -645,4 +674,5 @@ if (dailyResume && saved.def) {
 }
 /* bake today's daily in its own worker while the player plays */
 window.setTimeout(() => void assist.getDaily(localToday()), 4000);
+track('boot');
 requestAnimationFrame(render);

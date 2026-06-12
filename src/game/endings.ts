@@ -7,6 +7,8 @@ import { saveAdvance, saveGame } from './persist';
 import { getSettings } from './settings';
 import { shareCard } from './share';
 import type { Session } from './session';
+import type { Tracker } from '../lib/track';
+import type { PlayKind } from '../lib/trackSchema';
 import { pickHintedLine, pickWinLine, pickWinTitle } from './winLines';
 import { startWinReplay, type WinReplay } from './winReplay';
 
@@ -22,6 +24,12 @@ export interface EndingsDeps {
   caption: (txt: string, bad: boolean) => void;
   reload: () => void;
   next: () => void;
+  track: Tracker['track'];
+}
+
+/** Single-letter anonymous play kind for the counters. */
+function trackKind(s: Session): PlayKind {
+  return s.play.kind === 'daily' ? 'd' : s.play.kind === 'debug' ? 'g' : 'c';
 }
 
 export interface Endings {
@@ -139,6 +147,7 @@ export function createEndings(d: EndingsDeps): Endings {
     cancelAuto();
     const ds = elWin.dataset;
     if (ds.def && ds.label) {
+      d.track('share', { k: trackKind(s), li: s.li });
       void shareCard(JSON.parse(ds.def) as Session['def'], ds.label);
     }
   });
@@ -182,6 +191,10 @@ export function createEndings(d: EndingsDeps): Endings {
     }
     /* debug test plays write nothing */
     const hearts = hinted ? 0 : s.moves <= s.def.par ? 3 : s.moves <= s.def.par + 1 ? 2 : 1;
+    d.track('win', {
+      k: trackKind(s), li: s.li, mv: s.moves,
+      par: s.def.par, hr: hearts, hd: hinted ? 1 : 0
+    });
     const label = levelLabel(s);
     /* 'instant': celebrate (burst + flood), then zoom straight into the next
        campaign level — no card. Daily/debug always show the card (no ladder). */
@@ -198,6 +211,7 @@ export function createEndings(d: EndingsDeps): Endings {
 
   const loseSeq = (): void => {
     s.mode = 'lose';
+    d.track('lose', { k: trackKind(s), li: s.li, mv: s.moves });
     audio.buzz([15, 40, 15]);
     d.caption('Oops - a nomster gobbled you!', true);
     if (!d.reduced) d.main.classList.add('shake');

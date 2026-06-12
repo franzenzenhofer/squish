@@ -1,9 +1,20 @@
 name = "squish"
+main = "src/worker.ts"
 compatibility_date = "2026-06-01"
 account_id = "ecf21e85812dfa5b2a35245257fc71f5"
 
+# static game build; matching GET requests are served directly, everything
+# else (the POST /t counters, unknown paths) reaches the worker
 [assets]
 directory = "./dist"
+binding = "ASSETS"
+run_worker_first = ["/t", "/", "/index.html", "/assets/*"]
+
+# anonymous gameplay counters (see the Privacy & data card in settings):
+# event name + small numbers only - no cookies, no IDs, no IP stored
+[[analytics_engine_datasets]]
+binding = "SQUISH_EVENTS"
+dataset = "squish_events"
 
 routes = [
   { pattern = "squishy.franzai.com", custom_domain = true }

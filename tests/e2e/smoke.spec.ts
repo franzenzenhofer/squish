@@ -342,6 +342,45 @@ test('?debug=doit: picker unlocks everything, test levels fire the oh-no', async
   }, undefined, { timeout: 10000 });
 });
 
+test('settings link opens the closeable privacy statement', async ({ page }) => {
+  await boot(page);
+  await page.evaluate(() => localStorage.clear());
+  await page.evaluate(() => document.getElementById('bsettings')?.click());
+  await page.waitForSelector('#settings.show', { timeout: 5000 });
+  await page.evaluate(() => document.getElementById('bprivacy')?.click());
+  await page.waitForSelector('#privacy.show', { timeout: 5000 });
+  const text = (await page.textContent('#privacyCard')) ?? '';
+  expect(text).toContain('No cookies');
+  expect(text.toLowerCase()).toContain('anonymous');
+  await page.evaluate(() => document.getElementById('bpback')?.click());
+  expect(await page.evaluate(
+    () => document.getElementById('privacy')?.classList.contains('show'))).toBe(false);
+});
+
+test('a win fires one anonymous beacon to /t', async ({ page }) => {
+  const beacons: string[] = [];
+  await page.route('**/t', async (route) => {
+    beacons.push(route.request().postData() ?? '');
+    await route.fulfill({ status: 204 });
+  });
+  await boot(page);
+  await page.evaluate(() => localStorage.clear());
+  await page.evaluate(() => window.__squishy?.loadLevel(3));
+  await clearIntros(page);
+  await solveCurrent(page);
+  await page.waitForFunction(() => window.__squishy?.state().mode === 'win');
+  await expect.poll(() => beacons.filter((b) => b.includes('"win"')).length).toBe(1);
+  const win = JSON.parse(beacons.find((b) => b.includes('"win"')) ?? '{}');
+  /* the anonymity contract: only whitelisted keys, numbers + the kind letter */
+  expect(Object.keys(win).sort()).toEqual(
+    expect.arrayContaining(['e', 'k', 'li', 'mv']));
+  for (const [k, v] of Object.entries(win)) {
+    expect(['e', 'k', 'li', 'mv', 'par', 'hr', 'hd']).toContain(k);
+    if (k !== 'e' && k !== 'k') expect(typeof v).toBe('number');
+  }
+  expect(win.li).toBe(3);
+});
+
 test('the header never shows a star pill', async ({ page }) => {
   await boot(page);
   await page.evaluate(() => localStorage.clear());
