@@ -8,27 +8,10 @@ import type { Dir, DirCode, LevelDef, XY } from '../src/engine/types';
 import { FIXED_LEVELS, generateLevel, trapFree } from '../src/gen/generate';
 import { ramp } from '../src/gen/ramp';
 
-const CAPS: Record<number, string> = {
-  4: 'Penguin glides over thin ice without cracking it',
-  5: 'Bunny hops two squares - right over things',
-  6: 'Froggy leaps all the way to the next wall',
-  7: 'Bear plods two steps and scares nomsters away',
-  8: 'Ghostie floats straight through walls',
-  9: 'Collect every star to open the heart',
-  10: 'Bump Piggy and she scoots one square',
-  11: 'Kitty turns right when she bumps into things',
-  12: 'Panda is sleepy - he moves every second swipe',
-  13: 'Chick copies your previous swipe',
-  14: 'Flowers are sticky - you stop on them',
-  16: 'Swirls teleport you',
-  17: 'Sparkles split your Squishy in two',
-  19: 'Jelly hops you over the next tile',
-  20: 'Curls turn you clockwise',
-  21: 'Springs bounce you backwards',
-  22: 'Wind clouds blow you their way',
-  26: 'Two friends, one heart',
-  40: 'The grand finale'
-};
+/* No per-level captions: every element/friend is explained ONLY by its overlay
+   (first-meet + tap-to-explain), never as a speech bubble. A bubble explaining a
+   thing that also has an overlay is a double-notification - banned. The two
+   genuine coaching lines (L1 swipe, L2 merge+goal) live in TUTORIALS, not here. */
 
 function replayWins(def: LevelDef): boolean {
   const level = makeLevel(def);
@@ -68,8 +51,6 @@ for (let n = 1; n <= 40; n++) {
   /* fixed feature-intro levels are authored exactly - minimize would strip the
      teaching obstacle (e.g. the pillow the bunny hops over) */
   if (n > 3 && !FIXED_LEVELS[n]) def = minimize(def);
-  const cap = CAPS[n];
-  if (cap) def.cap = cap;
   if (!replayWins(def)) throw new Error('level ' + n + ': sol does not win after minimize');
   if (n > 3 && def.par < 4) throw new Error('level ' + n + ': par < 4');
   if (n > 3 && def.par > ramp(n).parMax) throw new Error('level ' + n + ': par > parMax');

@@ -66,7 +66,6 @@
   /* ---- logo lockup (single source of truth: src/game/logo.ts) ----
      exact Fredoka-700 outlines as SVG paths, so the brand is pixel-identical
      and scalable everywhere (height-driven; width follows the viewBox) */
-  .logo-heart { width: 1em; height: 1em; display: block; }
   .logo-svg { display: block; height: 100%; width: auto; overflow: visible; }
   .wm-d { fill: rgba(230,120,165,.5); }
   .wm-s { fill: var(--logo); stroke: #fff; stroke-width: 100; paint-order: stroke; stroke-linejoin: round; }
@@ -79,14 +78,6 @@
     padding: 12px 14px; padding-top: calc(12px + env(safe-area-inset-top));
   }
   #brand { display: flex; align-items: center; gap: 10px; min-width: 0; cursor: pointer; }
-  #home {
-    flex: none; width: 44px; height: 44px; border-radius: 15px; border: none; cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-    background: #fff; color: var(--heart); box-shadow: 0 5px 0 var(--shadow6);
-    transition: transform .08s ease, box-shadow .08s ease;
-  }
-  #home:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--shadow6); }
-  #home .logo-heart { width: 24px; height: 24px; }
   #logo { display: flex; align-items: center; min-width: 0; }
   #logo .logo-svg { height: 44px; }
   #hud { display: flex; align-items: center; gap: 10px; flex: none; }
@@ -112,10 +103,13 @@
     left: 0; right: 0; margin-inline: auto;
     width: fit-content; max-width: calc(100% - 28px); z-index: 6;
     background: #fff; border: 2px solid var(--bubble-bd); border-radius: 18px;
-    padding: 9px 18px; font-size: 14px; font-weight: 600; color: var(--soft);
+    padding: 10px 20px; font-size: 14px; font-weight: 600; color: var(--soft);
     line-height: 1.25; text-align: center; pointer-events: none;
     box-shadow: 0 12px 22px -10px rgba(255,109,158,.4);
     opacity: 0; transition: opacity .26s ease; transform-origin: center bottom;
+    /* always at least two lines tall so a short caption never looks broken */
+    display: flex; align-items: center; justify-content: center;
+    min-height: 60px;
   }
   /* the caption carries an X, so it needs room on the right; the toast doesn't */
   #cap { padding-right: 34px; }
@@ -306,10 +300,6 @@
     background: #fff; border: 2px solid var(--border); border-radius: 999px;
     padding: 9px 26px; cursor: pointer; box-shadow: 0 4px 0 rgba(246,201,220,.5);
   }
-  #home {
-    background: none; border: none; cursor: pointer; padding: 0 6px 0 0;
-    font-size: 19px; line-height: 1; color: var(--heart);
-  }
   .rate { display: flex; gap: 6px; justify-content: center; }
   .rate .rh { width: 26px; height: 24px; transform: scale(.6); transition: transform .35s cubic-bezier(.2,1.6,.4,1); }
   .rate .rh path { fill: #F1D7E3; transition: fill .3s; }
@@ -367,7 +357,6 @@
 <body>
 <header>
   <div id="brand">
-    <button id="home" aria-label="home"></button>
     <span id="logo"></span>
   </div>
   <div id="hud">

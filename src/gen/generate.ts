@@ -21,8 +21,9 @@ export const TUTORIALS: LevelDef[] = [
     par: 1, sol: 'R', cap: 'Squishies merge - end with one on the heart'
   },
   {
+    /* no caption: pillows (walls) are explained by their overlay, not a bubble */
     w: 4, h: 4, target: [3, 0], dots: [[0, 1], [0, 3]], walls: [[2, 3]],
-    par: 2, sol: 'UR', cap: 'Pillows are walls'
+    par: 2, sol: 'UR'
   }
 ];
 
@@ -33,9 +34,10 @@ export const TUTORIALS: LevelDef[] = [
    3,4 sit in its run, cleared mid-hop). Heart on row 0 - nothing above it. */
 export const FIXED_LEVELS: Record<number, LevelDef> = {
   5: {
+    /* no caption: the bunny is explained by its overlay, not a bubble */
     w: 5, h: 5, target: [4, 0], dots: [[0, 4]], bunnies: [[0, 2]],
     walls: [[1, 2], [0, 1], [3, 4]],
-    par: 5, sol: 'RULDR', cap: 'Bunny hops two squares - right over things'
+    par: 5, sol: 'RULDR'
   }
 };
 

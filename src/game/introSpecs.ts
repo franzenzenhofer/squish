@@ -125,7 +125,7 @@ export const INTRO_SPECS: Record<string, IntroSpec> = {
 
   /* ---- board elements --------------------------------------------------- */
   wall: {
-    kind: 'wall', name: 'Wall', line: 'Solid - nobody pushes past it',
+    kind: 'wall', name: 'Pillow', line: 'Pillows are walls - nobody slides past',
     actor: 'squishy', tiles: ['floor', 'floor', 'wall'], chevrons: [200],
     keys: [{ t: 0, x: 0 }, { t: 300, x: 0 }, { t: 900, x: 1 }]
   },

@@ -17,7 +17,7 @@ import { createOhNo } from './ohno';
 import { createLevelsPick } from './levelsPick';
 import { loadGame, saveGame } from './persist';
 import { createStart } from './start';
-import { HEART_SVG, mountWordmark } from './logo';
+import { mountWordmark } from './logo';
 import { hideToast, toast } from './toast';
 import { drawFrame, type RenderHooks } from './render';
 import { CURATED, blankSession, type Session } from './session';
@@ -39,12 +39,15 @@ const elFooter = document.querySelector('footer') as HTMLElement;
 const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 /* the current level's goal line, deferred behind first-meet overlays so the
-   bubble and an overlay are never on screen together (the hard gate) */
+   bubble and an overlay are never on screen together (the hard gate). The bubble
+   also waits ENTRANCE_SETTLE_MS so it only fades in once the level has fully
+   bloomed in — never over the entrance animation. */
+const ENTRANCE_SETTLE_MS = 700;
 let goalCap = '';
+let goalCapTimer: number | null = null;
 
-/* mount the one-and-only logo (SSOT) into the header heart-home + wordmark */
-const elHome = document.getElementById('home');
-if (elHome) elHome.innerHTML = HEART_SVG;
+/* mount the one-and-only logo (SSOT) into the header wordmark — tapping it
+   returns to the start screen (see start.ts brand binding) */
 const elLogo = document.getElementById('logo');
 if (elLogo) mountWordmark(elLogo);
 
@@ -152,6 +155,10 @@ function applyLevel(def: LevelDef): void {
   /* remember the level goal but do not speak it yet — the gate below decides
      whether an overlay greets first; clear any stale bubble from last level */
   goalCap = def.cap ?? '';
+  if (goalCapTimer !== null) {
+    clearTimeout(goalCapTimer);
+    goalCapTimer = null;
+  }
   setCap('');
   layout();
   hud();
@@ -177,13 +184,24 @@ function applyLevel(def: LevelDef): void {
   else if (!intro.maybeShow(s)) showGoalCap();
 }
 
-/** Speak the level goal once, but only when no overlay owns the screen. The
+/** Speak the level goal once, but only when no overlay owns the screen, and only
+    after the level has fully bloomed in (never over the entrance animation). The
     goal is consumed so a later tap-to-explain dismissal does not re-speak it. */
 function showGoalCap(): void {
   if (s.mode === 'intro' || s.mode === 'menu') return;
   if (!goalCap) return;
-  setCap(goalCap);
+  const txt = goalCap;
   goalCap = '';
+  if (goalCapTimer !== null) clearTimeout(goalCapTimer);
+  if (reduced) {
+    setCap(txt);
+    return;
+  }
+  goalCapTimer = window.setTimeout(() => {
+    goalCapTimer = null;
+    /* only speak if the player is still settling into the fresh level */
+    if (s.mode === 'idle' && s.moves === 0) setCap(txt);
+  }, ENTRANCE_SETTLE_MS);
 }
 
 function loadLevel(li: number, fromWin = false): void {
@@ -443,10 +461,10 @@ bindInput(main, {
 window.addEventListener('resize', () => layout());
 
 /* friend first-meet cards: any tap or key dismisses. When the last overlay
-   closes, re-arm hints and let Squishy finally speak the deferred level goal. */
+   closes, re-arm hints. The overlay IS the explanation for that element, so no
+   goal bubble follows it — an explained element is never re-spoken as a bubble. */
 const intro = createIntro(s, () => {
   hints.afterStateChange();
-  showGoalCap();
 });
 document.getElementById('intro')?.addEventListener('pointerdown', () => intro.dismiss());
 document.addEventListener('keydown', () => {

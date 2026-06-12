@@ -4,17 +4,6 @@
    the canvas share card (drawWordmark), so the brand is pixel-identical
    everywhere. Colours: "Squishy" + "&" pink (white outline), "Friends" ink. */
 
-/** Heart silhouette shared by the favicon, header home button and board target.
-    Exact SVG transcription of the board heart bezier (U.heart in lib/draw.ts) at
-    centre (16,16), scale 12.4 in a 0 0 32 32 box, so the shape is one SSOT
-    everywhere - DOM icon and canvas board read the same rounder silhouette. */
-export const HEART_PATH =
-  'M16 23.94 C2.36 15.75 8.31 5.83 16 12.28 C23.69 5.83 29.64 15.75 16 23.94 Z';
-
-export const HEART_SVG =
-  `<svg viewBox="0 0 32 32" class="logo-heart" aria-hidden="true">` +
-  `<path d="${HEART_PATH}" fill="currentColor"/></svg>`;
-
 /** viewBox of the wordmark in font units (baseline at y=0). */
 export const LOGO_VIEWBOX = '-60 -800 3620 1362';
 const VB = { x: -60, y: -800, w: 3620, h: 1362 };
