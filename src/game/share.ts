@@ -8,15 +8,15 @@ import * as U from '../lib/draw';
 import type { Dir4 } from '../lib/types';
 import { FLD } from '../fields';
 import { SPR } from '../sprites';
-import type { Session } from './session';
 import { toast } from './toast';
 
 const CARD_W = 640;
 const CARD_H = 780;
 const SITE = 'https://squishy.franzai.com';
 
-/** Paint the level's initial state — board, fields, friends — postcard style. */
-export function renderBoardCard(def: LevelDef, date: string): HTMLCanvasElement {
+/** Paint the level's initial state — board, fields, friends — postcard style.
+    `label` is the caption under the wordmark (e.g. "Level 12" or "Daily 06-12"). */
+export function renderBoardCard(def: LevelDef, label: string): HTMLCanvasElement {
   const cv = document.createElement('canvas');
   cv.width = CARD_W;
   cv.height = CARD_H;
@@ -39,7 +39,7 @@ export function renderBoardCard(def: LevelDef, date: string): HTMLCanvasElement 
   ctx.fillText('& Friends', CARD_W / 2, 106);
   ctx.fillStyle = '#C18BA8';
   ctx.font = '800 22px Fredoka, ui-rounded, system-ui, sans-serif';
-  ctx.fillText('Daily ' + date, CARD_W / 2, 146);
+  ctx.fillText(label, CARD_W / 2, 146);
 
   const level = makeLevel(def);
   const n = Math.max(level.w, level.h);
@@ -123,19 +123,22 @@ export function renderBoardCard(def: LevelDef, date: string): HTMLCanvasElement 
   return cv;
 }
 
-function shareText(date: string, moves: number): string {
-  return 'I solved the Squishy & Friends daily ' + date + ' in ' + moves +
+export { CARD_W, CARD_H };
+
+function shareText(label: string, moves: number): string {
+  return 'I solved Squishy & Friends ' + label + ' in ' + moves +
     ' moves - can you beat that? ' + SITE;
 }
 
-async function shareDaily(def: LevelDef, date: string, moves: number): Promise<void> {
-  const text = shareText(date, moves);
-  const cv = renderBoardCard(def, date);
+/** Share the postcard (image + text) for any solved level; clipboard fallback. */
+export async function shareCard(def: LevelDef, label: string, moves: number): Promise<void> {
+  const text = shareText(label, moves);
+  const cv = renderBoardCard(def, label);
   const blob = await new Promise<Blob | null>((r) => cv.toBlob(r, 'image/png'));
+  const fileName = 'squishy-' + label.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '.png';
   try {
     if (blob && navigator.canShare?.({ files: [new File([blob], 's.png', { type: 'image/png' })] })) {
-      const file = new File([blob], 'squishy-daily-' + date + '.png', { type: 'image/png' });
-      await navigator.share({ text, files: [file] });
+      await navigator.share({ text, files: [new File([blob], fileName, { type: 'image/png' })] });
       return;
     }
     if (navigator.share) {
@@ -148,55 +151,4 @@ async function shareDaily(def: LevelDef, date: string, moves: number): Promise<v
   }
   await navigator.clipboard.writeText(text);
   toast('Copied! Paste it anywhere', { ms: 2200 });
-}
-
-export interface DailyWin {
-  /** show the congrats modal for a solved daily */
-  show: (s: Session, onContinue: () => void) => void;
-  hide: () => void;
-  isOpen: () => boolean;
-}
-
-export function createDailyWin(): DailyWin {
-  const el = document.getElementById('dailyWin') as HTMLElement;
-  const elMoves = document.getElementById('dwMoves') as HTMLElement;
-  const elImg = document.getElementById('dwCard') as HTMLCanvasElement;
-  let continueFn: (() => void) | null = null;
-
-  document.getElementById('dwShare')?.addEventListener('click', () => {
-    const d = el.dataset;
-    if (d.def && d.date) {
-      void shareDaily(JSON.parse(d.def) as LevelDef, d.date, Number(d.moves));
-    }
-  });
-  document.getElementById('dwContinue')?.addEventListener('click', () => {
-    const fn = continueFn;
-    continueFn = null;
-    el.classList.remove('show');
-    fn?.();
-  });
-
-  return {
-    show: (s: Session, onContinue: () => void): void => {
-      if (s.play.kind !== 'daily') return;
-      continueFn = onContinue;
-      el.dataset.def = JSON.stringify(s.def);
-      el.dataset.date = s.play.date;
-      el.dataset.moves = String(s.moves);
-      elMoves.textContent = 'Solved in ' + s.moves + ' moves';
-      /* draw the postcard preview scaled into the modal canvas */
-      const card = renderBoardCard(s.def, s.play.date);
-      const scale = 220 / CARD_W;
-      elImg.width = 220;
-      elImg.height = Math.round(CARD_H * scale);
-      const ctx = elImg.getContext('2d');
-      if (ctx) ctx.drawImage(card, 0, 0, elImg.width, elImg.height);
-      el.classList.add('show');
-    },
-    hide: (): void => {
-      continueFn = null;
-      el.classList.remove('show');
-    },
-    isOpen: () => el.classList.contains('show')
-  };
 }

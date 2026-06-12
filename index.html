@@ -156,34 +156,36 @@
   #introTap { font-size: 11px; color: #D7B9C7; margin-top: 4px; animation: tappulse 1.4s ease-in-out infinite; }
   @keyframes tappulse { 50% { opacity: .45; } }
 
-  #dailyWin {
-    position: fixed; inset: 0; z-index: 7; display: none;
+  /* unified win card — one celebration for campaign and daily */
+  #win {
+    position: fixed; inset: 0; z-index: 8; display: none;
     align-items: center; justify-content: center; overflow-y: auto;
-    padding: max(8px, env(safe-area-inset-top)) 8px max(8px, env(safe-area-inset-bottom));
+    padding: max(10px, env(safe-area-inset-top)) 16px max(10px, env(safe-area-inset-bottom));
+    background: rgba(107,74,91,.28);
   }
-  #dailyWin.show { display: flex; }
-  #dwCardBox {
-    display: flex; flex-direction: column; align-items: center; gap: 8px;
-    background: #fff; border: 2px solid var(--border); border-radius: 28px;
-    padding: 18px 22px 16px; margin: auto;
-    box-shadow: 0 10px 0 rgba(246,201,220,.45);
-    animation: cardpop .3s cubic-bezier(.2,1.4,.4,1) both;
+  #win.show { display: flex; }
+  #winCard {
+    display: flex; flex-direction: column; align-items: center; gap: 10px; margin: auto;
+    width: min(340px, 92vw); background: #fff; border-radius: 30px; padding: 22px 22px 20px;
+    box-shadow: 0 14px 0 var(--shadow); animation: sf-pop .35s cubic-bezier(.2,1.4,.4,1) both;
   }
-  #dwTitle { font-size: 26px; font-weight: 800; color: var(--heart); letter-spacing: .05em; }
-  #dwMoves { font-size: 14px; color: #C18BA8; font-weight: 800; }
-  #dwCard { border-radius: 14px; border: 2px solid var(--border); }
-  #dwBtns { display: flex; gap: 10px; margin-top: 6px; }
-  #dwBtns button {
-    font: inherit; font-size: 15px; font-weight: 800; letter-spacing: .05em;
-    padding: 11px 22px; border-radius: 999px; cursor: pointer;
-    background: #fff; color: var(--ink); border: 2px solid var(--border);
-    box-shadow: 0 4px 0 rgba(246,201,220,.5);
+  #winTitle { font-size: 36px; font-weight: 700; color: var(--heart); letter-spacing: .01em; }
+  #winSub { font-size: 15px; font-weight: 600; color: var(--dim2); text-align: center; }
+  #winSub b { color: var(--ink); font-weight: 700; }
+  #winShot { width: 100%; border-radius: 18px; display: block; }
+  #winTag { font-size: 15px; font-weight: 700; color: var(--ink); text-align: center; }
+  #winBtns { display: flex; gap: 10px; width: 100%; margin-top: 4px; }
+  #winBtns button {
+    font: inherit; flex: 1; border: none; cursor: pointer; border-radius: 18px;
+    padding: 13px 0; font-size: 15px; font-weight: 700; color: #fff;
+    display: flex; align-items: center; justify-content: center; gap: 7px;
+    transition: transform .08s ease, box-shadow .08s ease;
   }
-  #dwBtns button:active { transform: translateY(3px); box-shadow: 0 1px 0 rgba(246,201,220,.5); }
-  #dwBtns #dwShare {
-    background: var(--heart); color: #fff; border-color: #F04F88;
-    box-shadow: 0 4px 0 rgba(226,101,143,.55);
-  }
+  #winShare { background: linear-gradient(180deg, var(--heart-top), var(--heart)); box-shadow: 0 5px 0 var(--heart-edge); }
+  #winShare:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--heart-edge); }
+  #winNext { background: var(--dark); box-shadow: 0 5px 0 var(--dark-edge); }
+  #winNext:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--dark-edge); }
+  #winShare svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2.3; stroke-linecap: round; stroke-linejoin: round; }
 
   #start, #levels {
     position: fixed; inset: 0; z-index: 8; display: none;
@@ -260,23 +262,13 @@
     background: none; border: none; cursor: pointer; padding: 0 6px 0 0;
     font-size: 19px; line-height: 1; color: var(--heart);
   }
-  #msg {
-    position: absolute; inset: 0; z-index: 6; display: flex; flex-direction: column;
-    align-items: center; justify-content: center; gap: 14px; color: #fff;
-    opacity: 0; pointer-events: none; transition: opacity .15s linear; text-align: center;
-  }
-  #msg.show { opacity: 1; }
-  #msg.show #msgbig { animation: pop .5s cubic-bezier(.2,1.4,.4,1) both; }
-  #msgbig { font-size: 42px; font-weight: 800; text-shadow: 0 3px 0 rgba(0,0,0,.07); }
-  #msgsub { font-size: 14px; font-weight: 800; }
-  .rate { display: flex; gap: 8px; justify-content: center; }
-  .rate .rh { width: 30px; height: 28px; transform: scale(.6); transition: transform .35s cubic-bezier(.2,1.6,.4,1); }
-  .rate .rh path { fill: rgba(255,255,255,.4); transition: fill .3s; }
+  .rate { display: flex; gap: 6px; justify-content: center; }
+  .rate .rh { width: 26px; height: 24px; transform: scale(.6); transition: transform .35s cubic-bezier(.2,1.6,.4,1); }
+  .rate .rh path { fill: #F1D7E3; transition: fill .3s; }
   .rate .rh.on { transform: scale(1); }
   .rate .rh.on path { fill: var(--yel); }
   .rate .rh.on:nth-child(2) { transition-delay: .1s; }
   .rate .rh.on:nth-child(3) { transition-delay: .2s; }
-  @keyframes pop { 0% { transform: scale(.4); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
 
   footer {
     position: relative; z-index: 1; display: flex; gap: 16px; justify-content: center;
@@ -314,10 +306,11 @@
     75% { transform: translate(-3px,1px); } 90% { transform: translate(2px,-1px); }
   }
   @media (prefers-reduced-motion: reduce) {
-    .shake { animation: none; } #msg, footer button { transition: none; }
-    #msg.show #msgbig { animation: none; } .rate .rh { transition: none; }
-    #toast { transition: opacity .2s ease; } #toast.bad.show { animation: none; }
-    #fade { transition: none; } footer button#hint.on { animation: none; }
+    .shake { animation: none; } footer button { transition: none; }
+    .rate .rh { transition: none; }
+    #cap.show, #toast.show { animation: none; }
+    #winCard { animation: none; }
+    #fade { transition: none; }
     #introCard { animation: none; } #introTap { animation: none; }
   }
 </style>
@@ -339,7 +332,6 @@
   <div id="toast"></div>
   <div id="fade"></div>
   <div id="flood"></div>
-  <div id="msg"><div id="msgbig"></div><div id="msgsub"></div></div>
 </main>
 <footer>
   <div class="tool">
@@ -379,14 +371,15 @@
     <div id="introTap">Tap to play</div>
   </div>
 </div>
-<div id="dailyWin">
-  <div id="dwCardBox">
-    <div id="dwTitle">Congrats!</div>
-    <div id="dwMoves"></div>
-    <canvas id="dwCard"></canvas>
-    <div id="dwBtns">
-      <button id="dwShare">Share</button>
-      <button id="dwContinue">Keep playing</button>
+<div id="win">
+  <div id="winCard">
+    <div id="winTitle">You did it!</div>
+    <div id="winSub"></div>
+    <canvas id="winShot"></canvas>
+    <div id="winTag"></div>
+    <div id="winBtns">
+      <button id="winShare"><svg viewBox="0 0 24 24"><path d="M12 15 V4"/><path d="M8.5 7.5 L12 4 L15.5 7.5"/><path d="M6 12 V18.5 H18 V12"/></svg>Share</button>
+      <button id="winNext">Next →</button>
     </div>
   </div>
 </div>

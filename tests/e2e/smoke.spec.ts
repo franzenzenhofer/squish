@@ -58,7 +58,7 @@ async function clearIntros(page: import('@playwright/test').Page): Promise<void>
   });
 }
 
-test('solver beats levels 1-5 with auto-advance', async ({ page }) => {
+test('solver beats levels 1-5, advancing via the win card', async ({ page }) => {
   await boot(page);
   await page.evaluate(() => localStorage.clear());
   for (let li = 0; li < 5; li++) {
@@ -74,7 +74,9 @@ test('solver beats levels 1-5 with auto-advance', async ({ page }) => {
     }
     const st = await page.evaluate(() => window.__squishy?.state());
     expect(st?.mode, 'level ' + (li + 1) + ' should be won').toBe('win');
-    /* the win modal auto-advances to the next level */
+    /* the win card shows "Next ->"; tap it to advance to the next level */
+    await page.waitForSelector('#win.show', { timeout: 10000 });
+    await page.click('#winNext');
     await page.waitForFunction(
       (n) => {
         const m = window.__squishy?.state();
@@ -116,7 +118,7 @@ test('a trapping line triggers the oh-no auto-undo', async ({ page }) => {
   );
 });
 
-test('daily solve shows the congrats modal and returns to campaign', async ({ page }) => {
+test('daily solve shows the win card and returns to campaign', async ({ page }) => {
   await boot(page);
   await page.evaluate(() => localStorage.clear());
   await page.evaluate(() => window.__squishy?.startDaily());
@@ -135,11 +137,11 @@ test('daily solve shows the congrats modal and returns to campaign', async ({ pa
     if (mode === 'win') break;
   }
   expect(await page.evaluate(() => window.__squishy?.state().mode)).toBe('win');
-  /* the congrats modal must appear (no auto-advance for dailies) */
-  await page.waitForSelector('#dailyWin.show', { timeout: 10000 });
-  expect(await page.textContent('#dwTitle')).toBe('Congrats!');
-  expect(await page.textContent('#dwMoves')).toMatch(/Solved in \d+ moves/);
-  await page.click('#dwContinue');
+  /* the unified win card must appear (no auto-advance) */
+  await page.waitForSelector('#win.show', { timeout: 10000 });
+  expect(await page.textContent('#winTitle')).toBe('You did it!');
+  expect(await page.textContent('#winSub')).toMatch(/Daily .+ · solved in \d+ moves?/);
+  await page.click('#winNext');
   await page.waitForFunction(() => {
     const m = window.__squishy?.state();
     return m?.play === 'campaign' && (m.mode === 'idle' || m.mode === 'intro');

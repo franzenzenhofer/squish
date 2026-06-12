@@ -16,7 +16,6 @@ import { localToday } from '../gen/daily';
 import { createOhNo } from './ohno';
 import { createLevelsPick } from './levelsPick';
 import { loadGame, replayLine, restoreReplay, sameDef, saveGame } from './persist';
-import { createDailyWin } from './share';
 import { createStart } from './start';
 import { HEART_SVG, mountWordmark } from './logo';
 import { hideToast, toast } from './toast';
@@ -133,7 +132,7 @@ function applyLevel(def: LevelDef): void {
   s.ohNoReturn = false;
   s.heartUnlockT0 = null;
   hideToast();
-  dailyWin.hide();
+  document.getElementById('win')?.classList.remove('show');
   setCap(def.cap ?? '');
   layout();
   hud();
@@ -292,14 +291,12 @@ function startDaily(): void {
 }
 
 /* --------------------------- endings / render ---------------------------- */
-const dailyWin = createDailyWin();
 const endings = createEndings({
   s, audio, main, canvas, reduced,
   caption: setCap,
   reload: () => fadeSwap(reduced, async () => applyLevel(await currentDef())),
   /* daily solved -> back to the campaign where the player left off */
-  next: () => loadLevel(s.play.kind === 'daily' ? s.li : s.li + 1, true),
-  dailyWin: (onContinue) => dailyWin.show(s, onContinue)
+  next: () => loadLevel(s.play.kind === 'daily' ? s.li : s.li + 1, true)
 });
 
 const hooks: RenderHooks = {
@@ -331,12 +328,10 @@ bindInput(main, {
     if (s.mode === 'intro') intro.dismiss();
     if (s.mode === 'idle' || s.mode === 'anim') hints.toggleHintMode();
   },
-  advance: () => {
-    if (dailyWin.isOpen()) return; // the modal's own buttons decide
-    endings.advance();
-  },
+  advance: () => endings.advance(),
   toggleMute,
-  inWin: () => s.mode === 'win',
+  /* the win card has its own Next button — taps no longer auto-advance */
+  inWin: () => false,
   unlockAudio: () => audio.unlock()
 });
 window.addEventListener('resize', () => layout());

@@ -1,11 +1,11 @@
-/* Endings — the win celebration (heart burst, pink flood, message, auto
-   advance) and the lose shake. Owns the #flood / #msg DOM. */
+/* Endings — the win celebration (heart burst + pink flood flourish, then the
+   unified win card with Share + Next) and the lose shake. Owns #flood / #win.
+   One card serves campaign and daily; campaign no longer auto-advances. */
 import type { Audio } from './audio';
 import { cx, cy, heartBurst } from './fx';
 import { saveGame } from './persist';
+import { CARD_H, CARD_W, renderBoardCard, shareCard } from './share';
 import type { Session } from './session';
-
-const WINWORDS = ['Sweet!', 'Yay!', 'Lovely!', 'Cutie!', 'Aww!', 'Hooray!'];
 
 export interface EndingsDeps {
   s: Session;
@@ -16,8 +16,6 @@ export interface EndingsDeps {
   caption: (txt: string, bad: boolean) => void;
   reload: () => void;
   next: () => void;
-  /** a solved daily celebrates with the congrats + share modal */
-  dailyWin: (onContinue: () => void) => void;
 }
 
 export interface Endings {
@@ -25,6 +23,7 @@ export interface Endings {
   loseSeq: () => void;
   advance: () => void;
   hideFlood: () => void;
+  isOpen: () => boolean;
 }
 
 function ratingHearts(n: number): string {
@@ -36,12 +35,18 @@ function ratingHearts(n: number): string {
   return '<div class="rate">' + h + '</div>';
 }
 
+/** Campaign "Level 12" / daily "Daily 06-12" — the card caption + share label. */
+function levelLabel(s: Session): string {
+  return s.play.kind === 'daily' ? 'Daily ' + s.play.date : 'Level ' + (s.li + 1);
+}
+
 export function createEndings(d: EndingsDeps): Endings {
   const { s, audio } = d;
   const elFlood = document.getElementById('flood') as HTMLElement;
-  const elMsg = document.getElementById('msg') as HTMLElement;
-  const elMsgBig = document.getElementById('msgbig') as HTMLElement;
-  const elMsgSub = document.getElementById('msgsub') as HTMLElement;
+  const elWin = document.getElementById('win') as HTMLElement;
+  const elWinSub = document.getElementById('winSub') as HTMLElement;
+  const elWinTag = document.getElementById('winTag') as HTMLElement;
+  const elShot = document.getElementById('winShot') as HTMLCanvasElement;
 
   const floodAt = (px: number, py: number): void => {
     const r = d.canvas.getBoundingClientRect();
@@ -58,7 +63,7 @@ export function createEndings(d: EndingsDeps): Endings {
   const hideFlood = (): void => {
     elFlood.style.transition = 'none';
     elFlood.style.clipPath = 'circle(0px at 50% 50%)';
-    elMsg.classList.remove('show');
+    elWin.classList.remove('show');
   };
 
   const advance = (): void => {
@@ -67,9 +72,36 @@ export function createEndings(d: EndingsDeps): Endings {
       s.winTimer = null;
     }
     /* keep the flood up — the next level drains it into its own heart */
-    elMsg.classList.remove('show');
+    elWin.classList.remove('show');
     d.next();
   };
+
+  const showCard = (label: string, hearts: number): void => {
+    const mv = s.moves + (s.moves === 1 ? ' move' : ' moves');
+    elWinSub.innerHTML = label + ' · solved in <b>' + mv + '</b>';
+    elWinTag.innerHTML = 'Squishy-tastic! ✨' + ratingHearts(hearts);
+    /* the shareable postcard, scaled into the card preview */
+    const card = renderBoardCard(s.def, label);
+    const w = 300;
+    elShot.width = w;
+    elShot.height = Math.round((CARD_H / CARD_W) * w);
+    elShot.getContext('2d')?.drawImage(card, 0, 0, elShot.width, elShot.height);
+    elWin.dataset.def = JSON.stringify(s.def);
+    elWin.dataset.label = label;
+    elWin.dataset.moves = String(s.moves);
+    elWin.classList.add('show');
+  };
+
+  document.getElementById('winShare')?.addEventListener('click', () => {
+    const ds = elWin.dataset;
+    if (ds.def && ds.label) {
+      void shareCard(JSON.parse(ds.def) as Session['def'], ds.label, Number(ds.moves));
+    }
+  });
+  document.getElementById('winNext')?.addEventListener('click', () => {
+    audio.unlock();
+    advance();
+  });
 
   const winSeq = (): void => {
     s.mode = 'win';
@@ -87,28 +119,20 @@ export function createEndings(d: EndingsDeps): Endings {
     }
     saveGame(s);
     const hearts = s.moves <= s.def.par ? 3 : s.moves <= s.def.par + 1 ? 2 : 1;
+    const label = levelLabel(s);
     setTimeout(() => {
       floodAt(cx(s, s.level.tx), cy(s, s.level.ty));
-      elMsgBig.textContent = WINWORDS[Math.floor(Math.random() * WINWORDS.length)] ?? 'Sweet!';
-      elMsgSub.innerHTML = ratingHearts(hearts);
-      setTimeout(() => elMsg.classList.add('show'), d.reduced ? 0 : 220);
-      if (s.play.kind === 'daily') {
-        /* no auto-advance — celebrate and offer the share moment */
-        s.winTimer = window.setTimeout(() => {
-          s.winTimer = null;
-          elMsg.classList.remove('show');
-          d.dailyWin(advance);
-        }, 1100);
-      } else {
-        s.winTimer = window.setTimeout(advance, 1250);
-      }
+      s.winTimer = window.setTimeout(() => {
+        s.winTimer = null;
+        showCard(label, hearts);
+      }, d.reduced ? 0 : 320);
     }, d.reduced ? 0 : 440);
   };
 
   const loseSeq = (): void => {
     s.mode = 'lose';
     audio.buzz([15, 40, 15]);
-    d.caption('Nom! A nomster got your Squishy!', true);
+    d.caption('Oops - a nomster gobbled you!', true);
     if (!d.reduced) d.main.classList.add('shake');
     setTimeout(() => {
       d.main.classList.remove('shake');
@@ -116,5 +140,5 @@ export function createEndings(d: EndingsDeps): Endings {
     }, 700);
   };
 
-  return { winSeq, loseSeq, advance, hideFlood };
+  return { winSeq, loseSeq, advance, hideFlood, isOpen: () => elWin.classList.contains('show') };
 }
