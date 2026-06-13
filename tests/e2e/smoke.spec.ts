@@ -163,42 +163,126 @@ test('the daily hides the hint bulb', async ({ page }) => {
   await expect(page.locator('#toolHint')).toBeHidden();
 });
 
-test('after playing the daily, a reload resumes the CAMPAIGN level, not the daily',
-  async ({ page }) => {
-    /* the play-tested bug: Continue/reload after a daily must return to the real
-       campaign level, never the daily. Daily is reachable only by its button. */
-    await boot(page);
-    await page.evaluate(() => localStorage.clear());
-    await page.evaluate(() => window.__squishy?.loadLevel(10)); /* campaign level 11 */
-    await clearIntros(page);
-    await page.evaluate(() => window.__squishy?.startDaily());
-    await page.waitForFunction(() => {
-      const m = window.__squishy?.state();
-      return m !== undefined && m.play.startsWith('daily') && m.mode !== 'loading';
-    }, undefined, { timeout: 120000 });
-    await page.reload();
-    await page.waitForFunction(() => window.__squishy !== undefined);
-    await page.evaluate(() => window.__squishy?.closeMenu());
-    await page.waitForFunction(() => {
-      const m = window.__squishy?.state();
-      return m !== undefined && m.mode !== 'loading';
-    });
-    const after = await page.evaluate(() => window.__squishy?.state());
-    expect(after?.play).toBe('campaign');
-    expect(after?.li).toBe(10);
-    expect(after?.moves).toBe(0);
-  });
+/* --- Continue/Daily integration suite ---------------------------------------
+   The contract Franz pinned: "Continue" is the ONE door to the campaign and it
+   ALWAYS (re)starts the saved level FRESH (move zero), never reveals a leftover
+   daily; the daily is reachable ONLY by its button or the #daily link. There is
+   a single loader behind boot + Continue (loadLevel = SSOT), so these flows can
+   never diverge again. Helpers below keep every scenario DRY. */
+const state = (page: import('@playwright/test').Page) =>
+  page.evaluate(() => window.__squishy?.state());
 
-test('a #daily deep-link drops straight into today\'s daily', async ({ page }) => {
-  await page.goto('/?test=1#daily');
-  await page.waitForFunction(() => window.__squishy !== undefined);
-  await page.evaluate(() => window.__squishy?.setInstantAnims(true));
+/** Load campaign level `li` (0-based) and settle to idle. */
+async function playCampaign(page: import('@playwright/test').Page, li: number): Promise<void> {
+  await page.evaluate((n) => window.__squishy?.loadLevel(n), li);
+  await clearIntros(page);
+  await page.waitForFunction(() => window.__squishy?.state().mode === 'idle');
+}
+
+/** Start today's daily and settle to idle (baking may take a while on a cold run). */
+async function playDaily(page: import('@playwright/test').Page): Promise<void> {
+  await page.evaluate(() => window.__squishy?.startDaily());
   await page.waitForFunction(() => {
     const m = window.__squishy?.state();
     return m !== undefined && m.play.startsWith('daily') && m.mode !== 'loading';
   }, undefined, { timeout: 120000 });
-  /* the hash is stripped so a later reload resumes campaign, not the daily again */
-  expect(await page.evaluate(() => location.hash)).toBe('');
+  await clearIntros(page);
+  await page.waitForFunction(() => window.__squishy?.state().mode === 'idle');
+}
+
+/** Tap the logo to return to the start screen, then tap Continue/Play. The real
+    user path — no test-API shortcut for the navigation that carried the bug. */
+async function tapLogoThenContinue(page: import('@playwright/test').Page): Promise<void> {
+  await page.click('#brand');
+  await page.waitForSelector('#start.show');
+  await page.click('#bplay');
+  await page.waitForFunction(() => {
+    const m = window.__squishy?.state();
+    return m !== undefined && m.mode !== 'loading' && m.mode !== 'menu';
+  });
+}
+
+/** Assert we are on campaign level `li`, fresh at move zero. */
+async function expectFreshCampaign(
+  page: import('@playwright/test').Page, li: number
+): Promise<void> {
+  const m = await state(page);
+  expect(m?.play).toBe('campaign');
+  expect(m?.li).toBe(li);
+  expect(m?.moves).toBe(0);
+}
+
+test.describe('Continue always (re)starts the campaign level, never the daily', () => {
+  test('IN-SESSION: campaign -> daily -> logo -> Continue lands on the campaign level',
+    async ({ page }) => {
+      await boot(page);
+      await page.evaluate(() => localStorage.clear());
+      await playCampaign(page, 10); /* level 11 */
+      await playDaily(page);
+      await tapLogoThenContinue(page);
+      await expectFreshCampaign(page, 10);
+    });
+
+  test('Continue RESTARTS a half-played campaign level fresh (move zero)',
+    async ({ page }) => {
+      await boot(page);
+      await page.evaluate(() => localStorage.clear());
+      await playCampaign(page, 4);
+      await page.waitForFunction(() => window.__squishy?.state().oracleReady === true);
+      const sol = await page.evaluate(() => window.__squishy?.solution());
+      await page.evaluate((d) => window.__squishy?.move(d as never), (sol as string[])[0]);
+      expect((await state(page))?.moves).toBe(1);
+      await tapLogoThenContinue(page);
+      await expectFreshCampaign(page, 4); /* the move was wiped — restarted NEW */
+    });
+
+  test('RELOAD after a daily resumes the campaign level, not the daily',
+    async ({ page }) => {
+      await boot(page);
+      await page.evaluate(() => localStorage.clear());
+      await playCampaign(page, 10);
+      await playDaily(page);
+      await page.reload();
+      await page.waitForFunction(() => window.__squishy !== undefined);
+      await page.evaluate(() => window.__squishy?.closeMenu());
+      await page.waitForFunction(() => window.__squishy?.state().mode !== 'loading');
+      await expectFreshCampaign(page, 10);
+    });
+
+  test('toggling daily MANY times never traps Continue on the daily',
+    async ({ page }) => {
+      await boot(page);
+      await page.evaluate(() => localStorage.clear());
+      await playCampaign(page, 7);
+      for (let i = 0; i < 3; i++) {
+        await playDaily(page);
+        await tapLogoThenContinue(page);
+        await expectFreshCampaign(page, 7);
+      }
+    });
+
+  test('a #daily deep-link starts the daily AND strips the hash',
+    async ({ page }) => {
+      await page.goto('/?test=1#daily');
+      await page.waitForFunction(() => window.__squishy !== undefined);
+      await page.evaluate(() => window.__squishy?.setInstantAnims(true));
+      await page.waitForFunction(() => {
+        const m = window.__squishy?.state();
+        return m !== undefined && m.play.startsWith('daily') && m.mode !== 'loading';
+      }, undefined, { timeout: 120000 });
+      expect(await page.evaluate(() => location.hash)).toBe('');
+    });
+
+  test('a #daily deep-link is NOT sticky: logo -> Continue escapes to campaign',
+    async ({ page }) => {
+      await page.goto('/?test=1#daily');
+      await page.waitForFunction(() => window.__squishy !== undefined);
+      await page.evaluate(() => window.__squishy?.setInstantAnims(true));
+      await playDaily(page); /* settles the daily the deep-link started */
+      await tapLogoThenContinue(page);
+      /* the campaign resume pointer for a fresh player is level 1 (index 0) */
+      await expectFreshCampaign(page, 0);
+    });
 });
 
 test('a reload resumes the same level, fresh at its initial state', async ({ page }) => {

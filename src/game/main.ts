@@ -642,10 +642,12 @@ const levelsPick = createLevelsPick({
 const startMenu = createStart({
   s,
   onPlay: () => {
-    /* reveal the level the player left under the menu, then greet any
-       not-yet-met friends or elements it holds. Same gate as applyLevel:
-       an overlay speaks first; only with no overlay does the goal bubble show */
-    if (!intro.maybeShow(s)) showGoalCap();
+    /* Continue/Play ALWAYS (re)starts the campaign level fresh — it never
+       reveals a leftover daily (s.play may still be daily when the menu was
+       opened from one) and never resumes a half-played board. loadLevel sets
+       play=campaign, rebuilds from the initial state, and fires the intro/goal
+       gate itself. The daily is reachable only via its button or #daily. */
+    loadLevel(s.li);
   },
   onDaily: () => startDaily(),
   onLevels: () => levelsPick.open(),
@@ -682,21 +684,17 @@ const plan = bootPlan(saved.li, location.hash);
 /* restore the resume level index BEFORE the menu paints, so the Play/Continue
    button reads the correct level on its very first frame (no "Level 1" flash) */
 s.li = plan.li;
-s.play = { kind: 'campaign' };
 if (plan.daily) {
   /* strip the hash so a later reload resumes campaign, not the daily again */
   history.replaceState(null, '', location.pathname + location.search);
   startDaily();
 } else {
-  /* the menu owns the screen on boot — open it first so the level we restore
-     underneath it does not fire its intro cards behind the menu */
+  /* the menu owns the screen on boot — open it first so the campaign level we
+     load underneath does not fire its intro cards behind the menu. Boot and the
+     Continue button use the SAME loader (loadLevel = the single source of truth
+     for "campaign level N, fresh"): there is no second code path to drift. */
   startMenu.open();
-  if (saved.li < CURATED.length) {
-    /* the resume level, fresh - in-between states are never persisted */
-    applyLevel(CURATED[saved.li] as LevelDef);
-  } else {
-    loadLevel(saved.li);
-  }
+  loadLevel(plan.li);
 }
 /* bake today's daily in its own worker while the player plays */
 window.setTimeout(() => void assist.getDaily(localToday()), 4000);
