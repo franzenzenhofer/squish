@@ -28,7 +28,7 @@ import { drawFrame, type RenderHooks } from './render';
 import { CURATED, blankSession, type Session } from './session';
 import { installTestApi } from './testapi';
 import { createTracker } from '../lib/track';
-import type { PlayKind } from '../lib/trackSchema';
+import type { PlayKind, Platform } from '../lib/trackSchema';
 
 const audio = createAudio();
 const assist = createAssist();
@@ -36,10 +36,24 @@ const s: Session = blankSession();
 
 /* Anonymous play counters (see the Privacy & data card in settings): a
    whitelisted event name + small numbers, fire-and-forget via sendBeacon.
-   No cookies, no IDs, events stand alone. Debug plays are not counted. */
+   No cookies, no IDs, events stand alone. Debug plays are not counted.
+   ONE game core, two build targets: the hosted site posts same-origin to its
+   own worker; the offline iOS (app://) build has no server, so it posts to the
+   live worker - but only while genuinely online - and tags events 'ios' so the
+   one shared dataset can split web from app. VITE_PLATFORM is set at build
+   time (vite.config.ts); it is 'web' everywhere except the iOS build. */
+const PLATFORM: Platform = import.meta.env.VITE_PLATFORM === 'ios' ? 'ios' : 'web';
+const TRACK_URL = PLATFORM === 'ios' ? 'https://squishy.franzai.com/t' : '/t';
 const { track } = createTracker({
   enabled: !isDebug(),
-  send: (body) => navigator.sendBeacon('/t', body)
+  platform: PLATFORM,
+  /* the opt-out is read per event (live), so toggling it in Settings takes
+     effect immediately; the iOS build additionally stays silent when offline */
+  send: (body) => {
+    if (!getSettings().analytics) return false;
+    if (PLATFORM === 'ios' && !navigator.onLine) return false;
+    return navigator.sendBeacon(TRACK_URL, body);
+  }
 });
 const playKind = (): PlayKind =>
   s.play.kind === 'daily' ? 'd' : s.play.kind === 'debug' ? 'g' : 'c';
@@ -700,3 +714,6 @@ if (plan.daily) {
 window.setTimeout(() => void assist.getDaily(localToday()), 4000);
 track('boot');
 requestAnimationFrame(render);
+/* readiness signal: the iOS wrapper (ios-app-maker GameWebView) holds its splash
+   until this is true, so it only reveals the webview once the game can be played */
+(window as unknown as { __ready?: boolean }).__ready = true;

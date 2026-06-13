@@ -18,10 +18,20 @@ export interface TrackEnv {
 
 const BODY_MAX = 256;
 
+/* the iOS app posts from the app:// origin, so /t must be CORS-open. The body
+   is text/plain (a simple request: no preflight), but we answer OPTIONS and set
+   the header anyway so a fetch() fallback also works. */
+const CORS: Record<string, string> = {
+  'access-control-allow-origin': '*',
+  'access-control-allow-methods': 'POST, OPTIONS',
+  'access-control-allow-headers': 'content-type'
+};
+
 export default {
   async fetch(req: Request, env: TrackEnv): Promise<Response> {
     const url = new URL(req.url);
-    if (req.method === 'POST' && url.pathname === '/t') {
+    if (url.pathname === '/t' && (req.method === 'POST' || req.method === 'OPTIONS')) {
+      if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
       /* fire-and-forget: always 204, never cookies, never an error page */
       try {
         const body = await req.text();
@@ -33,8 +43,10 @@ export default {
           const clean = ev !== null &&
             Object.keys(raw as object).every((k) => k in ev);
           if (ev && clean) {
+            /* platform splits web vs ios inside ONE dataset; absent means web
+               (old/cached clients predate the flag) */
             env.SQUISH_EVENTS.writeDataPoint({
-              blobs: [ev.e, ev.k ?? ''],
+              blobs: [ev.e, ev.k ?? '', ev.p ?? 'web'],
               doubles: [ev.li ?? -1, ev.mv ?? -1, ev.par ?? -1, ev.hr ?? -1, ev.hd ?? -1],
               indexes: [ev.e]
             });
@@ -43,7 +55,7 @@ export default {
       } catch {
         /* malformed body — nothing stored */
       }
-      return new Response(null, { status: 204 });
+      return new Response(null, { status: 204, headers: CORS });
     }
     /* freshness contract: HTML always revalidates (a reload shows every new
        deploy immediately - the etag makes the check a cheap 304), while the

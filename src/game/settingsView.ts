@@ -20,6 +20,11 @@ export function createSettingsView(d: SettingsViewDeps): SettingsView {
   const seg = document.getElementById('segAfterWin') as HTMLElement;
   const togHint = document.getElementById('togHint') as HTMLButtonElement;
   const togLabels = document.getElementById('togLabels') as HTMLButtonElement;
+  const togAnalytics = document.getElementById('togAnalytics') as HTMLButtonElement;
+  const rowAnalytics = document.getElementById('setrowAnalytics') as HTMLElement;
+  /* the opt-out toggle is surfaced only in the iOS build; the hosted web keeps
+     anonymous counts always-on (as shipped, covered by the privacy card) */
+  if (import.meta.env.VITE_PLATFORM === 'ios') rowAnalytics.hidden = false;
 
   const reflect = (): void => {
     const st = getSettings();
@@ -30,6 +35,8 @@ export function createSettingsView(d: SettingsViewDeps): SettingsView {
     togHint.setAttribute('aria-checked', String(st.hintButton));
     togLabels.classList.toggle('on', st.buttonLabels);
     togLabels.setAttribute('aria-checked', String(st.buttonLabels));
+    togAnalytics.classList.toggle('on', st.analytics);
+    togAnalytics.setAttribute('aria-checked', String(st.analytics));
   };
 
   seg.addEventListener('click', (e) => {
@@ -45,6 +52,11 @@ export function createSettingsView(d: SettingsViewDeps): SettingsView {
     updateSettings({ hintButton: !getSettings().hintButton });
     reflect();
     d.onChange();
+  });
+  togAnalytics.addEventListener('click', () => {
+    d.unlockAudio();
+    updateSettings({ analytics: !getSettings().analytics });
+    reflect();
   });
   togLabels.addEventListener('click', () => {
     d.unlockAudio();

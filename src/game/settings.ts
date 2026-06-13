@@ -14,11 +14,16 @@ export interface Settings {
   hintButton: boolean;
   /** show the little text labels under the footer buttons (contextual) */
   buttonLabels: boolean;
+  /** send anonymous play counters. Default on (matches the shipped web
+      behavior); the iOS build surfaces a toggle so the app can opt out. */
+  analytics: boolean;
 }
 
 const KEY = 'squish-settings-v1';
 
-const DEFAULTS: Settings = { v: 1, afterWin: 'auto', hintButton: true, buttonLabels: true };
+const DEFAULTS: Settings = {
+  v: 1, afterWin: 'auto', hintButton: true, buttonLabels: true, analytics: true
+};
 
 function load(): Settings {
   try {
@@ -30,7 +35,8 @@ function load(): Settings {
           v: 1,
           afterWin: p.afterWin === 'wait' || p.afterWin === 'instant' ? p.afterWin : 'auto',
           hintButton: p.hintButton !== false,
-          buttonLabels: p.buttonLabels !== false
+          buttonLabels: p.buttonLabels !== false,
+          analytics: p.analytics !== false
         };
       }
     }

@@ -1,10 +1,12 @@
 /* Client tracker — fire-and-forget anonymous counters. The transport is
    injected (navigator.sendBeacon in the game, a stub in tests). Tracking is
    best-effort by design: it never throws and never blocks gameplay. */
-import { sanitizeEvent, type EventName, type TrackEvent } from './trackSchema';
+import { sanitizeEvent, type EventName, type Platform, type TrackEvent } from './trackSchema';
 
 export interface TrackerOpts {
   enabled: boolean;
+  /** build target tag stamped onto every event (web | ios) */
+  platform: Platform;
   /** transport: receives the JSON body; returns whether it was queued */
   send: (body: string) => boolean;
 }
@@ -18,7 +20,7 @@ export function createTracker(o: TrackerOpts): Tracker {
     track: (e, fields): void => {
       if (!o.enabled) return;
       try {
-        const ev = sanitizeEvent({ ...fields, e });
+        const ev = sanitizeEvent({ ...fields, e, p: o.platform });
         if (!ev) return;
         o.send(JSON.stringify(ev));
       } catch {

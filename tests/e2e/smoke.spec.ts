@@ -571,14 +571,17 @@ test('a win fires one anonymous beacon to /t', async ({ page }) => {
   await page.waitForFunction(() => window.__squishy?.state().mode === 'win');
   await expect.poll(() => beacons.filter((b) => b.includes('"win"')).length).toBe(1);
   const win = JSON.parse(beacons.find((b) => b.includes('"win"')) ?? '{}');
-  /* the anonymity contract: only whitelisted keys, numbers + the kind letter */
+  /* the anonymity contract: only whitelisted keys, numbers + the kind/platform
+     letters. 'p' is the build-target tag (web here) added for the two-target
+     split; it is the only non-numeric field besides the kind letter. */
   expect(Object.keys(win).sort()).toEqual(
-    expect.arrayContaining(['e', 'k', 'li', 'mv']));
+    expect.arrayContaining(['e', 'k', 'p', 'li', 'mv']));
   for (const [k, v] of Object.entries(win)) {
-    expect(['e', 'k', 'li', 'mv', 'par', 'hr', 'hd']).toContain(k);
-    if (k !== 'e' && k !== 'k') expect(typeof v).toBe('number');
+    expect(['e', 'k', 'p', 'li', 'mv', 'par', 'hr', 'hd']).toContain(k);
+    if (k !== 'e' && k !== 'k' && k !== 'p') expect(typeof v).toBe('number');
   }
   expect(win.li).toBe(3);
+  expect(win.p).toBe('web');
 });
 
 test('sound unlocks on the first gesture and the button stays tappable', async ({ page }) => {

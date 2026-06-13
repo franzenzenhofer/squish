@@ -12,6 +12,12 @@ export type EventName = (typeof EVENT_NAMES)[number];
 const KINDS = ['c', 'd', 'g'] as const;
 export type PlayKind = (typeof KINDS)[number];
 
+/** build target the event came from: web = hosted site, ios = the offline app.
+   ONE dataset holds both; this flag is the only thing that splits them. An
+   absent flag means 'web' (old/cached clients predate the field). */
+const PLATFORMS = ['web', 'ios'] as const;
+export type Platform = (typeof PLATFORMS)[number];
+
 /** numeric fields: level index, moves/swipes, par, hearts, hinted(0/1) */
 const NUM_FIELDS = ['li', 'mv', 'par', 'hr', 'hd'] as const;
 type NumField = (typeof NUM_FIELDS)[number];
@@ -19,6 +25,8 @@ type NumField = (typeof NUM_FIELDS)[number];
 export interface TrackEvent {
   e: EventName;
   k?: PlayKind;
+  /** build target: 'web' (also the default when absent) or 'ios' */
+  p?: Platform;
   li?: number;
   mv?: number;
   par?: number;
@@ -40,6 +48,7 @@ export function sanitizeEvent(raw: unknown): TrackEvent | null {
   if (!EVENT_NAMES.includes(r.e as EventName)) return null;
   const ev: TrackEvent = { e: r.e as EventName };
   if (KINDS.includes(r.k as PlayKind)) ev.k = r.k as PlayKind;
+  if (PLATFORMS.includes(r.p as Platform)) ev.p = r.p as Platform;
   for (const f of NUM_FIELDS) {
     const n = cleanNum(r[f]);
     if (n !== null) ev[f as NumField] = n;
