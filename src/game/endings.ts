@@ -164,6 +164,8 @@ export function createEndings(d: EndingsDeps): Endings {
     elWin.dataset.def = JSON.stringify(s.def);
     elWin.dataset.label = label;
     elWin.dataset.line = line;
+    /* a daily share deep-links to #daily; campaign shares open the campaign */
+    elWin.dataset.daily = s.play.kind === 'daily' ? '1' : '';
     elWin.classList.add('show');
     cancelAuto();
     /* 4s no-interaction auto-advance with a countdown ring on Next — only in
@@ -180,7 +182,8 @@ export function createEndings(d: EndingsDeps): Endings {
     const ds = elWin.dataset;
     if (ds.def && ds.label) {
       d.track('share', { k: trackKind(s), li: s.li });
-      void shareCard(JSON.parse(ds.def) as Session['def'], ds.label, ds.line ?? '');
+      void shareCard(
+        JSON.parse(ds.def) as Session['def'], ds.label, ds.line ?? '', ds.daily === '1');
     }
   });
   elNext.addEventListener('click', () => {

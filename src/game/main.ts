@@ -12,6 +12,7 @@ import { drainFlood, fadeSwap } from './transition';
 import { createHints } from './hints';
 import { bindInput } from './input';
 import { createIntro } from './intro';
+import { bootPlan, hintHidden } from './flow';
 import { localToday } from '../gen/daily';
 import { createOhNo } from './ohno';
 import { createLevelsPick } from './levelsPick';
@@ -159,12 +160,15 @@ function hud(): void {
   elMoves.innerHTML =
     '<b class="' + (s.moves > s.def.par ? 'over' : '') + '">' + s.moves +
     '</b><span class="dim">/' + s.def.par + '</span>';
-  /* teach the tools on the first few levels and on dailies (the hard ones,
-     where Hint matters most), then go icon-only — unless labels are off */
+  /* the hint bulb hides when the player turned it off OR whenever a daily is in
+     play — the daily is solved without help. One place, every level + setting. */
+  elFooter?.classList.toggle('nohint', hintHidden(getSettings().hintButton, s.play));
+  /* teach the tools on the first few levels (where Hint matters most), then go
+     icon-only — unless labels are off. Dailies have no Hint, so no Hint label. */
   if (elFooter) {
     elFooter.classList.toggle('labels',
       getSettings().buttonLabels &&
-      (s.play.kind === 'daily' || (s.play.kind === 'campaign' && s.li < 3)));
+      s.play.kind === 'campaign' && s.li < 3);
   }
   /* debug plays carry the JSON export pill in the header */
   document.getElementById('dbgExport')?.classList.toggle(
@@ -174,10 +178,9 @@ function hud(): void {
 /** Push the current settings into the live chrome (footer classes, labels). */
 function applySettings(patch?: Partial<Omit<Settings, 'v'>>): void {
   if (patch) updateSettings(patch);
-  const st = getSettings();
-  elFooter?.classList.toggle('nohint', !st.hintButton);
-  /* a hidden bulb must not leave a live hint arrow behind */
-  if (!st.hintButton && s.hintMode) hints.toggleHintMode();
+  /* a hidden bulb must not leave a live hint arrow behind (hud() owns the
+     nohint class — it also accounts for daily) */
+  if (hintHidden(getSettings().hintButton, s.play) && s.hintMode) hints.toggleHintMode();
   hud();
 }
 
@@ -672,24 +675,28 @@ s.results = saved.results;
 s.hinted = saved.hinted;
 s.daily = saved.daily;
 applySettings();
-const dailyResume = saved.play.kind === 'daily' && saved.def && saved.play.date === localToday();
+/* a #daily deep-link (the daily share link) drops straight into today's daily;
+   every other entry resumes the saved CAMPAIGN level — the daily is never a
+   resume target, so "Continue" always returns to the real level, fresh. */
+const plan = bootPlan(saved.li, location.hash);
 /* restore the resume level index BEFORE the menu paints, so the Play/Continue
-   button reads the correct level on its very first frame (no "Level 1" flash).
-   s.play only becomes the daily tag for a live daily-resume; otherwise it stays
-   the default campaign tag, matching the branch handling below */
-s.li = saved.li;
-if (dailyResume) s.play = saved.play;
-/* the menu owns the screen on boot — open it first so the level we restore
-   underneath it does not fire its intro cards behind the menu */
-startMenu.open();
-if (dailyResume && saved.def) {
-  /* today's daily - fresh at its initial state (mid-level progress is never saved) */
-  applyLevel(saved.def);
-} else if (saved.play.kind === 'campaign' && saved.li < CURATED.length) {
-  /* the resume level, fresh - in-between states are never persisted */
-  applyLevel(CURATED[saved.li] as LevelDef);
+   button reads the correct level on its very first frame (no "Level 1" flash) */
+s.li = plan.li;
+s.play = { kind: 'campaign' };
+if (plan.daily) {
+  /* strip the hash so a later reload resumes campaign, not the daily again */
+  history.replaceState(null, '', location.pathname + location.search);
+  startDaily();
 } else {
-  loadLevel(saved.li);
+  /* the menu owns the screen on boot — open it first so the level we restore
+     underneath it does not fire its intro cards behind the menu */
+  startMenu.open();
+  if (saved.li < CURATED.length) {
+    /* the resume level, fresh - in-between states are never persisted */
+    applyLevel(CURATED[saved.li] as LevelDef);
+  } else {
+    loadLevel(saved.li);
+  }
 }
 /* bake today's daily in its own worker while the player plays */
 window.setTimeout(() => void assist.getDaily(localToday()), 4000);

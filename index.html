@@ -58,7 +58,7 @@
   /* lock the text scale so a bigger iOS system font never inflates the
      layout out of shape — the tuned px sizes hold on every device */
   html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
-  html, body { margin: 0; height: 100%; }
+  html, body { margin: 0; height: 100%; overflow-x: hidden; }
   body {
     position: fixed; inset: 0;
     background: radial-gradient(130% 90% at 50% -15%, #FFFAFC 0%, #FFEFF6 42%, #FFE2EE 100%);
@@ -73,7 +73,10 @@
     content: ""; position: absolute; border-radius: 50%; filter: blur(3px); opacity: .5; pointer-events: none;
   }
   body::before { width: 200px; height: 200px; background: #FFE0EC; left: -60px; top: 12%; }
-  body::after { width: 240px; height: 240px; background: #FFEAD6; right: -80px; bottom: 8%; }
+  /* bleeds off the bottom (free) but never past the right edge, so it can never
+     create a horizontal scroll — the body's overflow propagates to the viewport
+     and so cannot clip this fixed-shell decoration */
+  body::after { width: 240px; height: 240px; background: #FFEAD6; right: 0; bottom: -110px; }
 
   /* ---- logo lockup (single source of truth: src/game/logo.ts) ----
      exact Fredoka-700 outlines as SVG paths, so the brand is pixel-identical
@@ -192,9 +195,9 @@
   #win.show { display: flex; }
   #winCard {
     display: flex; flex-direction: column; align-items: center;
-    gap: clamp(6px, 1.4vh, 10px); margin: auto;
+    gap: clamp(4px, 1vh, 7px); margin: auto;
     width: min(340px, 92vw); max-height: 100%; background: #fff; border-radius: 30px;
-    padding: clamp(14px, 2.4vh, 22px) 22px clamp(12px, 2vh, 20px);
+    padding: clamp(12px, 1.8vh, 18px) 22px clamp(10px, 1.4vh, 15px);
     box-shadow: 0 14px 0 var(--shadow); animation: sf-pop .35s cubic-bezier(.2,1.4,.4,1) both;
   }
   #winTitle { font-size: clamp(24px, 7vw, 32px); font-weight: 700; color: var(--heart); letter-spacing: .01em; }
@@ -203,7 +206,7 @@
   /* the board canvas is a tall postcard — cap its height so the whole card fits */
   #winShot { width: 100%; max-height: 46vh; object-fit: contain; border-radius: 18px; display: block; }
   #winTag { font-size: 15px; font-weight: 700; color: var(--ink); text-align: center; }
-  #winBtns { display: flex; gap: 10px; width: 100%; margin-top: 4px; }
+  #winBtns { display: flex; gap: 10px; width: 100%; margin-top: 2px; }
   #winBtns button {
     font: inherit; flex: 1; border: none; cursor: pointer; border-radius: 18px;
     padding: 13px 0; font-size: 15px; font-weight: 700; color: #fff;
@@ -248,7 +251,7 @@
   /* the picker and settings scroll as one page — scrollbars fully hidden
      (mobile-app feel: content moves, no chrome), momentum scroll kept */
   #levels, #settings, #privacy {
-    z-index: 9; overflow-y: auto; touch-action: pan-y;
+    z-index: 9; overflow-y: auto; overflow-x: hidden; touch-action: pan-y;
     scrollbar-width: none; -ms-overflow-style: none;
     padding: 0 0 max(14px, env(safe-area-inset-bottom));
   }
@@ -287,6 +290,8 @@
   #levelsInner, #settingsInner, .ovinner {
     display: flex; flex-direction: column; align-items: center;
     margin: 0 auto auto; padding: 6px 18px 24px;
+    /* cap to the viewport so the side padding never pushes content off-screen */
+    width: min(380px, 100vw); max-width: 100%; box-sizing: border-box;
     gap: clamp(10px, 2.4vh, 18px);
   }
   #startInner {
@@ -326,8 +331,10 @@
   #breset { color: var(--dim2); }
   /* ---- level cards: number always visible, hearts, mini cast icons ---- */
   #levelsGrid {
-    display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
-    width: min(380px, 92vw); padding: 4px 0 6px;
+    /* minmax(0,1fr) lets the cards shrink below their content's min-width so the
+       three columns always fit the viewport - plain 1fr would overflow on 320px */
+    display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px;
+    width: 100%; max-width: 380px; padding: 4px 0 6px;
   }
   .lvcard {
     position: relative; border-radius: 18px; cursor: pointer;
@@ -357,7 +364,8 @@
 
   /* ---- small round chips (∞, generated ladder, milestones) ---- */
   .lvchips {
-    display: grid; grid-template-columns: repeat(5, 52px); gap: 10px; padding: 6px;
+    display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; padding: 6px;
+    width: 100%; max-width: 320px; box-sizing: border-box;
   }
   .lvchip {
     width: 52px; height: 52px; border-radius: 16px; cursor: pointer;

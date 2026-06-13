@@ -113,9 +113,15 @@ export function renderBoardCard(def: LevelDef, label: string): HTMLCanvasElement
   return cv;
 }
 
+/** The landing URL for a share. Daily shares deep-link to #daily so the tap
+    drops straight into today's puzzle; everything else opens the campaign. */
+function shareUrl(daily: boolean): string {
+  return daily ? SITE + '/#daily' : SITE;
+}
+
 /** Share payload — the level + the open invitation, nothing competitive. */
-function shareText(label: string): string {
-  return 'Squishy & Friends ' + label + ' - Can you solve it? ' + SITE;
+function shareText(label: string, daily: boolean): string {
+  return 'Squishy & Friends ' + label + ' - Can you solve it? ' + shareUrl(daily);
 }
 
 function shareName(label: string, ext: string): string {
@@ -130,8 +136,10 @@ function canShareFile(file: File): boolean {
 /** Share a solved level. Preferred: an animated GIF of the first three moves
     fading into the claim card. Fallbacks, in order: the static postcard PNG,
     a plain link share, the clipboard. Exports are square and opaque. */
-export async function shareCard(def: LevelDef, label: string, line = ''): Promise<void> {
-  const text = shareText(label);
+export async function shareCard(
+  def: LevelDef, label: string, line = '', daily = false
+): Promise<void> {
+  const text = shareText(label, daily);
   let gif: File | null = null;
   if (line) {
     try {
@@ -158,7 +166,7 @@ export async function shareCard(def: LevelDef, label: string, line = ''): Promis
       return;
     }
     if (navigator.share) {
-      await navigator.share({ text, url: SITE });
+      await navigator.share({ text, url: shareUrl(daily) });
       return;
     }
   } catch {

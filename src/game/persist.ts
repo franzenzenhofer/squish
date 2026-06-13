@@ -25,17 +25,24 @@ const FRESH: SavedGame = {
   v: 2, play: { kind: 'campaign' }, li: 0, def: null, results: {}, hinted: {}, daily: {}
 };
 
-export function saveGame(s: Session): void {
-  /* debug test plays are never a resume target — persist the campaign pointer */
-  const snap: SavedGame = {
+/** The snapshot that survives a reload (pure — no storage). ONLY a campaign play
+    is a resume target: debug and daily plays coerce to the campaign pointer with
+    no stored def, so a reload (or "Continue") always returns to the real campaign
+    level, never the daily that was last opened. */
+export function resumeSnapshot(s: Session): SavedGame {
+  const campaign = s.play.kind === 'campaign';
+  return {
     v: 2,
-    play: s.play.kind === 'debug' ? { kind: 'campaign' } : s.play,
+    play: campaign ? s.play : { kind: 'campaign' },
     li: s.li,
-    def: s.play.kind === 'debug' ? null : s.def,
+    def: campaign ? s.def : null,
     results: s.results, hinted: s.hinted, daily: s.daily
   };
+}
+
+export function saveGame(s: Session): void {
   try {
-    localStorage.setItem(KEY_V2, JSON.stringify(snap));
+    localStorage.setItem(KEY_V2, JSON.stringify(resumeSnapshot(s)));
   } catch {
     /* storage full or blocked — play on */
   }
@@ -95,8 +102,9 @@ export function loadGame(): SavedGame {
       if (p.v === 2 && typeof p.li === 'number') {
         return {
           v: 2,
-          /* anything but a live daily (incl. a stray debug tag) resumes campaign */
-          play: p.play?.kind === 'daily' ? p.play : { kind: 'campaign' },
+          /* daily is never a resume target — always resume the campaign pointer
+             (a daily is reached only via its button or the #daily share link) */
+          play: { kind: 'campaign' },
           li: p.li,
           def: p.def ?? null,
           results: p.results ?? {},

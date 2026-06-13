@@ -149,6 +149,58 @@ test('daily solve shows the win card and returns to campaign', async ({ page }) 
   }, undefined, { timeout: 10000 });
 });
 
+test('the daily hides the hint bulb', async ({ page }) => {
+  await boot(page);
+  await page.evaluate(() => localStorage.clear());
+  await page.evaluate(() => window.__squishy?.startDaily());
+  await page.waitForFunction(() => {
+    const m = window.__squishy?.state();
+    return m !== undefined && m.play.startsWith('daily') && m.mode !== 'loading';
+  }, undefined, { timeout: 120000 });
+  /* the daily is solved without help — the footer carries the nohint class and
+     the bulb is not visible */
+  await expect(page.locator('footer')).toHaveClass(/nohint/);
+  await expect(page.locator('#toolHint')).toBeHidden();
+});
+
+test('after playing the daily, a reload resumes the CAMPAIGN level, not the daily',
+  async ({ page }) => {
+    /* the play-tested bug: Continue/reload after a daily must return to the real
+       campaign level, never the daily. Daily is reachable only by its button. */
+    await boot(page);
+    await page.evaluate(() => localStorage.clear());
+    await page.evaluate(() => window.__squishy?.loadLevel(10)); /* campaign level 11 */
+    await clearIntros(page);
+    await page.evaluate(() => window.__squishy?.startDaily());
+    await page.waitForFunction(() => {
+      const m = window.__squishy?.state();
+      return m !== undefined && m.play.startsWith('daily') && m.mode !== 'loading';
+    }, undefined, { timeout: 120000 });
+    await page.reload();
+    await page.waitForFunction(() => window.__squishy !== undefined);
+    await page.evaluate(() => window.__squishy?.closeMenu());
+    await page.waitForFunction(() => {
+      const m = window.__squishy?.state();
+      return m !== undefined && m.mode !== 'loading';
+    });
+    const after = await page.evaluate(() => window.__squishy?.state());
+    expect(after?.play).toBe('campaign');
+    expect(after?.li).toBe(10);
+    expect(after?.moves).toBe(0);
+  });
+
+test('a #daily deep-link drops straight into today\'s daily', async ({ page }) => {
+  await page.goto('/?test=1#daily');
+  await page.waitForFunction(() => window.__squishy !== undefined);
+  await page.evaluate(() => window.__squishy?.setInstantAnims(true));
+  await page.waitForFunction(() => {
+    const m = window.__squishy?.state();
+    return m !== undefined && m.play.startsWith('daily') && m.mode !== 'loading';
+  }, undefined, { timeout: 120000 });
+  /* the hash is stripped so a later reload resumes campaign, not the daily again */
+  expect(await page.evaluate(() => location.hash)).toBe('');
+});
+
 test('a reload resumes the same level, fresh at its initial state', async ({ page }) => {
   /* mid-level progress is deliberately never persisted (see persist.ts):
      the level you were on comes back, at move zero */
