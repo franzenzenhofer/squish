@@ -35,13 +35,19 @@ export function createStart(d: StartDeps): Start {
   const startLogo = document.getElementById('startLogo');
   if (startLogo) mountWordmark(startLogo);
 
-  /* three friends join Squishy on the shelf, rotating with the date */
-  const dayN = Math.abs(localToday().split('-').reduce((a, b) => a + Number(b), 0));
-  const cast = ['squishy',
-    CAST_POOL[dayN % CAST_POOL.length] as string,
-    CAST_POOL[(dayN + 3) % CAST_POOL.length] as string,
-    CAST_POOL[(dayN + 7) % CAST_POOL.length] as string
-  ];
+  /* Squishy always leads the shelf; THREE UNIQUE friends join in random
+     order, re-rolled every time the start screen opens (new visit or a
+     mid-session return) — a full shuffle then slice guarantees uniqueness */
+  let cast: string[] = ['squishy'];
+  const reshuffleCast = (): void => {
+    const pool = [...CAST_POOL];
+    for (let i = pool.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [pool[i], pool[j]] = [pool[j] as string, pool[i] as string];
+    }
+    cast = ['squishy', ...pool.slice(0, 3)];
+  };
+  reshuffleCast();
 
   const drawShelf = (now: number): void => {
     const ctx = sc.getContext('2d');
@@ -71,6 +77,7 @@ export function createStart(d: StartDeps): Start {
 
   const open = (): void => {
     if (el.classList.contains('show')) return;
+    reshuffleCast();
     s.mode = 'menu';
     el.classList.add('show');
     const dd = document.getElementById('bdailyDate');

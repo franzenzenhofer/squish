@@ -11,8 +11,8 @@ import levels from '../src/levels.json';
 describe('every shipped level is proven solvable', () => {
   const CURATED = levels as LevelDef[];
 
-  it('has 40 levels', () => {
-    expect(CURATED).toHaveLength(40);
+  it('has 50 levels (tutorials, intros, pairs, combos, the trio arc)', () => {
+    expect(CURATED).toHaveLength(50);
   });
 
   CURATED.forEach((def, i) => {

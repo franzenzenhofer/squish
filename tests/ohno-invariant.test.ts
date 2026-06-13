@@ -8,7 +8,7 @@
       firing the oh-no */
 import { describe, expect, it } from 'vitest';
 import { analyzeLevel, winnableState } from '../src/engine/analyze';
-import { DIRNAMES, REV, cloneState, makeLevel, ser } from '../src/engine/core';
+import { DIRNAMES, REV, cloneState, isWin, makeLevel, ser } from '../src/engine/core';
 import { move } from '../src/engine/move';
 import type { Dir, GameState, LevelDef } from '../src/engine/types';
 import { isReversibleEscape, serEquivalent } from '../src/game/hints';
@@ -22,14 +22,19 @@ describe('reversibility invariant (every exhausted oracle honors it)', () => {
       const level = makeLevel(CURATED[li] as LevelDef);
       const oracle = analyzeLevel(level);
       expect(oracle.exhausted, 'L' + (li + 1) + ' oracle must exhaust').toBe(true);
-      /* walk the reachable graph with real states in hand */
+      /* walk the reachable graph with real states in hand. Win states are
+         terminal (the game ends there) — walking past them would invent
+         phantom states the oracle rightly never explores. */
       const seen = new Set<string>([ser(level.initState)]);
       let frontier: GameState[] = [cloneState(level.initState)];
       while (frontier.length > 0) {
         const next: GameState[] = [];
         for (const S of frontier) {
+          if (isWin(level, S)) continue;
           const sk = ser(S);
-          const sWinnable = winnableState(oracle, sk) !== false;
+          /* the invariant needs a POSITIVELY winnable S (in the oracle's
+             dist map) — null would be a phantom, not a proof */
+          const sWinnable = winnableState(oracle, sk) === true;
           for (const d of DIRNAMES) {
             const r = move(level, cloneState(S), d);
             if (!r.moved || r.state.dots.length === 0) continue;

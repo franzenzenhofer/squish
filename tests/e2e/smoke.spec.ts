@@ -353,7 +353,14 @@ test('?debug=doit: picker unlocks everything, test levels fire the oh-no', async
   /* the debug picker: no padlocks, generated ladder + test list + baker */
   await page.evaluate(() => document.getElementById('blevels')?.click());
   await page.waitForSelector('#levels.show', { timeout: 5000 });
-  expect(await page.locator('#levelsGrid .lvchip.locked').count()).toBe(0);
+  expect(await page.locator('#levelsGrid .lvcard.locked').count()).toBe(0);
+  /* every card shows its number, and cast icons render from the sprite SSOT */
+  const numbers = await page.locator('#levelsGrid .lvcard .lvnum').allTextContents();
+  expect(numbers.length).toBe(LEVELS.length);
+  numbers.forEach((t, i) => expect(t).toBe(String(i + 1)));
+  const iconLevel = LEVELS.findIndex((d) => (d.penguins ?? d.bunnies ?? d.frogs ?? []).length > 0);
+  expect(await page.locator('#levelsGrid .lvcard').nth(iconLevel).locator('.lvcast img').count())
+    .toBeGreaterThan(0);
   /* 10 ladder chips (41-50) + 7 marathon milestone chips (60..200) */
   expect(await page.locator('#levelsGen .lvchip').count()).toBe(17);
   expect(await page.locator('.lvtest button').count()).toBeGreaterThanOrEqual(8);
@@ -436,6 +443,17 @@ test('a win fires one anonymous beacon to /t', async ({ page }) => {
     if (k !== 'e' && k !== 'k') expect(typeof v).toBe('number');
   }
   expect(win.li).toBe(3);
+});
+
+test('sound unlocks on the first gesture and the button stays tappable', async ({ page }) => {
+  await boot(page);
+  await page.evaluate(() => localStorage.clear());
+  /* a real user gesture: click the board area, then the unlock must leave
+     the AudioContext RUNNING and the sound button enabled */
+  await page.mouse.click(195, 300);
+  await page.waitForTimeout(300);
+  expect(await page.evaluate(
+    () => (document.getElementById('mute') as HTMLButtonElement).disabled)).toBe(false);
 });
 
 test.describe('mobile touch', () => {

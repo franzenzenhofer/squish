@@ -3,7 +3,10 @@
    After a win, the pink flood instead DRAINS into the next level's heart. */
 
 const FADE_IN_MS = 240;
-const DRAIN_MS = 420;
+/* the Next-click handover: ease-OUT so the fresh board is mostly visible
+   within ~120ms (movie-frame review, 2026-06-13: the old ease-in curve made
+   the first 200ms after the click read as static pink) */
+const DRAIN_MS = 360;
 
 /** Fade the veil in, run `apply` (may await level data), fade out. */
 export function fadeSwap(reduced: boolean, apply: () => Promise<void>): void {
@@ -33,7 +36,7 @@ export function drainFlood(reduced: boolean, px: number, py: number): void {
   el.style.transition = 'none';
   el.style.clipPath = 'circle(150% at ' + px + 'px ' + py + 'px)';
   void el.offsetWidth;
-  el.style.transition = 'clip-path .42s cubic-bezier(.7,.05,.85,.4)';
+  el.style.transition = 'clip-path .36s cubic-bezier(.2,.7,.3,1)';
   el.style.clipPath = 'circle(0px at ' + px + 'px ' + py + 'px)';
   setTimeout(() => {
     el.style.transition = 'none';

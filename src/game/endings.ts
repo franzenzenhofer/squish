@@ -163,6 +163,7 @@ export function createEndings(d: EndingsDeps): Endings {
     replay = startWinReplay(elShot, s.def, label, line);
     elWin.dataset.def = JSON.stringify(s.def);
     elWin.dataset.label = label;
+    elWin.dataset.line = line;
     elWin.classList.add('show');
     cancelAuto();
     /* 4s no-interaction auto-advance with a countdown ring on Next — only in
@@ -179,7 +180,7 @@ export function createEndings(d: EndingsDeps): Endings {
     const ds = elWin.dataset;
     if (ds.def && ds.label) {
       d.track('share', { k: trackKind(s), li: s.li });
-      void shareCard(JSON.parse(ds.def) as Session['def'], ds.label);
+      void shareCard(JSON.parse(ds.def) as Session['def'], ds.label, ds.line ?? '');
     }
   });
   elNext.addEventListener('click', () => {

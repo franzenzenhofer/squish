@@ -498,6 +498,13 @@ function toggleMute(): void {
 }
 /* reflect the persisted mute state on boot */
 document.getElementById('mute')?.classList.toggle('off', audio.isMuted());
+/* the sound button only stays tappable when sound can really play: after a
+   gesture tried to unlock, a context that is not RUNNING means WebAudio is
+   blocked or unavailable on this device — disable the button honestly */
+audio.onStateChange(() => {
+  const b = document.getElementById('mute') as HTMLButtonElement | null;
+  if (b) b.disabled = !audio.isLive();
+});
 
 /* ------------------------- tap-to-explain / pet -------------------------- */
 function moverKindAt(x: number, y: number): string | null {

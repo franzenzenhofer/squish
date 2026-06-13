@@ -7,6 +7,10 @@ export interface Audio {
   unlock: () => void;
   toggleMute: () => boolean;
   isMuted: () => boolean;
+  /** true once the context is actually RUNNING — sound really plays */
+  isLive: () => boolean;
+  /** called whenever availability may have changed (unlock/statechange) */
+  onStateChange: (cb: () => void) => void;
   slide: () => void;
   merge: (combo: number) => void;
   split: () => void;
@@ -52,11 +56,16 @@ export function createAudio(): Audio {
     /* storage blocked — start audible */
   }
   const lastPlay: Record<string, number> = {};
+  let stateCb: (() => void) | null = null;
+  const notify = (): void => {
+    stateCb?.();
+  };
 
   const unlock = (): void => {
     if (!ac) {
       try {
         ac = new AudioContext();
+        ac.addEventListener('statechange', notify);
         bus = ac.createGain();
         bus.gain.value = 0.3;
         /* warm everything: gentle lowpass before the speaker */
@@ -82,11 +91,15 @@ export function createAudio(): Audio {
         delay.connect(wet);
         wet.connect(ac.destination);
       } catch {
+        /* WebAudio unavailable — the sound button reflects it */
         ac = null;
         bus = null;
       }
     }
-    if (ac && ac.state === 'suspended') void ac.resume();
+    if (ac && ac.state === 'suspended') {
+      ac.resume().then(notify, notify);
+    }
+    notify();
   };
 
   /* self-contained mobile safety nets: any first gesture unlocks, and the
@@ -157,6 +170,10 @@ export function createAudio(): Audio {
   return {
     unlock,
     isMuted: () => muted,
+    isLive: () => ac !== null && ac.state === 'running',
+    onStateChange: (cb): void => {
+      stateCb = cb;
+    },
     toggleMute: (): boolean => {
       muted = !muted;
       try {
@@ -258,6 +275,7 @@ export function silentAudio(): Audio {
   const none = (): void => undefined;
   return {
     unlock: none, toggleMute: () => true, isMuted: () => true,
+    isLive: () => false, onStateChange: none,
     slide: none, merge: none, split: none, beam: none, turn: none, boing: none,
     windy: none, hop: none, crack: none, nom: none, yum: none, squish: none,
     win: none, tick: none, collect: none, unlockHeart: none, scare: none,

@@ -9,7 +9,7 @@ import * as U from '../lib/draw';
 import { drawWordmark } from './logo';
 import { drawFrame, type RenderHooks } from './render';
 import { blankSession, type Session } from './session';
-import { toast } from './toast';
+import { hideToast, toast } from './toast';
 
 const CARD_W = 640;
 const CARD_H = 780;
@@ -44,10 +44,16 @@ export const CARD_HOOKS: RenderHooks = {
   onAnimFinished: () => undefined
 };
 
-/** Backdrop: rounded-rect clip, pink wash, wordmark + level label. */
-export function drawCardChrome(ctx: CanvasRenderingContext2D, label: string): void {
-  U.rrect(ctx, 0, 0, CARD_W, CARD_H, CARD_R);
-  ctx.clip();
+/** Backdrop: pink wash, wordmark + level label. The on-screen win card clips
+    rounded corners; EXPORTED images (PNG/GIF) pass corner 0 — messengers show
+    transparent rounded corners as broken, so shares are square and opaque. */
+export function drawCardChrome(
+  ctx: CanvasRenderingContext2D, label: string, corner = CARD_R
+): void {
+  if (corner > 0) {
+    U.rrect(ctx, 0, 0, CARD_W, CARD_H, corner);
+    ctx.clip();
+  }
   /* opaque base first: the radial wash below is non-concentric and leaves the
      corners outside its cone unpainted, which would show as cut corners — the
      base fill keeps the rounded card solid edge to edge */
@@ -79,11 +85,12 @@ export function drawCardFooter(ctx: CanvasRenderingContext2D): void {
 
 /** Compose one full postcard frame: chrome + the board square + footer. */
 export function drawCard(
-  ctx: CanvasRenderingContext2D, board: HTMLCanvasElement, label: string
+  ctx: CanvasRenderingContext2D, board: HTMLCanvasElement, label: string,
+  corner = CARD_R
 ): void {
   ctx.clearRect(0, 0, CARD_W, CARD_H);
   ctx.save();
-  drawCardChrome(ctx, label);
+  drawCardChrome(ctx, label, corner);
   ctx.drawImage(board, Math.floor((CARD_W - BOARD_PX) / 2), BOARD_TOP);
   drawCardFooter(ctx);
   ctx.restore();
@@ -101,7 +108,8 @@ export function renderBoardCard(def: LevelDef, label: string): HTMLCanvasElement
   board.height = BOARD_PX;
   const bctx = board.getContext('2d') as CanvasRenderingContext2D;
   drawFrame(bctx, cardSession(def), FROZEN, CARD_HOOKS);
-  drawCard(ctx, board, label);
+  /* exported image: square corners, fully opaque */
+  drawCard(ctx, board, label, 0);
   return cv;
 }
 
@@ -110,16 +118,43 @@ function shareText(label: string): string {
   return 'Squishy & Friends ' + label + ' - Can you solve it? ' + SITE;
 }
 
-/** Share the postcard (image + text) for any solved level; clipboard fallback.
-    The copy is the open invitation only — no competitive move count. */
-export async function shareCard(def: LevelDef, label: string): Promise<void> {
+function shareName(label: string, ext: string): string {
+  return 'squishy-' + label.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '.' + ext;
+}
+
+/** True when the platform can put this file on its share sheet. */
+function canShareFile(file: File): boolean {
+  return navigator.canShare?.({ files: [file] }) === true;
+}
+
+/** Share a solved level. Preferred: an animated GIF of the first three moves
+    fading into the claim card. Fallbacks, in order: the static postcard PNG,
+    a plain link share, the clipboard. Exports are square and opaque. */
+export async function shareCard(def: LevelDef, label: string, line = ''): Promise<void> {
   const text = shareText(label);
+  let gif: File | null = null;
+  if (line) {
+    try {
+      toast('Making your GIF…', { ms: 8000 });
+      const { buildShareGif } = await import('./shareGif');
+      gif = new File([buildShareGif(def, label, line)], shareName(label, 'gif'),
+        { type: 'image/gif' });
+      hideToast();
+    } catch (e) {
+      console.error('[squishy] share gif failed:', e);
+      gif = null;
+    }
+  }
   const cv = renderBoardCard(def, label);
   const blob = await new Promise<Blob | null>((r) => cv.toBlob(r, 'image/png'));
-  const fileName = 'squishy-' + label.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '.png';
+  const png = blob ? new File([blob], shareName(label, 'png'), { type: 'image/png' }) : null;
   try {
-    if (blob && navigator.canShare?.({ files: [new File([blob], 's.png', { type: 'image/png' })] })) {
-      await navigator.share({ text, files: [new File([blob], fileName, { type: 'image/png' })] });
+    if (gif && canShareFile(gif)) {
+      await navigator.share({ text, files: [gif] });
+      return;
+    }
+    if (png && canShareFile(png)) {
+      await navigator.share({ text, files: [png] });
       return;
     }
     if (navigator.share) {
@@ -130,6 +165,18 @@ export async function shareCard(def: LevelDef, label: string): Promise<void> {
     /* user cancelled the share sheet — nothing to do */
     return;
   }
-  await navigator.clipboard.writeText(text);
-  toast('Copied! Paste it anywhere', { ms: 2200 });
+  /* no share sheet (desktop): download the GIF so it is not lost, copy text */
+  if (gif) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(gif);
+    a.download = gif.name;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+  try {
+    await navigator.clipboard.writeText(text);
+    toast(gif ? 'GIF saved + text copied!' : 'Copied! Paste it anywhere', { ms: 2200 });
+  } catch {
+    toast(gif ? 'GIF saved!' : 'Sharing is not available here', { ms: 2200 });
+  }
 }

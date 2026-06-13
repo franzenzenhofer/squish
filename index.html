@@ -229,6 +229,15 @@
   #winNext.counting::after { animation: winct 4s linear forwards; }
   #winNext.counting.paused::after { animation-play-state: paused; }
   @keyframes winct { from { transform: scaleX(0); opacity: 1; } to { transform: scaleX(1); opacity: 1; } }
+  /* the invite pulse: a gentle "click me" glow while the countdown runs
+     (glow only — the button never moves, so taps always land); frozen
+     together with the ring while the replay is held */
+  #winBtns #winNext.counting { animation: nextpulse 1.6s ease-in-out infinite; }
+  #winBtns #winNext.counting.paused { animation-play-state: paused; }
+  @keyframes nextpulse {
+    0%, 100% { box-shadow: 0 5px 0 #E2A93E; filter: brightness(1); }
+    50% { box-shadow: 0 5px 0 #E2A93E, 0 0 22px rgba(255,201,79,.85); filter: brightness(1.06); }
+  }
   #winShare svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2.3; stroke-linecap: round; stroke-linejoin: round; }
 
   #start, #levels, #settings, #privacy {
@@ -315,29 +324,50 @@
     text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1.5px; text-decoration-color: var(--link-ul);
   }
   #breset { color: var(--dim2); }
+  /* ---- level cards: number always visible, hearts, mini cast icons ---- */
   #levelsGrid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+    width: min(380px, 92vw); padding: 4px 0 6px;
+  }
+  .lvcard {
+    position: relative; border-radius: 18px; cursor: pointer;
+    background: #fff; border: 2px solid var(--border);
+    box-shadow: 0 4px 0 rgba(246,201,220,.45);
+    display: flex; flex-direction: column; align-items: center;
+    padding: 10px 6px 8px; gap: 3px; min-height: 76px;
+    font: inherit; color: var(--ink);
+  }
+  .lvcard:active { transform: translateY(3px); box-shadow: 0 1px 0 rgba(246,201,220,.45); }
+  .lvcard .lvnum { font-size: 19px; font-weight: 800; line-height: 1; }
+  .lvcard .lvbadge { position: absolute; top: 5px; right: 7px; font-size: 11px; color: var(--heart); }
+  .lvcard .lvhearts { font-size: 9px; color: var(--heart); letter-spacing: 1.5px; height: 10px; }
+  .lvcard .lvcast { display: flex; gap: 2px; height: 18px; align-items: center; justify-content: center; flex-wrap: nowrap; }
+  .lvcard .lvcast img { width: 18px; height: 18px; display: block; }
+  .lvcard.done { background: linear-gradient(180deg, #FFF4F8, #FFE7F0); border-color: var(--heart); }
+  .lvcard.done .lvnum { color: var(--heart); }
+  .lvcard.open {
+    background: linear-gradient(180deg, var(--heart-top), var(--heart)); color: #fff;
+    border-color: var(--heart-edge);
+    box-shadow: 0 5px 0 var(--heart-edge), 0 12px 18px -8px rgba(255,109,158,.6);
+    animation: lvpulse 1.6s ease-in-out infinite;
+  }
+  .lvcard.open .lvnum { color: #fff; }
+  @keyframes lvpulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+  .lvcard.locked { opacity: .45; pointer-events: none; }
+
+  /* ---- small round chips (∞, generated ladder, milestones) ---- */
+  .lvchips {
     display: grid; grid-template-columns: repeat(5, 52px); gap: 10px; padding: 6px;
   }
   .lvchip {
     width: 52px; height: 52px; border-radius: 16px; cursor: pointer;
     background: #fff; border: 2px solid var(--border);
     box-shadow: 0 4px 0 rgba(246,201,220,.45);
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    font: inherit; font-size: 14px; font-weight: 800; color: var(--ink); gap: 1px;
+    display: flex; align-items: center; justify-content: center;
+    font: inherit; font-size: 14px; font-weight: 800; color: var(--ink);
   }
   .lvchip:active { transform: translateY(3px); box-shadow: 0 1px 0 rgba(246,201,220,.45); }
-  .lvchip.done { background: linear-gradient(180deg, #FFF4F8, #FFE7F0); border-color: var(--heart); }
-  .lvchip.done span:first-child { color: var(--heart); }
-  .lvchip.open {
-    background: linear-gradient(180deg, var(--heart-top), var(--heart)); color: #fff;
-    border-color: var(--heart-edge);
-    box-shadow: 0 5px 0 var(--heart-edge), 0 12px 18px -8px rgba(255,109,158,.6);
-    animation: lvpulse 1.6s ease-in-out infinite;
-  }
-  .lvchip.open .mini { color: #fff; }
-  @keyframes lvpulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
-  .lvchip.locked { opacity: .42; pointer-events: none; }
-  .lvchip .mini { font-size: 8px; color: var(--heart); letter-spacing: 1px; height: 9px; }
+  .lvchip.done { background: linear-gradient(180deg, #FFF4F8, #FFE7F0); border-color: var(--heart); color: var(--heart); }
 
   /* ---- debug-only picker sections (?debug=doit) ---- */
   .lvsec {
@@ -442,6 +472,11 @@
   }
   footer button svg { width: 25px; height: 25px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
   footer button:active { transform: translateY(4px); box-shadow: 0 2px 0 var(--shadow6); }
+  /* sound truly unavailable (WebAudio blocked/missing) — honestly disabled */
+  footer button:disabled {
+    opacity: .35; cursor: default; color: var(--dim);
+    transform: none; box-shadow: 0 6px 0 var(--shadow6);
+  }
   .tool .lbl { display: none; font-size: 11px; font-weight: 600; color: var(--dim); letter-spacing: .02em; }
   footer.labels .tool .lbl { display: block; }
   /* settings: the hint bulb can be tucked away entirely */

@@ -1,11 +1,13 @@
-/* Level picker — a grid of chips with earned hearts. Each chip is one of three
-   states: done (solved, sealed, replayable), open (the next reachable level,
-   highlighted), or locked (beyond reach, padlocked). A hint-helped level is
-   done but heartless until it is re-solved hint-free. The ∞ chip continues
-   endless play. With ?debug=doit every chip unlocks and two extra sections
-   appear: the generated 41-50 ladder, and the hand-authored test levels plus
-   the hardness baker. */
+/* Level picker — a card per level: the number ALWAYS visible, earned hearts,
+   and the level's cast as mini icons painted by the one sprite painter
+   (SSOT). States: done (solved, sealed, replayable), open (the next
+   reachable level, highlighted), locked (beyond reach, dimmed). A
+   hint-helped level is done but heartless until re-solved hint-free.
+   The ∞ chip continues endless play. With ?debug=doit every card unlocks
+   and extra sections appear: the generated ladder, marathon milestones,
+   hand-authored test levels and the hardness baker. */
 import type { LevelDef } from '../engine/types';
+import { SPR } from '../sprites';
 import { DEBUG_GEN_COUNT, isDebug } from './debugMode';
 import { DEBUG_LEVELS } from './debugLevels';
 import { CURATED, type Session } from './session';
@@ -27,6 +29,48 @@ export interface LevelsPick {
 
 /** 'free' = debug-unlocked: playable, plain number, no padlock */
 type ChipState = 'done' | 'open' | 'locked' | 'free';
+
+/** def array key -> sprite id, in display order (friends, movers, nomster) */
+const CAST_KEYS: ReadonlyArray<readonly [keyof LevelDef, string]> = [
+  ['penguins', 'penguin'], ['bunnies', 'bunny'], ['frogs', 'frog'],
+  ['bears', 'bear'], ['ghosts', 'ghost'], ['pandas', 'panda'],
+  ['cats', 'cat'], ['chicks', 'chick'], ['pigs', 'pig'],
+  ['stars', 'star'], ['boxes', 'box'], ['balloons', 'balloon'],
+  ['snails', 'snail'], ['noms', 'nomster']
+];
+
+/** Sprite kinds present on a level, in display order. */
+function castOf(def: LevelDef): string[] {
+  const out: string[] = [];
+  for (const [key, kind] of CAST_KEYS) {
+    const arr = def[key];
+    if (Array.isArray(arr) && arr.length > 0) out.push(kind);
+  }
+  return out;
+}
+
+/* mini icons: each kind painted ONCE by the gameplay sprite painter (SSOT)
+   into a small offscreen canvas, reused as an <img> on every card */
+const ICON_CSS = 18;
+const ICON_SCALE = 2;
+const iconCache = new Map<string, string>();
+
+function iconUrl(kind: string): string {
+  const hit = iconCache.get(kind);
+  if (hit) return hit;
+  const c = document.createElement('canvas');
+  c.width = c.height = ICON_CSS * ICON_SCALE;
+  const ctx = c.getContext('2d');
+  if (!ctx) return '';
+  ctx.scale(ICON_SCALE, ICON_SCALE);
+  SPR[kind]?.(ctx, {
+    x: ICON_CSS / 2, y: ICON_CSS * 0.62, cell: ICON_CSS * 0.92,
+    now: 0, idle: true, mood: 'happy', seed: 3
+  });
+  const url = c.toDataURL();
+  iconCache.set(kind, url);
+  return url;
+}
 
 function hearts(s: Session, li: number): string {
   const best = s.results[li];
@@ -69,26 +113,53 @@ export function createLevelsPick(d: LevelsDeps): LevelsPick {
   const inner = document.getElementById('levelsInner') as HTMLElement;
   let bakeHardness = 5;
 
-  const chip = (cls: string, pick: () => void): HTMLButtonElement => {
+  /** One level card: number (always), state badge, hearts, cast icons. */
+  const card = (li: number, state: ChipState): HTMLButtonElement => {
     const b = document.createElement('button');
-    b.className = 'lvchip ' + cls;
+    b.className = 'lvcard ' + state;
+    const num = document.createElement('span');
+    num.className = 'lvnum';
+    num.textContent = String(li + 1);
+    b.appendChild(num);
+    if (state === 'done' || state === 'locked') {
+      const badge = document.createElement('span');
+      badge.className = 'lvbadge';
+      badge.textContent = state === 'done' ? '✓' : '🔒';
+      b.appendChild(badge);
+    }
+    const hs = document.createElement('span');
+    hs.className = 'lvhearts';
+    hs.textContent = state === 'done' ? hearts(s, li) : '';
+    b.appendChild(hs);
+    const cast = document.createElement('span');
+    cast.className = 'lvcast';
+    for (const kind of castOf(CURATED[li] as LevelDef)) {
+      const img = document.createElement('img');
+      img.src = iconUrl(kind);
+      img.alt = kind;
+      cast.appendChild(img);
+    }
+    b.appendChild(cast);
+    if (state !== 'locked') {
+      b.addEventListener('click', () => {
+        d.unlockAudio();
+        close();
+        d.onPick(li);
+      });
+    }
+    return b;
+  };
+
+  /** Small round chip (∞ / generated ladder / milestones). */
+  const chip = (label: string, pick: () => void, done = false): HTMLButtonElement => {
+    const b = document.createElement('button');
+    b.className = 'lvchip' + (done ? ' done' : '');
+    b.textContent = label;
     b.addEventListener('click', () => {
       d.unlockAudio();
       close();
       pick();
     });
-    return b;
-  };
-
-  const numChip = (li: number, state: ChipState): HTMLButtonElement => {
-    const b = chip(state, () => d.onPick(li));
-    const num = document.createElement('span');
-    num.textContent =
-      state === 'locked' ? '🔒' : state === 'done' ? '✓' : String(li + 1);
-    const mini = document.createElement('span');
-    mini.className = 'mini';
-    mini.textContent = li < CURATED.length ? hearts(s, li) : '';
-    b.append(num, mini);
     return b;
   };
 
@@ -100,29 +171,21 @@ export function createLevelsPick(d: LevelsDeps): LevelsPick {
   };
 
   /* milestone rungs of the endless ladder — jump straight to the marathon
-     levels (par climbs ~16 at L100 to ~28 at L200) to see them */
-  const MILESTONES = [60, 80, 100, 125, 150, 175, 200];
+     levels (par climbs ~19 at L100 to ~30 at L200) to see them */
+  const MILESTONES = [70, 80, 100, 125, 150, 175, 200];
 
-  /* debug-only: the test-level list and the hardness baker */
+  /* debug-only: the generated ladder, test levels and the hardness baker */
   const buildDebugSections = (): void => {
     section('GENERATED');
     const g = document.createElement('div');
     g.id = 'levelsGen';
-    g.style.cssText = 'display:grid;grid-template-columns:repeat(5,52px);gap:10px;padding:6px';
+    g.className = 'lvchips';
     for (let i = 0; i < DEBUG_GEN_COUNT; i++) {
       const li = CURATED.length + i;
-      const b = chip(isDone(s, li) ? 'done' : '', () => d.onPick(li));
-      const num = document.createElement('span');
-      num.textContent = isDone(s, li) ? '✓' : String(li + 1);
-      b.appendChild(num);
-      g.appendChild(b);
+      g.appendChild(chip(String(li + 1), () => d.onPick(li), isDone(s, li)));
     }
     for (const n of MILESTONES) {
-      const b = chip(isDone(s, n - 1) ? 'done' : '', () => d.onPick(n - 1));
-      const num = document.createElement('span');
-      num.textContent = String(n);
-      b.appendChild(num);
-      g.appendChild(b);
+      g.appendChild(chip(String(n), () => d.onPick(n - 1), isDone(s, n - 1)));
     }
     inner.appendChild(g);
 
@@ -196,13 +259,11 @@ export function createLevelsPick(d: LevelsDeps): LevelsPick {
     const reach = furthest(s);
     const openIdx = nextOpen(s, reach);
     for (let i = 0; i < CURATED.length; i++) {
-      grid.appendChild(numChip(i, chipState(s, i, openIdx)));
+      grid.appendChild(card(i, chipState(s, i, openIdx)));
     }
     if (!isDebug() && reach >= CURATED.length) {
-      const b = chip('', () =>
-        d.onPick(Math.max(CURATED.length, s.play.kind === 'campaign' ? s.li : 0)));
-      b.textContent = '∞';
-      grid.appendChild(b);
+      grid.appendChild(chip('∞', () =>
+        d.onPick(Math.max(CURATED.length, s.play.kind === 'campaign' ? s.li : 0))));
     }
     if (isDebug()) buildDebugSections();
   };

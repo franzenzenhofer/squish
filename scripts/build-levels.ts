@@ -9,7 +9,7 @@
    ONLY=28,33,34,40 regenerates just those level numbers and keeps every other
    level verbatim from the existing levels.json - the surgical tool for fixing
    difficulty dips without disturbing the pinned curve. */
-import { readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 
 if (process.env.FORCE_LEVELS !== '1') {
   console.error('refusing to overwrite the pinned src/levels.json - the curated');
@@ -19,10 +19,10 @@ if (process.env.FORCE_LEVELS !== '1') {
 }
 import { CODEDIR, DIRCODE, cloneState, isWin, makeLevel } from '../src/engine/core';
 import { move } from '../src/engine/move';
-import { solve, spamSolvable } from '../src/engine/solve';
+import { featureUse, solve, spamSolvable } from '../src/engine/solve';
 import type { Dir, DirCode, LevelDef, XY } from '../src/engine/types';
-import { FIXED_LEVELS, generateLevel, trapFree } from '../src/gen/generate';
-import { ramp } from '../src/gen/ramp';
+import { FIXED_LEVELS, featuredOk, generateLevel, trapFree } from '../src/gen/generate';
+import { CAMPAIGN_END, ramp } from '../src/gen/ramp';
 
 /* No per-level captions: every element/friend is explained ONLY by its overlay
    (first-meet + tap-to-explain), never as a speech bubble. A bubble explaining a
@@ -41,17 +41,24 @@ function replayWins(def: LevelDef): boolean {
 }
 
 /** Drop walls that change nothing — cleaner boards, same puzzle. A removal
-    must keep par, stay spam-proof AND stay free of early dead states. */
-function minimize(def: LevelDef): LevelDef {
+    must keep par, stay spam-proof, stay free of early dead states, respect
+    the level's density floor (wallMin — Franz: boards must not feel empty),
+    and keep the level's FEATURED mechanics on the recorded optimal line
+    (paramount: an intro level whose new thing the solution skips is broken). */
+function minimize(def: LevelDef, n: number): LevelDef {
+  const p = ramp(n);
   let cur = def;
   let walls = cur.walls ?? [];
   for (let i = walls.length - 1; i >= 0; i--) {
+    if (walls.length <= (p.wallMin ?? 0)) break;
     const trial: LevelDef = { ...cur, walls: walls.filter((_, j) => j !== i) };
     if (trial.walls && trial.walls.length === 0) delete trial.walls;
     const level = makeLevel(trial);
     const res = solve(level, { maxStates: 400000, maxDepth: cur.par + 1 });
     if (res.status !== 'solved' || res.par !== cur.par) continue;
     if (spamSolvable(level, res.par)) continue;
+    const fu = featureUse(level, res.solution);
+    if (!fu.win || !featuredOk(p, fu.used)) continue;
     if (!trapFree(trial)) continue;
     cur = { ...trial, sol: res.solution.map((d: Dir) => DIRCODE[d]).join('') };
     walls = cur.walls ?? [];
@@ -66,9 +73,17 @@ const existing: LevelDef[] = only
   ? (JSON.parse(readFileSync('src/levels.json', 'utf8')) as LevelDef[])
   : [];
 
+/* crash insurance: every finished level lands in the progress file at once,
+   so a late failure (a level that needs a cast fix) never burns the hours
+   already baked — the rerun resumes from it */
+const PROGRESS = 'levels.progress.json';
+const resumed: Record<number, LevelDef> = existsSync(PROGRESS)
+  ? (JSON.parse(readFileSync(PROGRESS, 'utf8')) as Record<number, LevelDef>)
+  : {};
+
 const levels: LevelDef[] = [];
 const t0 = Date.now();
-for (let n = 1; n <= 40; n++) {
+for (let n = 1; n <= CAMPAIGN_END; n++) {
   const s = Date.now();
   if (only && !only.has(n)) {
     /* pinned: carry the existing level over byte-identically */
@@ -77,10 +92,16 @@ for (let n = 1; n <= 40; n++) {
     levels.push(keep);
     continue;
   }
+  const prev = resumed[n];
+  if (prev) {
+    levels.push(prev);
+    console.log('L' + String(n).padStart(2, '0'), 'resumed from progress file');
+    continue;
+  }
   let def = generateLevel(n);
   /* fixed feature-intro levels are authored exactly - minimize would strip the
      teaching obstacle (e.g. the pillow the bunny hops over) */
-  if (n > 3 && !FIXED_LEVELS[n]) def = minimize(def);
+  if (n > 3 && !FIXED_LEVELS[n]) def = minimize(def, n);
   if (!replayWins(def)) throw new Error('level ' + n + ': sol does not win after minimize');
   if (n > 3 && def.par < 4) throw new Error('level ' + n + ': par < 4');
   if (n > 3 && def.par > ramp(n).parMax) throw new Error('level ' + n + ': par > parMax');
@@ -88,6 +109,8 @@ for (let n = 1; n <= 40; n++) {
   const onHeart = def.dots.some((d: XY) => d[0] === def.target[0] && d[1] === def.target[1]);
   if (onHeart) throw new Error('level ' + n + ': squishy spawned on the heart');
   levels.push(def);
+  resumed[n] = def;
+  writeFileSync(PROGRESS, JSON.stringify(resumed));
   console.log(
     'L' + String(n).padStart(2, '0'),
     def.w + 'x' + def.h,
@@ -97,4 +120,5 @@ for (let n = 1; n <= 40; n++) {
   );
 }
 writeFileSync('src/levels.json', JSON.stringify(levels));
+unlinkSync(PROGRESS);
 console.log('wrote src/levels.json —', levels.length, 'levels in', Date.now() - t0, 'ms');

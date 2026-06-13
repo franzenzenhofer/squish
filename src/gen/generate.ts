@@ -7,7 +7,7 @@ import { move } from '../engine/move';
 import { featureUse, solve, spamSolvable } from '../engine/solve';
 import { FRIEND_KEYS } from '../engine/types';
 import type { Dir, GameState, Level, LevelDef, XY } from '../engine/types';
-import { FIELD_FLAGS, FRIEND_FLAGS, ramp, type RampParams } from './ramp';
+import { CAMPAIGN_END, FIELD_FLAGS, FRIEND_FLAGS, ramp, type RampParams } from './ramp';
 import { levelRng, type Rng } from './rng';
 import { sketch } from './sketch';
 
@@ -100,7 +100,7 @@ function suicideDirs(level: Level): number {
   return n;
 }
 
-function featuredOk(p: RampParams, used: Set<string>): boolean {
+export function featuredOk(p: RampParams, used: Set<string>): boolean {
   let hits = 0;
   let groups = 0;
   for (const f of p.friends) {
@@ -250,10 +250,17 @@ function rescueParams(p: RampParams): RampParams {
 
 /** Endless levels NEVER step back: rescue rounds keep the par floor (fresh
     seeds, then the proven star-tour cast) and concede at most ONE breathing
-    notch — simplify(), which resets floors, is never used here. */
+    notch — simplify(), which resets floors, is never used here. The trio arc
+    (41-50) keeps its PRE-PLANNED cast in every round: offline builds either
+    deliver Franz's trios at their rungs or fail loud for a cast fix. */
 function generateEndless(n: number, fallbackPool?: LevelDef[]): LevelDef {
   const p = ramp(n);
-  const rounds: Array<[number, RampParams]> = [
+  const rounds: Array<[number, RampParams]> = n <= CAMPAIGN_END ? [
+    [n, p],
+    [n * 7919 + 101, p],
+    [n * 104729 + 7, p],
+    [n * 999983 + 13, p]
+  ] : [
     [n, p],
     [n * 7919 + 101, p],
     [n * 104729 + 7, rescueParams(p)],

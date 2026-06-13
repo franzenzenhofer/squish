@@ -6,10 +6,22 @@
 import { describe, expect, it } from 'vitest';
 import { ramp } from '../src/gen/ramp';
 
-describe('endless ramp (41+) - harder and harder, forever', () => {
-  it('the par rung never decreases from 41 to 400', () => {
+describe('endless ramp (51+) - harder and harder, forever', () => {
+  it('the trio arc 41-50 carries 3 friends and climbs par 10 -> 13', () => {
     let prev = 0;
-    for (let n = 41; n <= 400; n++) {
+    for (let n = 41; n <= 50; n++) {
+      const p = ramp(n);
+      expect(p.friends.length, 'L' + n).toBe(3);
+      expect(p.parTarget, 'L' + n).toBeGreaterThanOrEqual(prev);
+      prev = p.parTarget;
+    }
+    expect(ramp(41).parTarget).toBe(10);
+    expect(ramp(50).parTarget).toBe(13);
+  });
+
+  it('the par rung never decreases from 51 to 400', () => {
+    let prev = 0;
+    for (let n = 51; n <= 400; n++) {
       const p = ramp(n);
       expect(p.parTarget, 'L' + n).toBeGreaterThanOrEqual(prev);
       prev = p.parTarget;
@@ -35,7 +47,7 @@ describe('endless ramp (41+) - harder and harder, forever', () => {
     let walls = 0;
     let fields = 0;
     let friends = 0;
-    for (let n = 41; n <= 400; n++) {
+    for (let n = 51; n <= 400; n++) {
       const p = ramp(n);
       expect(p.wallMax, 'walls L' + n).toBeGreaterThanOrEqual(walls);
       expect(p.fields.length, 'fields L' + n).toBeGreaterThanOrEqual(fields);
@@ -47,7 +59,7 @@ describe('endless ramp (41+) - harder and harder, forever', () => {
   });
 
   it('marathon rungs (par 12+) always feature the star tour, never panda/chick', () => {
-    for (let n = 41; n <= 400; n++) {
+    for (let n = 51; n <= 400; n++) {
       const p = ramp(n);
       if (p.parTarget < 12) continue;
       expect(p.friends, 'L' + n).toContain('star');
@@ -70,9 +82,9 @@ describe('endless ramp (41+) - harder and harder, forever', () => {
 
   it('high rungs accept headroom ABOVE the floor (no window starvation)', () => {
     /* the par distribution disperses at high rungs - a 2-wide window finds
-       nothing (measured: L150 rung 23 failed every round while par 26-34
+       nothing (measured: rung 23 failed every round while par 26-34
        candidates were being rejected). The floor is law; the ceiling breathes. */
-    for (let n = 41; n <= 400; n += 3) {
+    for (let n = 51; n <= 400; n += 3) {
       const p = ramp(n);
       const head = p.parMax - p.parTarget;
       if (p.parTarget >= 18) expect(head, 'L' + n).toBeGreaterThanOrEqual(8);
@@ -83,6 +95,7 @@ describe('endless ramp (41+) - harder and harder, forever', () => {
 
   it('never pairs a friend with itself (exclusion walks must not collapse)', () => {
     for (let n = 41; n <= 400; n++) {
+      /* covers the hand-written trio arc AND the generated ladder */
       const f = ramp(n).friends;
       expect(new Set(f).size, 'L' + n + ' ' + f.join(',')).toBe(f.length);
     }

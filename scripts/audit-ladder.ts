@@ -11,8 +11,8 @@ import { generateLevel } from '../src/gen/generate';
 import { ramp } from '../src/gen/ramp';
 
 const SAMPLE: number[] = [];
-for (let n = 41; n <= 60; n++) SAMPLE.push(n);
-SAMPLE.push(70, 80, 90, 100, 125, 150, 175, 200);
+for (let n = 51; n <= 70; n++) SAMPLE.push(n);
+SAMPLE.push(80, 90, 100, 125, 150, 175, 200);
 
 /* Per-level wall-clock ceiling. Deep levels bake in a background worker
    DURING the (minutes-long) previous level and are cached forever, so the

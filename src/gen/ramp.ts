@@ -110,18 +110,33 @@ const CURATED: Record<number, Partial<RampParams>> = {
      between par-8..10 neighbours) — the late game must never get easier */
   28: { friends: ['bear', 'pig'], fields: ['nom'], parMin: 6, parMax: 7, wallMin: 3, extras: ['ice'] },
   29: { friends: ['ghost', 'cat'], fields: ['oneway'] },
-  30: { friends: ['panda', 'chick'], fields: [], wallMin: 4, extras: ['sticky'] },
+  30: { friends: ['panda', 'chick'], fields: [], classics: ['snail'], wallMin: 4, extras: ['sticky'] },
   31: { friends: ['bunny', 'star'], fields: ['jelly'] },
   32: { friends: ['penguin', 'frog'], fields: ['ice', 'spring'] },
   33: { friends: ['bear', 'ghost'], fields: ['nom', 'split'], parMin: 7, wallMin: 3, extras: ['ice'] },
-  34: { friends: ['cat', 'pig'], fields: ['turn'], parMin: 7, wallMin: 4, extras: ['sticky'] },
-  35: { friends: ['star', 'chick'], fields: ['sticky'] },
+  34: { friends: ['cat', 'pig'], fields: ['turn'], classics: ['snail'], parMin: 7, wallMin: 4, extras: ['sticky'] },
+  35: { friends: ['star', 'chick'], fields: ['sticky'], wallMin: 4, extras: ['ice'] },
   36: { friends: ['bunny', 'pig'], fields: ['nom', 'oneway'] },
   37: { friends: ['penguin', 'cat'], fields: ['ice', 'breeze'] },
-  38: { friends: ['frog', 'ghost'], fields: ['portal'] },
-  39: { friends: ['bear', 'star'], fields: ['split'], wallMin: 4, extras: ['ice'] },
-  40: { friends: ['pig', 'star', 'bunny'], fields: ['nom', 'jelly'], parMin: 9, parTarget: 9 }
+  38: { friends: ['frog', 'ghost'], fields: ['portal'], wallMin: 4, extras: ['ice'] },
+  39: { friends: ['bear', 'star'], fields: ['split'], parMin: 8, wallMin: 4, extras: ['ice'] },
+  40: { friends: ['pig', 'star', 'bunny'], fields: ['nom', 'jelly'], parMin: 9, parTarget: 9 },
+  /* 41-50: the pre-planned three-friend arc — every level a trio plus
+     fields, climbing par 10 -> 13 to the grand finale */
+  41: { friends: ['penguin', 'bunny', 'frog'], fields: ['ice'], parMin: 10, parTarget: 10, wallMin: 4, extras: ['sticky'] },
+  42: { friends: ['bear', 'ghost', 'star'], fields: ['nom'], parMin: 10, parTarget: 10, wallMin: 4, extras: ['ice'] },
+  43: { friends: ['cat', 'pig', 'bear'], fields: ['turn'], parMin: 10, parTarget: 10, wallMin: 4, extras: ['sticky'] },
+  44: { friends: ['penguin', 'ghost', 'star'], fields: ['ice', 'portal'], parMin: 11, parTarget: 11, wallMin: 4 },
+  45: { w: 6, h: 6, friends: ['bunny', 'pig', 'bear'], fields: ['nom', 'oneway'], parMin: 11, parTarget: 11, wallMin: 4 },
+  46: { friends: ['frog', 'cat', 'star'], fields: ['portal', 'jelly'], classics: ['snail'], parMin: 11, parTarget: 11, wallMin: 4 },
+  47: { w: 6, h: 6, friends: ['penguin', 'bunny', 'pig'], fields: ['ice', 'spring'], parMin: 12, parTarget: 12, wallMin: 4 },
+  48: { friends: ['ghost', 'frog', 'star'], fields: ['split'], parMin: 12, parTarget: 12, wallMin: 4, extras: ['ice'] },
+  49: { w: 6, h: 6, friends: ['bear', 'cat', 'bunny'], fields: ['nom', 'breeze'], parMin: 12, parTarget: 12, wallMin: 4 },
+  50: { friends: ['bunny', 'star', 'pig'], fields: ['nom', 'jelly', 'sticky'], classics: ['snail'], parMin: 13, parTarget: 13, wallMin: 5 }
 };
+
+/** Last pre-planned campaign level — endless generation starts after it. */
+export const CAMPAIGN_END = 50;
 
 const ENDLESS_FIELDS: readonly FieldKind[] = [
   'sticky', 'oneway', 'split', 'portal', 'turn', 'ice', 'spring', 'breeze', 'jelly', 'nom'
@@ -134,33 +149,47 @@ export function ramp(n: number): RampParams {
     friends: [], fields: [], classics: [], wallMax: 4,
     attempts: 90, maxStates: 60000
   };
-  if (n <= 40) {
+  if (n <= CAMPAIGN_END) {
     const c = CURATED[n] ?? {};
-    const tier = n <= 13 ? 0 : n <= 25 ? 1 : 2;
-    base.w = base.h = tier === 0 ? 5 : tier === 1 ? 6 : n >= 38 ? 7 : 6;
-    base.parTarget = tier === 0 ? 4 : tier === 1 ? 5 : 6 + Math.floor((n - 26) / 5);
+    const tier = n <= 13 ? 0 : n <= 25 ? 1 : n <= 40 ? 2 : 3;
+    base.w = base.h =
+      tier === 0 ? 5 : tier === 1 ? 6 : tier === 2 ? (n >= 38 ? 7 : 6) : n >= 44 ? 7 : 6;
+    base.parTarget = tier === 0 ? 4 : tier === 1 ? 5
+      : tier === 2 ? 6 + Math.floor((n - 26) / 5) : 10;
     base.parMax = base.parTarget + 3;
     base.parMin = 4;
     base.dots = tier === 0 ? (n % 2 === 0 ? 1 : 2) : 2;
     base.wallMax = tier === 0 ? 4 : tier === 1 ? 6 : 8;
-    base.attempts = 600;
-    base.maxStates = 400000;
-    return { ...base, friends: [], fields: [], classics: [], ...c };
+    /* the trio arc (41-50) is built offline — spend real budget there */
+    base.attempts = tier === 3 ? 1500 : 600;
+    base.maxStates = tier === 3 ? 700000 : 400000;
+    const merged = { ...base, friends: [], fields: [], classics: [], ...c };
+    /* per-level parMin/parTarget overrides keep their own ceiling */
+    if (c.parTarget !== undefined && c.parMax === undefined) {
+      merged.parMax = c.parTarget + 1;
+    }
+    /* the trio arc behaves like the ladder: floors are law, the ceiling
+       breathes, and the closest candidate above the rung wins */
+    if (n > 40) {
+      merged.parPrefer = 'exact';
+      merged.parMax = merged.parTarget + 2;
+    }
+    return merged;
   }
-  /* endless 41+ — one continuous, NEVER-regressing progression. The campaign
-     finale (par 10) is the climax of its arc; the ladder then climbs 7 → 10
-     across 41-50 and keeps stepping up forever: +1 par rung every 8 levels
-     into marathon territory (par ~16 at L100, ~22 at L150, ~28 at L200, cap
-     30), with walls, fields and friends growing alongside. Measured fact
-     (parlab, 2026-06-12): long optimal lines live in SMALL state graphs when
-     the board is a wall maze with a star tour - so marathon rungs always
-     carry stars, and panda/chick (whose state space forces small boards that
-     cap par) step off the ladder at those rungs. */
-  const k = n - 41;
+  /* endless 51+ — one continuous, NEVER-regressing progression. The trio-arc
+     finale (par 13) is the climax of the campaign; the ladder restarts just
+     beneath it and keeps stepping up forever: +1 par rung every 8 levels into
+     marathon territory (par ~19 at L100, ~25 at L150, cap 30 by ~L190), with
+     walls, fields and friends growing alongside. Measured fact (parlab,
+     2026-06-12): long optimal lines live in SMALL state graphs when the
+     board is a wall maze with a star tour - so marathon rungs always carry
+     stars, and panda/chick (whose state space forces small boards that cap
+     par) step off the ladder at those rungs. */
+  const k = n - (CAMPAIGN_END + 1);
   base.w = base.h = k < 20 ? 6 : 7;
   base.parTarget = k < 9
-    ? 7 + Math.floor(k / 3)
-    : Math.min(30, 10 + Math.floor((k - 9) / 8));
+    ? 11 + Math.floor(k / 3)
+    : Math.min(30, 14 + Math.floor((k - 9) / 8));
   /* FLOOR-ONLY band: the floor is law, the ceiling breathes. Par disperses
      at high rungs (measured: rung 23 found only 26-34 candidates), so the
      acceptance window opens upward and 'exact' preference picks the

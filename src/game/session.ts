@@ -124,9 +124,9 @@ export interface Session {
   instantAnims: boolean;
 }
 
-/* v5: the spring field was renamed in the level schema (was "mush") — defs
-   cached under older keys would lose their springs and must not survive */
-const GEN_KEY = 'squish-gen-v5:';
+/* v6: the campaign grew to 50 (trio arc) and the endless ladder re-anchored
+   at 51 — defs cached under older keys belong to the old numbering */
+const GEN_KEY = 'squish-gen-v6:';
 
 export function blankSession(): Session {
   const def = CURATED[0] as LevelDef;
