@@ -33,6 +33,7 @@ import { solve } from '../engine/solve';
 import { createBuilder, type SolveInfo } from '../builder/view';
 import { installBuilderTestApi } from '../builder/testApi';
 import { importShareCode, buildShareUrl } from '../share/shareUrl';
+import { listCreations, getCreation } from '../builder/library';
 
 const audio = createAudio();
 const assist = createAssist();
@@ -303,6 +304,7 @@ function loadLevel(li: number, fromWin = false): void {
   s.play = { kind: 'campaign' };
   customShareUrl = null; // a campaign level is not a custom share
   builderReturnDef = null;
+  customSeq = null;
   s.mode = 'loading';
   const defP = assist.getLevel(li);
   /* deep endless levels bake in the worker — cover a cold bake cutely (the
@@ -513,6 +515,18 @@ const endings = createEndings({
       void builder.open(def);
       return;
     }
+    if (customSeq) {
+      endings.hideFlood();
+      customSeq.i++;
+      if (customSeq.i < customSeq.ids.length) { playCustomAt(); return; }
+      /* all saved levels cleared -> resume the campaign where they left off */
+      customSeq = null;
+      customShareUrl = null;
+      s.play = { kind: 'campaign' };
+      loadLevel(s.li);
+      levelsPick.open();
+      return;
+    }
     if (s.play.kind === 'debug') {
       endings.hideFlood();
       s.play = { kind: 'campaign' };
@@ -680,7 +694,7 @@ const levelsPick = createLevelsPick({
     startMenu.close();
     return bakeAndPlay(hardness);
   },
-  onPlayCustom: (def) => playBuilderLevel(def),
+  onPlayCustom: (id) => playCustomSequence(id),
   onEditCustom: (id) => void builder.editCreation(id),
   unlockAudio: () => audio.unlock()
 });
@@ -698,7 +712,28 @@ function playBuilderLevel(def: LevelDef): void {
   s.play = { kind: 'debug', di: -1 };
   customShareUrl = customUrlOf(def);
   builderReturnDef = def; // a Play test returns to the editor when finished
+  customSeq = null;
   fadeSwap(reduced, async () => applyLevel(def));
+}
+
+/* Playing your saved levels from the picker walks the "Your Levels" list: each
+   win advances to the next saved level; after the last, you resume the campaign
+   where you left off. */
+let customSeq: { ids: string[]; i: number } | null = null;
+function playCustomSequence(id: string): void {
+  const ids = listCreations(localStorage).map((c) => c.id);
+  const i = ids.indexOf(id);
+  if (i < 0) return;
+  customSeq = { ids, i };
+  playCustomAt();
+}
+function playCustomAt(): void {
+  const cr = customSeq && getCreation(localStorage, customSeq.ids[customSeq.i] ?? '');
+  if (!cr) { customSeq = null; loadLevel(s.li); return; }
+  s.play = { kind: 'debug', di: -1 };
+  customShareUrl = customUrlOf(cr.def);
+  builderReturnDef = null;
+  fadeSwap(reduced, async () => applyLevel(cr.def));
 }
 const builderSolve = async (def: LevelDef): Promise<SolveInfo> => {
   const r = await assist.deepSolve(def, cloneState(makeLevel(def).initState));

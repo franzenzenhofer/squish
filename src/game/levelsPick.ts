@@ -22,8 +22,8 @@ export interface LevelsDeps {
   onPickTest: (di: number) => void;
   /** bake + play a one-off level at hardness 1..10; true = now playing */
   onBake: (hardness: number) => Promise<boolean>;
-  /** play one of the player's own saved creations */
-  onPlayCustom: (def: LevelDef) => void;
+  /** play one of the player's own saved creations (by id) — starts the saved-level sequence */
+  onPlayCustom: (id: string) => void;
   /** open a saved creation in the editor */
   onEditCustom: (id: string) => void;
   unlockAudio: () => void;
@@ -323,7 +323,7 @@ export function createLevelsPick(d: LevelsDeps): LevelsPick {
       play.append(txt, thumb);
       play.addEventListener('click', () => {
         d.unlockAudio();
-        if (cr0) { close(); d.onPlayCustom(cr0.def); }
+        if (cr0) { close(); d.onPlayCustom(c.id); }
       });
       const edit = document.createElement('button');
       edit.className = 'lvmbtn';
