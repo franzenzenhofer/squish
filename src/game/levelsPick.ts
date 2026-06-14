@@ -10,7 +10,7 @@ import type { LevelDef } from '../engine/types';
 import { SPR } from '../sprites';
 import { DEBUG_GEN_COUNT, isDebug } from './debugMode';
 import { DEBUG_LEVELS } from './debugLevels';
-import { CURATED, type Session } from './session';
+import { CURATED, cachedGenLevel, type Session } from './session';
 
 export interface LevelsDeps {
   s: Session;
@@ -78,11 +78,20 @@ function iconUrl(kind: string): string {
    their cast is decided at generation time, so they show a '?' instead. */
 const SHOWCASE_LEVELS = 200;
 
+/* The def for a card: curated levels come from CURATED; generated ones (51-200)
+   from the localStorage gen cache (key li+1) - which only exists once the level
+   has actually been generated/played, so a never-seen level returns null and
+   stays a '?', while a played one reveals its real cast and par. */
+function levelDef(li: number): LevelDef | null {
+  if (li < CURATED.length) return CURATED[li] as LevelDef;
+  return cachedGenLevel(li + 1);
+}
+
 function hearts(s: Session, li: number): string {
   const best = s.results[li];
-  const cur = CURATED[li] as LevelDef | undefined;
-  if (best === undefined || !cur) return '';
-  const par = cur.par;
+  const def = levelDef(li);
+  if (best === undefined || !def) return '';
+  const par = def.par;
   const n = best <= par ? 3 : best <= par + 1 ? 2 : 1;
   return '♥'.repeat(n);
 }
@@ -140,17 +149,19 @@ export function createLevelsPick(d: LevelsDeps): LevelsPick {
     b.appendChild(hs);
     const cast = document.createElement('span');
     cast.className = 'lvcast';
-    const curated = CURATED[li] as LevelDef | undefined;
-    if (curated) {
-      for (const kind of castOf(curated)) {
+    const def = levelDef(li);
+    if (def) {
+      /* curated, or a generated level the player has already met: show the real
+         cast of friends (and hearts/par work too) */
+      for (const kind of castOf(def)) {
         const img = document.createElement('img');
         img.src = iconUrl(kind);
         img.alt = kind;
         cast.appendChild(img);
       }
     } else {
-      /* auto-generated level (51-200): its cast is chosen when it is generated,
-         so tease it with a '?' instead of a known friend line-up */
+      /* a generated level not yet reached: its cast is chosen when it is
+         generated, so tease it with a '?' until the player plays it */
       const q = document.createElement('span');
       q.className = 'lvq';
       q.textContent = '?';
