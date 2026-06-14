@@ -3,7 +3,8 @@
    which the curated set may not cover. Deterministic PRNG (no Math.random). */
 import { describe, expect, it } from 'vitest';
 import type { LevelDef, XY, DirCode } from '../../src/engine/types';
-import { encode, decode, geometryEqual } from '../../src/share/codec';
+import { encode, decode, decodeBytes, geometryEqual } from '../../src/share/codec';
+import { crc32Base36 } from '../../src/share/crc32';
 
 function mulberry32(seed: number): () => number {
   let a = seed >>> 0;
@@ -67,5 +68,17 @@ describe('codec fuzz', () => {
     const def: LevelDef = { w: 3, h: 3, target: [0, 0], dots: [[2, 2]], portals: [[1, 0], [0, 1]], par: 0 };
     const back = decode(encode(def));
     expect(back.portals).toEqual([[1, 0], [0, 1]]);
+  });
+  it('rejects malformed but checksum-valid shared boards', () => {
+    const code = (w: number, h: number, glyphs: string): string => {
+      const head = '1-' + w + 'x' + h;
+      return 'level-' + head + '-' + glyphs + '.' + crc32Base36(head + '|' + glyphs);
+    };
+    expect(() => decode(code(2, 3, 'MD0000'))).toThrow(/invalid board size/);
+    expect(() => decode(code(3, 3, 'D00000000'))).toThrow(/missing heart/);
+    expect(() => decode(code(3, 3, 'M00000000'))).toThrow(/missing squishy/);
+    expect(() => decode(code(3, 3, 'MMD000000'))).toThrow(/multiple hearts/);
+    expect(() => decode(code(3, 3, 'MD1000000'))).toThrow(/unpaired portal/);
+    expect(() => decodeBytes(Uint8Array.from([1, 2, 3, 1, 2, 0, 0, 0, 0]))).toThrow(/invalid board size/);
   });
 });

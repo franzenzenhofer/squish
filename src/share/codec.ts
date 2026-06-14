@@ -14,6 +14,8 @@ import {
 } from './glyphs';
 
 export const VERSION = 1;
+const MIN_SIDE = 3;
+const MAX_SIDE = 7;
 
 export class CodecError extends Error {}
 
@@ -26,8 +28,16 @@ const ARRAY_FIELDS = [
 
 const ck = (x: number, y: number): string => x + ',' + y;
 
+function validateDimensions(w: number, h: number): void {
+  if (!Number.isInteger(w) || !Number.isInteger(h) ||
+      w < MIN_SIDE || h < MIN_SIDE || w > MAX_SIDE || h > MAX_SIDE) {
+    throw new CodecError('invalid board size');
+  }
+}
+
 /** Build the cell -> token map. Throws on two elements sharing a cell. */
 function cellMap(def: LevelDef): Map<string, string> {
+  validateDimensions(def.w, def.h);
   const m = new Map<string, string>();
   const set = (x: number, y: number, token: string): void => {
     const key = ck(x, y);
@@ -75,6 +85,7 @@ export function decode(code: string): LevelDef {
   if (v !== VERSION) throw new CodecError('unsupported version ' + v);
   const w = Number(mraw[2]);
   const h = Number(mraw[3]);
+  validateDimensions(w, h);
   const glyphs = mraw[4] as string;
   const crc = mraw[5] as string;
   if (crc32Base36(v + '-' + w + 'x' + h + '|' + glyphs) !== crc) {
@@ -105,6 +116,7 @@ function parseGlyphs(glyphs: string, w: number, h: number): string[] {
 
 /** Rebuild a LevelDef from one token per cell (shared by the string + byte codecs). */
 function buildDefFromTokens(tokens: string[], w: number, h: number): LevelDef {
+  validateDimensions(w, h);
   const def: LevelDef = { w, h, target: [0, 0], dots: [], par: 0 };
   const push = (field: string, v: XY | XYDir): void => {
     const arr = (def[field as keyof LevelDef] as unknown[]) ?? [];
@@ -113,6 +125,7 @@ function buildDefFromTokens(tokens: string[], w: number, h: number): LevelDef {
   };
   let portalA: XY | null = null;
   let portalB: XY | null = null;
+  let targetSeen = false;
   for (let cell = 0; cell < w * h; cell++) {
     const x = cell % w;
     const y = Math.floor(cell / w);
@@ -127,11 +140,18 @@ function buildDefFromTokens(tokens: string[], w: number, h: number): LevelDef {
     }
     const field = GLYPH_CELL[tok];
     if (!field) throw new CodecError('unknown glyph "' + tok + '"');
-    if (field === 'target') def.target = [x, y];
+    if (field === 'target') {
+      if (targetSeen) throw new CodecError('multiple hearts');
+      targetSeen = true;
+      def.target = [x, y];
+    }
     else if (field === 'portalA') portalA = [x, y];
     else if (field === 'portalB') portalB = [x, y];
     else push(field, [x, y]);
   }
+  if (!targetSeen) throw new CodecError('missing heart');
+  if (def.dots.length === 0) throw new CodecError('missing squishy');
+  if ((portalA && !portalB) || (!portalA && portalB)) throw new CodecError('unpaired portal');
   if (portalA && portalB) def.portals = [portalA, portalB];
   return def;
 }
@@ -168,6 +188,7 @@ export function decodeBytes(bytes: Uint8Array): LevelDef {
   if (bytes[0] !== VERSION) throw new CodecError('unsupported version');
   const w = bytes[1] as number;
   const h = bytes[2] as number;
+  validateDimensions(w, h);
   if (bytes.length !== 3 + w * h) throw new CodecError('byte length mismatch');
   const tokens: string[] = [];
   for (let i = 0; i < w * h; i++) {
