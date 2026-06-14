@@ -15,6 +15,12 @@ export default tseslint.config(
   },
   {
     files: ['scripts/**'],
+    languageOptions: {
+      globals: {
+        process: 'readonly', console: 'readonly', setTimeout: 'readonly',
+        window: 'readonly', document: 'readonly'
+      }
+    },
     rules: { 'no-console': 'off' }
   }
 );
