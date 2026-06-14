@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src scripts tests",
-    "test": "vitest run --exclude tests/e2e/**",
+    "test": "vitest run",
     "levels": "tsx scripts/build-levels.ts",
     "gates": "npm run typecheck && npm run lint && npm run test && npm run build",
     "deploy": "npm run gates && wrangler deploy",

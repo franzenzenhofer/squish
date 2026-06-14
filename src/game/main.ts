@@ -641,6 +641,8 @@ const levelsPick = createLevelsPick({
     startMenu.close();
     return bakeAndPlay(hardness);
   },
+  onPlayCustom: (def) => playBuilderLevel(def),
+  onEditCustom: (id) => void builder.editCreation(id),
   unlockAudio: () => audio.unlock()
 });
 /* the level editor — plays a built level through the SAME applyLevel path, and
@@ -706,7 +708,8 @@ function startShared(code: string): void {
     s.play = { kind: 'debug', di: -1 };
     history.replaceState(null, '', location.pathname + location.search);
     fadeSwap(reduced, async () => applyLevel(def));
-  } catch {
+  } catch (e) {
+    console.error('[shared] import failed:', e);
     toast('That puzzle link looks broken');
     startMenu.open();
     loadLevel(s.li);

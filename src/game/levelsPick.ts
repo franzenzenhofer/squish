@@ -11,6 +11,7 @@ import { SPR } from '../sprites';
 import { DEBUG_GEN_COUNT, isDebug } from './debugMode';
 import { DEBUG_LEVELS } from './debugLevels';
 import { CURATED, type Session } from './session';
+import { listCreations, getCreation, deleteCreation } from '../builder/library';
 
 export interface LevelsDeps {
   s: Session;
@@ -19,6 +20,10 @@ export interface LevelsDeps {
   onPickTest: (di: number) => void;
   /** bake + play a one-off level at hardness 1..10; true = now playing */
   onBake: (hardness: number) => Promise<boolean>;
+  /** play one of the player's own saved creations */
+  onPlayCustom: (def: LevelDef) => void;
+  /** open a saved creation in the editor */
+  onEditCustom: (id: string) => void;
   unlockAudio: () => void;
 }
 
@@ -251,11 +256,60 @@ export function createLevelsPick(d: LevelsDeps): LevelsPick {
     inner.appendChild(bake);
   };
 
+  /* "Your Levels" — the player's own saved creations, pinned above the campaign
+     grid. Each row plays on tap, with edit + delete. Empty when none saved. */
+  const buildMine = (): void => {
+    const mine = listCreations(localStorage);
+    if (mine.length === 0) return;
+    const wrap = document.createElement('div');
+    wrap.className = 'lvmineWrap';
+    const h = document.createElement('div');
+    h.className = 'lvsec';
+    h.textContent = 'YOUR LEVELS';
+    wrap.appendChild(h);
+    const list = document.createElement('div');
+    list.className = 'lvmine';
+    for (const c of mine) {
+      const row = document.createElement('div');
+      row.className = 'lvmrow';
+      row.dataset.testid = 'creation-card';
+      row.dataset.id = c.id;
+      const play = document.createElement('button');
+      play.className = 'lvmplay';
+      play.dataset.testid = 'creation-play';
+      const nm = document.createElement('b');
+      nm.textContent = c.name;
+      const meta = document.createElement('span');
+      meta.textContent = c.w + '×' + c.h + ' · par ' + c.par;
+      play.append(nm, meta);
+      play.addEventListener('click', () => {
+        d.unlockAudio();
+        const cr = getCreation(localStorage, c.id);
+        if (cr) { close(); d.onPlayCustom(cr.def); }
+      });
+      const edit = document.createElement('button');
+      edit.className = 'lvmbtn';
+      edit.dataset.testid = 'creation-edit';
+      edit.textContent = '✎';
+      edit.addEventListener('click', () => { d.unlockAudio(); close(); d.onEditCustom(c.id); });
+      const del = document.createElement('button');
+      del.className = 'lvmbtn';
+      del.dataset.testid = 'creation-delete';
+      del.textContent = '🗑';
+      del.addEventListener('click', () => { deleteCreation(localStorage, c.id); rebuild(); });
+      row.append(play, edit, del);
+      list.appendChild(row);
+    }
+    wrap.appendChild(list);
+    inner.insertBefore(wrap, grid);
+  };
+
   const rebuild = (): void => {
     grid.textContent = '';
-    for (const stale of inner.querySelectorAll('.lvsec, .lvtest, .lvbake, #levelsGen')) {
+    for (const stale of inner.querySelectorAll('.lvsec, .lvtest, .lvbake, #levelsGen, .lvmineWrap')) {
       stale.remove();
     }
+    buildMine();
     const reach = furthest(s);
     const openIdx = nextOpen(s, reach);
     for (let i = 0; i < CURATED.length; i++) {

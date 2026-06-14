@@ -62,6 +62,53 @@ test('drag-off deletes a piece and the pill reflects the DOM', async ({ page }) 
   await expect(page.locator('.bcell[data-x="1"][data-y="1"]')).toHaveAttribute('data-fill', 'empty');
 });
 
+test('a saved level shows in Your Levels and deletes from there', async ({ page }) => {
+  await page.evaluate(() => {
+    const b = window.__squishBuilder!;
+    b.resize(3, 3);
+    b.selectTool('heart'); b.place(2, 0);
+    b.selectTool('squishy'); b.place(0, 0);
+  });
+  await expect(page.locator('[data-testid="builder-status"]')).toHaveAttribute('data-status', 'solvable', { timeout: 10000 });
+  await page.evaluate(() => window.__squishBuilder!.save());
+  // leave the editor and open the Levels picker
+  await page.evaluate(() => window.__squishBuilder!.close());
+  await page.click('#blevels');
+  const card = page.locator('[data-testid="creation-card"]');
+  await expect(card).toHaveCount(1);
+  await page.locator('[data-testid="creation-delete"]').first().click();
+  await expect(page.locator('[data-testid="creation-card"]')).toHaveCount(0);
+});
+
+test('a #level- deep link opens the shared level in play', async ({ page }) => {
+  const url = await page.evaluate(() => {
+    const b = window.__squishBuilder!;
+    b.resize(3, 3);
+    b.selectTool('heart'); b.place(2, 0);
+    b.selectTool('squishy'); b.place(0, 0);
+    return b.def();
+  });
+  // build a fresh page at the shared deep link
+  const code = await page.evaluate(() => {
+    const b = window.__squishBuilder!;
+    return new Promise<string>((res) => {
+      const tick = (): void => {
+        if (b.getState().canPublish) res(b.share());
+        else setTimeout(tick, 100);
+      };
+      tick();
+    });
+  });
+  void url;
+  const hash = code.slice(code.indexOf('#'));
+  // a hash-only goto does not reload — force a full navigation
+  await page.goto('about:blank');
+  await page.goto('/?test=1' + hash);
+  await page.waitForFunction(() => window.__squishy !== undefined);
+  await page.waitForFunction(() => window.__squishy?.state().mode === 'idle', undefined, { timeout: 10000 });
+  expect(await page.evaluate(() => window.__squishy?.state().play)).toContain('debug');
+});
+
 test('an unsolvable level keeps Share locked and share() throws', async ({ page }) => {
   await page.evaluate(() => {
     const b = window.__squishBuilder!;
