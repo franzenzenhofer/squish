@@ -8,7 +8,6 @@ import type { Audio } from './audio';
 import { cx, cy, sparkleBurst } from './fx';
 import { saveGame } from './persist';
 import type { Session } from './session';
-import { toast } from './toast';
 
 const SHAKE_MS = 700;
 const RETURN_AT_MS = 850;
@@ -152,7 +151,9 @@ export function createOhNo(d: OhNoDeps): OhNo {
       s.pulses.push({ type: 'shake', key: key(dot.x, dot.y), t0: now, dur: SHAKE_MS, amp: 0.16 });
     }
     window.setTimeout(() => {
-      if (s.mode === 'ohno') toast("Oh no! That's not a good idea!", { tone: 'bad', ms: 1600 });
+      /* speak through the ONE canonical speech bubble (setCap, board-anchored)
+         so every Squishy line - oh-no included - shares the same bubble (SSOT) */
+      if (s.mode === 'ohno') d.caption("Oh no! That's not a good idea!", true);
     }, 120);
     window.setTimeout(launchReturn, d.reduced || s.instantAnims ? 50 : RETURN_AT_MS);
   };
