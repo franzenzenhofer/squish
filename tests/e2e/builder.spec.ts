@@ -29,9 +29,9 @@ test('build a solvable level, save, see it, play it, delete it', async ({ page }
     b.selectTool('squishy'); b.place(0, 0);
   });
 
-  // the status pill resolves to SOLVABLE and unlocks Save/Share
+  // the status pill resolves to SOLVABLE and unlocks Play/Share
   await expect(page.locator('[data-testid="builder-status"]')).toHaveAttribute('data-status', 'solvable', { timeout: 10000 });
-  await expect(page.locator('[data-testid="action-save"]')).toHaveAttribute('data-locked', 'false');
+  await expect(page.locator('[data-testid="action-share"]')).toHaveAttribute('data-locked', 'false');
 
   // the board state is AI-assertable through the API (the board is a canvas)
   expect(await page.evaluate(() => window.__squishBuilder!.getState().target)).toEqual([2, 0]);

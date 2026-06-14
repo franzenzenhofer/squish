@@ -3,7 +3,7 @@
    and ALL palette gestures (scroll + drag-to-board) live in one place: the
    unified pointer handler in view.ts. No per-button listeners here. */
 
-import { TOOLS, PAGES, type ToolDef } from './tools';
+import { TOOLS, type ToolDef } from './tools';
 import { toolIcon } from './icons';
 import { ICON_ERASER } from '../game/uiIcons';
 
@@ -45,27 +45,8 @@ function paletteButton(tool: ToolDef): HTMLButtonElement {
   return b;
 }
 
-/** Reflect the carousel's scroll position onto the page dots. */
-export function reflectPage(host: HTMLElement, dots: HTMLElement): void {
-  const page = Math.round(host.scrollLeft / Math.max(1, host.clientWidth));
-  for (const d of dots.children) {
-    (d as HTMLElement).dataset.active = String(Number((d as HTMLElement).dataset.page) === page);
-  }
-}
-
-export function buildPalette(host: HTMLElement, dots: HTMLElement): void {
+/** ONE flat, fast left-right scroll row of every tool (no pages, no dots). */
+export function buildPalette(host: HTMLElement): void {
   host.textContent = '';
-  dots.textContent = '';
-  for (let p = 0; p < PAGES; p++) {
-    const page = el('div', 'bpage');
-    page.dataset.page = String(p);
-    for (const tool of TOOLS.filter((t) => t.page === p)) page.appendChild(paletteButton(tool));
-    host.appendChild(page);
-    const dot = el('span', 'bdot');
-    dot.dataset.testid = 'palette-page';
-    dot.dataset.page = String(p);
-    if (p === 0) dot.dataset.active = 'true';
-    dots.appendChild(dot);
-  }
-  host.addEventListener('scroll', () => reflectPage(host, dots));
+  for (const tool of TOOLS) host.appendChild(paletteButton(tool));
 }

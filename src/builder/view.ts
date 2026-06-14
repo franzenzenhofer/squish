@@ -12,7 +12,7 @@ import {
 } from './state';
 import { structuralErrors, canSolveCheck } from './validate';
 import { createSolveRunner, type SolveOutcome, type SolveStatus } from './solveDebounce';
-import { buildChips, buildPalette, reflectPage } from './dom';
+import { buildChips, buildPalette } from './dom';
 import { builderSession, drawBuilder, cellFromPoint } from './render';
 import { toolIcon } from './icons';
 import { saveCreation, listCreations, deleteCreation, getCreation, type KV, type CreationMeta } from './library';
@@ -126,9 +126,20 @@ export function createBuilder(d: BuilderDeps): BuilderApi {
     if (board.style.width !== side + 'px') { board.style.width = side + 'px'; board.style.height = side + 'px'; }
   }
 
+  /** Show the left/right edge fades only when the tool row can scroll that way. */
+  function reflectPaletteEdges(): void {
+    const pal = $('bPalette');
+    const wrap = pal.parentElement as HTMLElement;
+    const l = pal.scrollLeft > 2 ? '1' : '0';
+    const r = pal.scrollLeft < pal.scrollWidth - pal.clientWidth - 2 ? '1' : '0';
+    if (wrap.dataset.l !== l) wrap.dataset.l = l;
+    if (wrap.dataset.r !== r) wrap.dataset.r = r;
+  }
+
   function loop(now: number): void {
     if (!root.classList.contains('show')) return;
     fitBoard();
+    reflectPaletteEdges();
     if (session) drawBuilder(bc, session, now, st.target !== null);
     raf = requestAnimationFrame(loop);
   }
@@ -141,10 +152,9 @@ export function createBuilder(d: BuilderDeps): BuilderApi {
         : status === 'unsolvable' ? 'NOT SOLVABLE'
           : status === 'checking' ? 'CHECKING…'
             : status === 'unknown' ? 'TOO TRICKY' : 'KEEP GOING';
-    /* Play needs a proven-solvable board (heart + squishy + a real solution);
-       Save/Share share the exact same gate. */
+    /* Play and Share need a proven-solvable board (heart + squishy + a solution) */
     const locked = status !== 'solvable';
-    for (const id of ['bPlay', 'bSave', 'bShare']) $(id).dataset.locked = String(locked);
+    for (const id of ['bPlay', 'bShare']) $(id).dataset.locked = String(locked);
   }
 
   function refreshBubble(): void { showBubble(currentHint()); }
@@ -286,64 +296,52 @@ export function createBuilder(d: BuilderDeps): BuilderApi {
     painting = null;
   });
 
-  /* ONE pointer-driven palette gesture (scroll AND drag in the same component):
-     press a tool, then the FIRST move decides — a clear UPWARD move lifts the
-     piece and carries it to the board; any other move drag-scrolls the carousel
-     horizontally (snapping to the nearest page on release); no move at all is a
-     tap that selects the tool. Manual scroll (touch-action:none) so the gesture
-     is identical and reliable on every device, not at the mercy of native pan. */
-  const DEAD = 7;
+  /* The palette is a plain, fast, NATIVE left-right scroller (touch-action:pan-x
+     gives momentum, no snap, no pages). The ONLY thing JS adds is the drag-out:
+     a clear UPWARD press-and-move lifts the piece under the finger and carries it
+     to the board. A horizontal swipe is the browser's native scroll (we never
+     touch it); a plain tap selects the tool. Tracked on DOCUMENT so an upward
+     drag keeps flowing once the finger leaves the palette. */
+  const DEAD = 8;
   function setupPaletteGestures(): void {
     const pal = $('bPalette');
-    const dots = $('bDots');
-    let sx = 0, sy = 0, sScroll = 0, mode: '' | 'scroll' | 'drag' = '', tool = '';
-    /* tracked on DOCUMENT so the gesture keeps flowing even when the finger
-       leaves the palette (e.g. dragging a piece UP onto the board) */
+    let sx = 0, sy = 0, decided = false, tool = '';
     const onMove = (e: PointerEvent): void => {
+      if (decided) return;
       const dx = e.clientX - sx, dy = e.clientY - sy;
-      if (mode === '') {
-        if (Math.abs(dx) < DEAD && Math.abs(dy) < DEAD) return;
-        if (dy < -DEAD && Math.abs(dy) > Math.abs(dx)) {
-          mode = 'drag';
-          end();
-          if (tool) { setActive(tool); dragPiece(tool, e); } // lift + carry onto the board
-          return;
-        }
-        mode = 'scroll';
-      }
-      if (mode === 'scroll') { pal.scrollLeft = sScroll - dx; reflectPage(pal, dots); }
-    };
-    const onUp = (): void => {
-      if (mode === '') { if (tool) setActive(tool, true); } // a tap selects (+ heart tip)
-      else if (mode === 'scroll') {
-        const page = Math.round(pal.scrollLeft / Math.max(1, pal.clientWidth));
-        pal.scrollTo({ left: page * pal.clientWidth, behavior: 'smooth' });
-      }
+      if (Math.abs(dx) < DEAD && Math.abs(dy) < DEAD) return;
+      decided = true;
       end();
+      if (dy < -DEAD && Math.abs(dy) >= Math.abs(dx) && tool) {
+        setActive(tool); dragPiece(tool, e); // upward -> carry onto the board
+      } // otherwise it was a horizontal swipe: leave it to the native scroll
     };
+    const onUp = (): void => { if (!decided && tool) setActive(tool, true); end(); }; // tap selects
     const end = (): void => {
       document.removeEventListener('pointermove', onMove);
       document.removeEventListener('pointerup', onUp);
-      document.removeEventListener('pointercancel', onUp);
+      document.removeEventListener('pointercancel', endOnly);
     };
+    const endOnly = (): void => end(); // a cancel (native scroll took over) never selects
     pal.addEventListener('pointerdown', (e) => {
       tool = ((e.target as HTMLElement).closest('[data-tool]') as HTMLElement | null)?.dataset.tool ?? '';
-      sx = e.clientX; sy = e.clientY; sScroll = pal.scrollLeft; mode = '';
+      sx = e.clientX; sy = e.clientY; decided = false;
       document.addEventListener('pointermove', onMove);
       document.addEventListener('pointerup', onUp);
-      document.addEventListener('pointercancel', onUp);
+      document.addEventListener('pointercancel', endOnly);
     });
   }
 
   buildChips($('bSizes'), setSize);
-  buildPalette($('bPalette'), $('bDots'));
+  buildPalette($('bPalette'));
   setupPaletteGestures();
   /* canonical share glyph beside the label (DRY, from uiIcons) */
   $('bShare').innerHTML = ICON_SHARE + 'Share';
   $('bShareNative').innerHTML = ICON_SHARE + 'Share';
   $('bPlay').addEventListener('click', () => void api.play());
-  $('bSave').addEventListener('click', () => { try { api.save(); notify('Saved to Your Levels!'); } catch { notify('Make it solvable first!'); } });
   $('bShare').addEventListener('click', () => { try { openShare(api.share()); } catch { notify('Make it solvable first!'); } });
+  /* New = a fresh blank board (Play and Share already auto-save, so no Save button) */
+  $('bNew').addEventListener('click', () => { editingId = null; init(); });
   $('bExit').addEventListener('click', () => history.back());
 
   function openShare(url: string): void {
@@ -354,6 +352,9 @@ export function createBuilder(d: BuilderDeps): BuilderApi {
     const link = $('bShareUrl') as HTMLAnchorElement;
     link.textContent = url;
     link.href = url;
+    /* open the link reliably even inside the iOS app:// webview (where a plain
+       anchor can be swallowed): one tap opens it in the system browser */
+    link.onclick = (e): void => { e.preventDefault(); window.open(url, '_blank', 'noopener'); };
     const caps = shareCapabilities();
     const sb = $('bShareNative') as HTMLButtonElement;
     sb.style.display = caps.share ? '' : 'none';

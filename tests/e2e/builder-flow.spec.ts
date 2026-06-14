@@ -130,6 +130,38 @@ test('the browser Back button steps a built-level play back to the editor, then 
   await expect(page.locator('[data-testid="builder"]')).not.toHaveClass(/show/);
 });
 
+test('the palette is ONE flat scroll row - no page dots', async ({ page }) => {
+  await expect(page.locator('[data-testid="palette-page"]')).toHaveCount(0);
+  await expect(page.locator('.bpage')).toHaveCount(0);
+  // all tools live in the single scroller and it overflows horizontally (scrollable)
+  const tools = await page.locator('[data-testid="tool"]').count();
+  expect(tools).toBeGreaterThan(12);
+  const overflow = await page.evaluate(() => {
+    const p = document.getElementById('bPalette')!;
+    return p.scrollWidth > p.clientWidth + 4;
+  });
+  expect(overflow).toBe(true);
+});
+
+test('New resets the editor to a fresh 4x4 board', async ({ page }) => {
+  await page.evaluate(() => {
+    const b = window.__squishBuilder!;
+    b.resize(6, 6); b.selectTool('heart'); b.place(2, 0); b.selectTool('squishy'); b.place(0, 0);
+  });
+  expect(await page.evaluate(() => window.__squishBuilder!.getState().target)).toEqual([2, 0]);
+  await page.click('[data-testid="action-new"]');
+  const st = await page.evaluate(() => window.__squishBuilder!.getState());
+  expect(st.w).toBe(4);
+  expect(st.target).toBeNull();
+  expect(st.dots).toEqual([]);
+  await expect(page.locator('[data-testid="action-play"]')).toHaveAttribute('data-locked', 'true');
+});
+
+test('there is no Save button (Play and Share auto-save)', async ({ page }) => {
+  await expect(page.locator('[data-testid="action-save"]')).toHaveCount(0);
+  await expect(page.locator('[data-testid="action-new"]')).toBeVisible();
+});
+
 test('the "Back to editor" button is hidden in a normal campaign level', async ({ page }) => {
   await page.evaluate(() => window.__squishBuilder!.close());
   await page.evaluate(() => window.__squishy?.loadLevel(0));
