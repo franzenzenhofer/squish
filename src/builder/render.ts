@@ -27,6 +27,16 @@ export function boardMetrics(w: number, h: number): BoardMetrics {
 export function builderSession(st: BuilderState): Session {
   const def = toDef(st);
   if (st.target === null) def.target = [-10, -10]; // off-board: no visible phantom heart
+  /* render a LONE portal too (a self-pair) so moving one portal never makes the
+     other vanish while the pair is briefly incomplete */
+  if (!def.portals) {
+    const one = [...st.cells].find(([, v]) => v === 'portal');
+    if (one) {
+      const p = one[0].split(',').map(Number);
+      const cell: [number, number] = [p[0] ?? 0, p[1] ?? 0];
+      def.portals = [cell, cell];
+    }
+  }
   return cardSession(def);
 }
 

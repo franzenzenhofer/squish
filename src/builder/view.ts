@@ -155,9 +155,15 @@ export function createBuilder(d: BuilderDeps): BuilderApi {
 
   function loop(now: number): void {
     if (!root.classList.contains('show')) return;
-    fitBoard();
-    reflectPaletteEdges();
-    if (session) drawBuilder(bc, session, now);
+    /* a render exception must NEVER stop the loop or leave the board blank — skip
+       the bad frame and keep going so the next edit/frame repaints cleanly */
+    try {
+      fitBoard();
+      reflectPaletteEdges();
+      if (session) drawBuilder(bc, session, now);
+    } catch (e) {
+      console.error('[builder] render frame skipped:', e);
+    }
     raf = requestAnimationFrame(loop);
   }
 
@@ -352,9 +358,11 @@ export function createBuilder(d: BuilderDeps): BuilderApi {
       if (Math.abs(dx) < DEAD && Math.abs(dy) < DEAD) return;
       decided = true;
       end();
-      if (dy < -DEAD && Math.abs(dy) >= Math.abs(dx) && tool) {
+      /* ANY clear upward intent carries the piece (forgiving ~63° cone) — only a
+         strongly HORIZONTAL swipe is left to the native carousel scroll */
+      if (dy < -DEAD && Math.abs(dx) < Math.abs(dy) * 2 && tool) {
         setActive(tool); dragPiece(tool, e); // upward -> carry onto the board
-      } // otherwise it was a horizontal swipe: leave it to the native scroll
+      }
     };
     const onUp = (): void => { if (!decided && tool) setActive(tool); end(); }; // tap selects
     /* guard against listener accumulation: a 2nd finger landing before the 1st

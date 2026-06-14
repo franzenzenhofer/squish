@@ -190,6 +190,34 @@ test('auto-save updates the SAME creation in place - no duplicates', async ({ pa
   expect(list.length).toBe(1);
 });
 
+test('each custom level gets a FRESH oracle - the hint solves the CURRENT level', async ({ page }) => {
+  const playSolveReturn = async (build: () => void): Promise<void> => {
+    await page.evaluate(build);
+    await expect(page.locator('[data-testid="builder-status"]')).toHaveAttribute('data-status', 'solvable', { timeout: 10000 });
+    await page.evaluate(() => { window.__squishy!.setInstantAnims(true); window.__squishBuilder!.play(); });
+    await page.waitForFunction(() => window.__squishy?.state().mode === 'idle', undefined, { timeout: 10000 });
+    await page.waitForFunction(() => window.__squishy?.state().oracleReady === true, undefined, { timeout: 10000 });
+    const sol = await page.evaluate(() => window.__squishy!.solution());
+    expect(sol, 'the hint must return a solution for THIS level').not.toBeNull();
+    expect((sol ?? []).length).toBeGreaterThan(0);
+    /* applying the hint's own solution MUST win the CURRENT level (a stale oracle
+       from the previous custom level would not) */
+    await page.evaluate(async () => { const g = window.__squishy!; for (const d of g.solution() ?? []) await g.move(d as never); });
+    await expect(page.locator('#win')).toHaveClass(/show/, { timeout: 10000 });
+    await page.click('#winNext'); // -> back to the editor
+    await expect(page.locator('[data-testid="builder"]')).toHaveClass(/show/);
+  };
+  // level A solves by sliding RIGHT
+  await playSolveReturn(() => {
+    const b = window.__squishBuilder!; b.resize(3, 3); b.selectTool('heart'); b.place(2, 0); b.selectTool('squishy'); b.place(0, 0);
+  });
+  // a NEW, DIFFERENT level B solves by sliding DOWN - needs its own oracle
+  await page.click('[data-testid="action-new"]');
+  await playSolveReturn(() => {
+    const b = window.__squishBuilder!; b.resize(3, 3); b.selectTool('heart'); b.place(0, 2); b.selectTool('squishy'); b.place(0, 0);
+  });
+});
+
 test('the "Back to editor" button is hidden in a normal campaign level', async ({ page }) => {
   await page.evaluate(() => window.__squishBuilder!.close());
   await page.evaluate(() => window.__squishy?.loadLevel(0));

@@ -176,12 +176,12 @@ function dismissCap(): void {
 document.getElementById('capX')?.addEventListener('click', dismissCap);
 
 /* each bake gets a fresh oracle-cache key — two bakes are different levels */
-let bakeSeq = 0;
+let debugPlaySeq = 0; /* a fresh oracle-cache key per custom/editor/shared/bake play */
 
 function oracleKey(): string {
   if (s.play.kind === 'daily') return 'daily:' + s.play.date;
   if (s.play.kind === 'debug') {
-    return s.play.di < 0 ? 'debug:bake:' + bakeSeq : 'debug:' + s.play.di;
+    return s.play.di < 0 ? 'debug:play:' + debugPlaySeq : 'debug:' + s.play.di;
   }
   return 'lvl:' + s.li;
 }
@@ -458,8 +458,8 @@ async function bakeAndPlay(hardness: number): Promise<boolean> {
     toast('That bake fell flat - try again!', { ms: 2200 });
     return false;
   }
-  bakeSeq++;
   s.play = { kind: 'debug', di: -1 };
+  debugPlaySeq++; /* unique oracle key for THIS custom level */
   s.mode = 'loading';
   fadeSwap(reduced, async () => applyLevel(def));
   return true;
@@ -713,6 +713,7 @@ function customUrlOf(def: LevelDef): string | null {
 }
 function playBuilderLevel(def: LevelDef): void {
   s.play = { kind: 'debug', di: -1 };
+  debugPlaySeq++; /* unique oracle key for THIS custom level */
   customShareUrl = customUrlOf(def);
   builderReturnDef = def; // a Play test returns to the editor when finished
   customSeq = null;
@@ -751,6 +752,7 @@ function playCustomAt(): void {
   const cr = customSeq && getCreation(localStorage, customSeq.ids[customSeq.i] ?? '');
   if (!cr) { customSeq = null; loadLevel(s.li); return; }
   s.play = { kind: 'debug', di: -1 };
+  debugPlaySeq++; /* unique oracle key for THIS custom level */
   customShareUrl = customUrlOf(cr.def);
   builderReturnDef = null;
   fadeSwap(reduced, async () => applyLevel(cr.def));
@@ -761,6 +763,7 @@ function playShared(id: string): void {
   if (!cr) return;
   customSeq = null;
   s.play = { kind: 'debug', di: -1 };
+  debugPlaySeq++; /* unique oracle key for THIS custom level */
   customShareUrl = customUrlOf(cr.def);
   builderReturnDef = null;
   fadeSwap(reduced, async () => applyLevel(cr.def));
@@ -843,6 +846,7 @@ function startShared(code: string): void {
     const def = importShareCode(code, (d) => solve(makeLevel(d)));
     rememberSharedLevel(def); // keep it in "Shared with you" (deduped)
     s.play = { kind: 'debug', di: -1 };
+  debugPlaySeq++; /* unique oracle key for THIS custom level */
     customShareUrl = customUrlOf(def);
     builderReturnDef = null;
     history.replaceState(null, '', location.pathname + location.search);

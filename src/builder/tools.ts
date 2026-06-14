@@ -40,19 +40,6 @@ export const TOOLS: ToolDef[] = [
   { id: 'split', kind: 'paint', field: 'split', render: { type: 'field', name: 'sparkle' }, label: 'Split', page: 1 },
   { id: 'turn', kind: 'paint', field: 'turn', render: { type: 'field', name: 'turner' }, label: 'Turn', page: 1 },
 
-  /* directional WINDS (breeze) — a tool per blow direction */
-  { id: 'windU', kind: 'paint', field: 'breeze', dir: 'U', render: { type: 'field', name: 'pinwheel' }, label: 'Wind up', page: 1 },
-  { id: 'windD', kind: 'paint', field: 'breeze', dir: 'D', render: { type: 'field', name: 'pinwheel' }, label: 'Wind down', page: 1 },
-  { id: 'windL', kind: 'paint', field: 'breeze', dir: 'L', render: { type: 'field', name: 'pinwheel' }, label: 'Wind left', page: 1 },
-  { id: 'windR', kind: 'paint', field: 'breeze', dir: 'R', render: { type: 'field', name: 'pinwheel' }, label: 'Wind right', page: 1 },
-  /* one-way ARROWS (oneway) — a tool per allowed direction */
-  { id: 'arrowU', kind: 'paint', field: 'oneway', dir: 'U', render: { type: 'field', name: 'oneway' }, label: 'One-way up', page: 1 },
-  { id: 'arrowD', kind: 'paint', field: 'oneway', dir: 'D', render: { type: 'field', name: 'oneway' }, label: 'One-way down', page: 1 },
-  { id: 'arrowL', kind: 'paint', field: 'oneway', dir: 'L', render: { type: 'field', name: 'oneway' }, label: 'One-way left', page: 1 },
-  { id: 'arrowR', kind: 'paint', field: 'oneway', dir: 'R', render: { type: 'field', name: 'oneway' }, label: 'One-way right', page: 1 },
-  /* PORTAL — exactly TWO per level (linked pair); the tool greys out after 2 */
-  { id: 'portal', kind: 'paint', field: 'portals', cap: 2, render: { type: 'field', name: 'portal' }, label: 'Portal', page: 1 },
-
   { id: 'balloon', kind: 'paint', field: 'balloons', render: { type: 'sprite', name: 'balloon' }, label: 'Balloon', page: 2 },
   { id: 'snail', kind: 'paint', field: 'snails', render: { type: 'sprite', name: 'snail' }, label: 'Snail', page: 2 },
   { id: 'frog', kind: 'paint', field: 'frogs', render: { type: 'sprite', name: 'frog' }, label: 'Frog', page: 2 },
@@ -65,6 +52,18 @@ export const TOOLS: ToolDef[] = [
   { id: 'pig', kind: 'paint', field: 'pigs', render: { type: 'sprite', name: 'pig' }, label: 'Pig', page: 3 },
   { id: 'ghost', kind: 'paint', field: 'ghosts', render: { type: 'sprite', name: 'ghost' }, label: 'Ghost', page: 3 },
   { id: 'panda', kind: 'paint', field: 'pandas', render: { type: 'sprite', name: 'panda' }, label: 'Panda', page: 3 },
+
+  /* the advanced directional bits come last, right before the nomster */
+  { id: 'windU', kind: 'paint', field: 'breeze', dir: 'U', render: { type: 'field', name: 'pinwheel' }, label: 'Wind up', page: 3 },
+  { id: 'windD', kind: 'paint', field: 'breeze', dir: 'D', render: { type: 'field', name: 'pinwheel' }, label: 'Wind down', page: 3 },
+  { id: 'windL', kind: 'paint', field: 'breeze', dir: 'L', render: { type: 'field', name: 'pinwheel' }, label: 'Wind left', page: 3 },
+  { id: 'windR', kind: 'paint', field: 'breeze', dir: 'R', render: { type: 'field', name: 'pinwheel' }, label: 'Wind right', page: 3 },
+  { id: 'arrowU', kind: 'paint', field: 'oneway', dir: 'U', render: { type: 'field', name: 'oneway' }, label: 'One-way up', page: 3 },
+  { id: 'arrowD', kind: 'paint', field: 'oneway', dir: 'D', render: { type: 'field', name: 'oneway' }, label: 'One-way down', page: 3 },
+  { id: 'arrowL', kind: 'paint', field: 'oneway', dir: 'L', render: { type: 'field', name: 'oneway' }, label: 'One-way left', page: 3 },
+  { id: 'arrowR', kind: 'paint', field: 'oneway', dir: 'R', render: { type: 'field', name: 'oneway' }, label: 'One-way right', page: 3 },
+  { id: 'portal', kind: 'paint', field: 'portals', cap: 2, render: { type: 'field', name: 'portal' }, label: 'Portal', page: 3 },
+
   /* the nomster eats squishies — it lives last in the palette */
   { id: 'nom', kind: 'paint', field: 'noms', render: { type: 'sprite', name: 'nomster' }, label: 'Nomster', page: 3 }
 ];
