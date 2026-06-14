@@ -74,6 +74,7 @@ export function createBuilder(d: BuilderDeps): BuilderApi {
   let raf = 0;
   let lastMsg = '';
   let bubbleTimer = 0;
+  let cornerTipShown = false; // the corner tip fires once per level creation
   let lastStage = -1; // last guided-build stage (-1 forces a fresh pre-select on open)
 
   mountWordmark($('bLogo'));
@@ -103,11 +104,18 @@ export function createBuilder(d: BuilderDeps): BuilderApi {
   /** An explicit notification (Saved, Link copied) — always shown, then fades. */
   function notify(msg: string): void { lastMsg = ''; showBubble(msg); }
 
-  /** The ONLY contextual bubble message: the heart tip, surfaced when the user
-      picks the heart tool. The header status pill carries all other feedback, so
-      the editor never auto-pops a bubble (no spam, no "lovely - share it"). */
-  function currentHint(): string {
-    return st.active === 'heart' ? HEART_HINT : '';
+  /** True when the heart sits on one of the four board corners. */
+  function heartInCorner(): boolean {
+    const t = st.target;
+    if (!t) return false;
+    return (t[0] === 0 || t[0] === st.w - 1) && (t[1] === 0 || t[1] === st.h - 1);
+  }
+
+  /** The corner tip: shown ONCE per level creation, and only when the heart is
+      placed somewhere OTHER than a corner (a gentle nudge, never nagging). */
+  function maybeCornerTip(): void {
+    if (cornerTipShown) return;
+    if (st.target && !heartInCorner()) { cornerTipShown = true; showBubble(HEART_HINT); }
   }
 
   const runner = createSolveRunner(
@@ -157,7 +165,6 @@ export function createBuilder(d: BuilderDeps): BuilderApi {
     for (const id of ['bPlay', 'bShare']) $(id).dataset.locked = String(locked);
   }
 
-  function refreshBubble(): void { showBubble(currentHint()); }
 
   function scheduleSolve(): void {
     if (!canSolveCheck(st)) { status = 'idle'; paintStatus(); return; }
@@ -191,6 +198,7 @@ export function createBuilder(d: BuilderDeps): BuilderApi {
   function refresh(): void {
     session = builderSession(st);
     applyStage();
+    maybeCornerTip();
     paintStatus();
     scheduleSolve();
   }
@@ -213,12 +221,10 @@ export function createBuilder(d: BuilderDeps): BuilderApi {
       (b as HTMLElement).dataset.active = String((b as HTMLElement).dataset.tool === st.active);
     }
   }
-  /** Select a tool. Only a REAL user tap (userInitiated) surfaces the heart tip —
-      the guided auto pre-select on open stays silent so nothing pops unbidden. */
-  function setActive(id: string, userInitiated = false): void {
+  /** Select a tool (the corner tip is tied to PLACEMENT, not selection). */
+  function setActive(id: string): void {
     selectTool(st, id);
     markActive();
-    if (userInitiated) refreshBubble();
   }
 
   function reflectSize(): void {
@@ -237,6 +243,8 @@ export function createBuilder(d: BuilderDeps): BuilderApi {
   function init(def?: LevelDef): void {
     st = def ? fromDef(def) : createBuilderState(NEW_BOARD, NEW_BOARD);
     lastStage = -1; // re-arm the guided pre-select for this session
+    cornerTipShown = false; // the corner tip is armed afresh for this creation
+    $('bPalette').scrollLeft = 0; // always start scrolled left so the heart shows
     reflectSize();
     refresh(); // applyStage pre-selects the heart on a fresh board
   }
@@ -316,7 +324,7 @@ export function createBuilder(d: BuilderDeps): BuilderApi {
         setActive(tool); dragPiece(tool, e); // upward -> carry onto the board
       } // otherwise it was a horizontal swipe: leave it to the native scroll
     };
-    const onUp = (): void => { if (!decided && tool) setActive(tool, true); end(); }; // tap selects
+    const onUp = (): void => { if (!decided && tool) setActive(tool); end(); }; // tap selects
     const end = (): void => {
       document.removeEventListener('pointermove', onMove);
       document.removeEventListener('pointerup', onUp);

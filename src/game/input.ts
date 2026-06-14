@@ -56,10 +56,11 @@ export function bindInput(main: HTMLElement, a: InputActions): void {
     }
     pStart = null;
   });
-  /* swallow page panning/bounce for game input, but the full-screen
-     overlays (picker, settings, privacy) must scroll natively on iOS */
+  /* swallow page panning/bounce for game input, but anything that must scroll
+     natively on iOS (the overlays AND the builder's tool palette) is excluded —
+     otherwise this preventDefault kills their touch scrolling entirely */
   document.addEventListener('touchmove', (e) => {
-    if ((e.target as HTMLElement).closest('#levels, #settings, #privacy')) return;
+    if ((e.target as HTMLElement).closest('#levels, #settings, #privacy, #bPalette')) return;
     e.preventDefault();
   }, { passive: false });
   document.addEventListener('contextmenu', (e) => e.preventDefault());

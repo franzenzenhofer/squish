@@ -637,6 +637,25 @@ test.describe('mobile touch', () => {
     expect(after, 'picker must scroll under a touch gesture').toBeGreaterThan(before + 50);
   });
 
+  test('the builder tool palette scrolls left-right with a real touch gesture (iOS contract)', async ({ page }) => {
+    await boot(page);
+    await page.evaluate(() => localStorage.clear());
+    await page.evaluate(() => window.__squishBuilder?.open());
+    await page.waitForSelector('[data-testid="builder"].show', { timeout: 5000 });
+    const box = await page.locator('#bPalette').boundingBox();
+    const before = await page.evaluate(() => document.getElementById('bPalette')!.scrollLeft);
+    /* a real horizontal swipe through the browser input pipeline - if the global
+       touchmove preventDefault swallows it (the iPhone bug), this scroll dies */
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send('Input.synthesizeScrollGesture', {
+      x: Math.round(box!.x + box!.width / 2), y: Math.round(box!.y + box!.height / 2),
+      xDistance: -320, yDistance: 0, gestureSourceType: 'touch', speed: 800
+    });
+    await page.waitForTimeout(400);
+    const after = await page.evaluate(() => document.getElementById('bPalette')!.scrollLeft);
+    expect(after, 'the palette must scroll horizontally under a touch gesture').toBeGreaterThan(before + 40);
+  });
+
   test('board swipes still work after the scroll fix', async ({ page }) => {
     await boot(page);
     await page.evaluate(() => localStorage.clear());

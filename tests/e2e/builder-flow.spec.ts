@@ -42,13 +42,18 @@ test('the header has no dead BUILDER chip', async ({ page }) => {
   await expect(page.locator('[data-testid="builder-status"]')).toBeVisible();
 });
 
-test('the heart tip shows only after the user taps the heart tool, and sits over the header', async ({ page }) => {
-  // on open: no bubble (the guided pre-select must NOT pop the tip)
+test('the corner tip fires ONCE when a heart is placed off a corner, over the header', async ({ page }) => {
+  // on open: no bubble
   await page.waitForTimeout(200);
   await expect(page.locator('#bBubble')).not.toHaveClass(/show/);
 
-  // tapping the heart tool surfaces the tip
-  await page.click('[data-testid="tool"][data-tool="heart"]');
+  // a heart placed in a CORNER must NOT trigger the tip
+  await page.evaluate(() => { const b = window.__squishBuilder!; b.resize(5, 5); b.selectTool('heart'); b.place(0, 0); });
+  await page.waitForTimeout(250);
+  await expect(page.locator('#bBubble')).not.toHaveClass(/show/);
+
+  // moving the heart OFF the corner triggers the tip once
+  await page.evaluate(() => { const b = window.__squishBuilder!; b.selectTool('heart'); b.place(2, 2); });
   await expect(page.locator('#bBubble')).toHaveClass(/show/);
   await expect(page.locator('#bBubbleText')).toContainText('heart in a corner');
 
@@ -58,6 +63,11 @@ test('the heart tip shows only after the user taps the heart tool, and sits over
     board: document.getElementById('bBoardWrap')!.getBoundingClientRect().top
   }));
   expect(pos.bubble).toBeLessThan(pos.board);
+});
+
+test('the palette starts scrolled left so the heart is visible', async ({ page }) => {
+  const left = await page.evaluate(() => document.getElementById('bPalette')!.scrollLeft);
+  expect(left).toBe(0);
 });
 
 test('no "Lovely share it" spam bubble appears when a level becomes solvable', async ({ page }) => {
