@@ -27,6 +27,8 @@ export interface EndingsDeps {
   caption: (txt: string, bad: boolean) => void;
   reload: () => void;
   next: () => void;
+  /** true while test-playing a level from the editor — relabels Next -> Editor */
+  isBuilderReturn: () => boolean;
   /** when the played level is a custom/shared one, its #level- share URL */
   shareUrlOverride: () => string | null;
   track: Tracker['track'];
@@ -153,6 +155,8 @@ export function createEndings(d: EndingsDeps): Endings {
   };
 
   const showCard = (label: string, hearts: number, hinted: boolean): void => {
+    /* a level you built returns to the editor, so its forward button says so */
+    elNext.textContent = d.isBuilderReturn() ? 'Editor' : 'Next →';
     elWinTitle.textContent = pickWinTitle();
     const mv = s.moves + (s.moves === 1 ? ' move' : ' moves');
     elWinSub.innerHTML = label + ' · solved in <b>' + mv + '</b>';

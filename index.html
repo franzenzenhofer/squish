@@ -484,6 +484,17 @@
   .rate .rh.on:nth-child(2) { transition-delay: .1s; }
   .rate .rh.on:nth-child(3) { transition-delay: .2s; }
 
+  /* hidden by default; shown (flex/block) only while test-playing a built level */
+  #backToEditor {
+    display: none; position: relative; z-index: 1; flex: none; margin: 0 auto 2px;
+    font: inherit; font-weight: 700; font-size: 15px; letter-spacing: .02em;
+    color: var(--heart); background: #fff; border: none; border-radius: 18px;
+    padding: 10px 22px; box-shadow: 0 5px 0 var(--shadow6); cursor: pointer;
+    transition: transform .08s ease, box-shadow .08s ease;
+  }
+  #backToEditor.show { display: block; }
+  #backToEditor:active { transform: translateY(4px); box-shadow: 0 1px 0 var(--shadow6); }
+
   footer {
     position: relative; z-index: 1; display: flex; gap: 16px; justify-content: center;
     align-items: flex-start;
@@ -549,8 +560,6 @@
   /* the canonical wordmark scaled to fit its slot (preserveAspectRatio, never clipped) */
   .blogo { flex: 1; min-width: 0; height: clamp(20px, 3vh, 28px); display: flex; align-items: center; }
   .blogo svg { display: block; width: 100%; height: 100%; }
-  .btag { flex: none; font-size: 11px; font-weight: 800; letter-spacing: .12em; color: var(--dim2);
-    border: 2px solid var(--border); border-radius: 999px; padding: 3px 9px; }
   #bStatus { flex: none; font-weight: 800; font-size: 12px; letter-spacing: .04em; padding: 7px 11px; border-radius: 999px;
     border: 2px solid var(--border); background: #fff; color: var(--dim2); white-space: nowrap; }
   #bStatus[data-status="solvable"] { background: #DCF6E3; border-color: #AEE6C0; color: #2F9D5B; }
@@ -559,37 +568,38 @@
   #bStatus::before { content: "✓ "; }
   #bStatus[data-status="unsolvable"]::before { content: "✗ "; }
   #bStatus[data-status="idle"]::before, #bStatus[data-status="checking"]::before, #bStatus[data-status="unknown"]::before { content: ""; }
-  /* the hint reuses the canonical #cap bubble (fixed OVERLAY, like in the game) so
-     it never reserves layout height — only its top + stacking differ for the builder */
-  #bBubble { top: clamp(90px, 13vh, 116px); z-index: 13; }
+  /* the hint reuses the canonical #cap bubble (fixed OVERLAY, like in the game):
+     it inherits #cap's position so it sits OVER THE HEADER with the down-tail
+     pointing back at the board, and only needs to lift above the builder layer */
+  #bBubble { z-index: 14; }
   #bBubble #bBubbleText { pointer-events: none; }
   .bsizes { flex: none; display: flex; gap: 6px; }
   .bchip { font-weight: 800; font-size: 14px; color: var(--dim2); background: #FFEAF2; border: none;
     border-radius: 999px; padding: 7px 12px; cursor: pointer; }
   .bchip[data-active="true"] { background: var(--heart); color: #fff; }
   /* board area takes the remaining height and centres the largest square that
-     fits (the game's "flex:1 + min(w,h)" rule, in pure CSS) — guarantees fit */
-  #bBoardWrap { flex: 1 1 0; min-height: 0; width: min(460px, 96vw);
+     fits — the game's own "flex:1 + min(w,h)" rule. The board itself (panel,
+     pastel tiles, pieces) is painted by the ONE gameplay renderer onto #bc, so
+     there is NO duplicate CSS card or tile grid — the editor board IS the game
+     board, same component, position and look. */
+  #bBoardWrap { flex: 1 1 0; min-height: 0; width: 100%;
     display: flex; align-items: center; justify-content: center; overflow: hidden; }
-  #bBoard { position: relative; aspect-ratio: 1; height: 100%; max-height: 100%; max-width: 100%;
-    background: #fff; border-radius: 26px; box-shadow: 0 8px 0 var(--shadow); }
-  .btiles { position: absolute; inset: 11px; display: grid; gap: 5px;
-    grid-template-columns: repeat(var(--bw), 1fr); grid-template-rows: repeat(var(--bh), 1fr); }
-  .btile { border-radius: 12px; background: #FBEFF4; }
-  .bcanvas { position: absolute; inset: 11px; width: calc(100% - 22px); height: calc(100% - 22px);
-    touch-action: none; }
+  /* square side is set in JS to min(wrapW, wrapH) — the game's own layout() rule */
+  #bBoard { position: relative; }
+  .bcanvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; }
   .bghost { position: fixed; transform: translate(-50%,-50%); width: 52px; height: 52px;
     object-fit: contain; pointer-events: none; z-index: 30; filter: drop-shadow(0 4px 6px rgba(246,201,220,.7)); }
   .bpalwrap { flex: none; width: min(460px,100%); background: #fff; border-radius: 22px; padding: 8px;
     box-shadow: 0 6px 0 var(--shadow); }
-  /* pan-x lets the carousel scroll horizontally with a finger; vertical/upward
-     gestures fall through to JS so a piece can be dragged up onto the board */
+  /* touch-action:none hands ALL gestures to the one unified pointer handler in
+     view.ts (drag-scroll horizontally, drag a piece up onto the board), so the
+     behaviour is identical and reliable on every device, not native-pan-dependent */
   .bpalette { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; scroll-snap-type: x mandatory;
-    touch-action: pan-x; }
+    touch-action: none; }
   .bpalette::-webkit-scrollbar { display: none; }
   .bpage { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; min-width: 100%; scroll-snap-align: start; }
   .btool { aspect-ratio: 1; border: 2px solid #FCE3EE; border-radius: 16px; background: #FFF6FA; cursor: pointer;
-    display: flex; align-items: center; justify-content: center; padding: 4px; }
+    display: flex; align-items: center; justify-content: center; padding: 4px; touch-action: none; }
   .btool[data-active="true"] { border-color: var(--heart); background: #FFEAF2; }
   .btool[data-disabled="true"] { opacity: .26; pointer-events: none; filter: grayscale(.5); }
   .btool img { width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
@@ -601,7 +611,14 @@
   .bactions { flex: none; width: min(460px,100%); display: flex; gap: 8px; }
   #bActions button { flex: 1; }
   #bActions #bPlay { flex: 1.3; }
-  #bActions button[data-locked="true"] { opacity: .45; }
+  /* a locked action reads as a normal app button in a clear disabled state — a
+     SOLID muted fill (never translucent, so the pink backdrop never shows through
+     and looks like a "strange background"), dim label, no press lift */
+  #bActions button[data-locked="true"] { color: var(--dim); cursor: default; }
+  #bActions #bPlay[data-locked="true"] {
+    background: #F7C9DA; color: #fff; box-shadow: 0 6px 0 #E7A6BE; }
+  #bActions button[data-locked="true"]:active { transform: none; box-shadow: 0 6px 0 var(--shadow6); }
+  #bActions #bPlay[data-locked="true"]:active { transform: none; box-shadow: 0 6px 0 #E7A6BE; }
   .bexit { flex: none; width: 40px; height: 40px; border-radius: 999px; border: 2px solid var(--border); background: #fff;
     color: var(--heart); display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; }
   .bexit svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 3.2; stroke-linecap: round; }
@@ -644,6 +661,9 @@
 <div id="cap"><span id="capText"></span><button id="capX" aria-label="dismiss">
   <svg viewBox="0 0 24 24"><path d="M6 6 L18 18 M18 6 L6 18"/></svg></button></div>
 <div id="toast"></div>
+<!-- only while test-playing a level you built: sits right under the board, above
+     the tool row, and steps back to the editor (same exit as the browser Back) -->
+<button id="backToEditor" data-testid="back-to-editor">Back to editor</button>
 <footer>
   <div class="tool">
     <button id="undo" aria-label="undo">
@@ -716,14 +736,12 @@
       <svg viewBox="0 0 24 24"><path d="M6 6 L18 18 M18 6 L6 18"/></svg>
     </button>
     <span id="bLogo" class="blogo"></span>
-    <span class="btag">BUILDER</span>
     <span id="bStatus" data-testid="builder-status" data-status="idle"><span id="bStatusText">KEEP GOING</span></span>
   </div>
   <div id="bBubble" data-testid="builder-bubble"><span id="bBubbleText"></span></div>
   <div id="bSizes" class="bsizes"></div>
   <div id="bBoardWrap">
     <div id="bBoard">
-      <div id="bTiles" class="btiles"></div>
       <canvas id="bc" class="bcanvas" data-testid="builder-board"></canvas>
     </div>
   </div>

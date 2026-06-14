@@ -4,7 +4,7 @@
    pixel (SSOT, no second renderer). Empty-cell tiles are a CSS backdrop behind
    the transparent canvas, so no tile drawing is duplicated here either. */
 
-import { drawFrame } from '../game/render';
+import { drawFrame, drawBoardBackdrop, applyBoardScale } from '../game/render';
 import { cardSession, CARD_HOOKS, BOARD_PX } from '../game/share';
 import { toDef, type BuilderState } from './state';
 import type { Session } from '../game/session';
@@ -18,19 +18,28 @@ export function boardMetrics(w: number, h: number): BoardMetrics {
   return { cell, ox: Math.floor((BOARD_PX - cell * w) / 2), oy: Math.floor((BOARD_PX - cell * h) / 2) };
 }
 
-/** A render-only game Session for the current board (null until a heart exists,
-    since the engine needs a target — empty boards just show the tile backdrop). */
-export function builderSession(st: BuilderState): Session | null {
-  return st.target ? cardSession(toDef(st)) : null;
+/** A render-only game Session for the current board — ALWAYS built, so the
+    editor board IS the gameplay board (same cardSession layout as the live game
+    and the share card). An empty board (no heart) renders only the backdrop. */
+export function builderSession(st: BuilderState): Session {
+  return cardSession(toDef(st));
 }
 
-/** Paint the board with the gameplay renderer at BOARD_PX; CSS downscales it. */
-export function drawBuilder(canvas: HTMLCanvasElement, session: Session | null, now: number): void {
+/** Paint the board with the ONE gameplay renderer at BOARD_PX (CSS downscales).
+    With a heart it is the full drawFrame (panel + tiles + pieces); empty it is
+    just the shared board backdrop — never a duplicate CSS card/tile grid. */
+export function drawBuilder(
+  canvas: HTMLCanvasElement, session: Session, now: number, hasHeart: boolean
+): void {
   if (canvas.width !== BOARD_PX) { canvas.width = BOARD_PX; canvas.height = BOARD_PX; }
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
+  if (hasHeart) { drawFrame(ctx, session, now, CARD_HOOKS); return; }
   ctx.clearRect(0, 0, BOARD_PX, BOARD_PX);
-  if (session) drawFrame(ctx, session, now, CARD_HOOKS);
+  ctx.save();
+  applyBoardScale(ctx, session);
+  drawBoardBackdrop(ctx, session, now);
+  ctx.restore();
 }
 
 /** Map a pointer position over the canvas to a board cell (or null if outside). */

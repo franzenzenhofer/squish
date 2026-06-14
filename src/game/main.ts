@@ -80,6 +80,7 @@ const elMoves = document.getElementById('moves') as HTMLElement;
 const elCap = document.getElementById('cap') as HTMLElement;
 const elCapText = document.getElementById('capText') as HTMLElement;
 const elHintBtn = document.getElementById('hint') as HTMLButtonElement;
+const elBackEditor = document.getElementById('backToEditor') as HTMLButtonElement;
 const elFooter = document.querySelector('footer') as HTMLElement;
 /* The game ALWAYS animates (Franz, 2026-06-12): honoring prefers-reduced-motion
    froze the win replay, the Next countdown and the bloom on devices with iOS
@@ -244,6 +245,8 @@ function applyLevel(def: LevelDef): void {
   s.ohNoReturn = false;
   s.heartUnlockT0 = null;
   hideToast();
+  /* the "Back to editor" button belongs ONLY to an editor test-play */
+  elBackEditor.classList.toggle('show', builderReturnDef !== null);
   document.getElementById('win')?.classList.remove('show');
   /* remember the level goal but do not speak it yet — the gate below decides
      whether an overlay greets first; clear any stale bubble from last level */
@@ -504,17 +507,12 @@ const endings = createEndings({
   s, audio, main, canvas, reduced, track,
   caption: setCap,
   reload: () => fadeSwap(reduced, async () => applyLevel(await currentDef())),
-  /* an editor test-play returns to the editor; daily -> campaign; other debug
-     -> the picker; campaign -> the next level */
+  isBuilderReturn: () => builderReturnDef !== null,
+  /* an editor test-play returns to the editor (via the shared history-back exit,
+     so the nav stack stays clean); daily -> campaign; other debug -> the picker;
+     campaign -> the next level */
   next: () => {
-    if (builderReturnDef) {
-      endings.hideFlood();
-      const def = builderReturnDef;
-      builderReturnDef = null;
-      customShareUrl = null;
-      void builder.open(def);
-      return;
-    }
+    if (builderReturnDef) { history.back(); return; }
     if (customSeq) {
       endings.hideFlood();
       customSeq.i++;
@@ -713,7 +711,24 @@ function playBuilderLevel(def: LevelDef): void {
   customShareUrl = customUrlOf(def);
   builderReturnDef = def; // a Play test returns to the editor when finished
   customSeq = null;
+  /* a play-view history entry so the browser Back button (and the on-screen
+     "Back to editor" button, and the win "Editor" button) all step back to the
+     editor through the SAME exit: history.back() -> popstate -> returnToEditor */
+  history.pushState({ sqPlay: true }, '');
   fadeSwap(reduced, async () => applyLevel(def));
+}
+
+/** The one way back from a built-level test-play to the editor (level intact).
+    Reached only via history.back() so the nav stack lands on the editor entry. */
+function returnToEditor(): void {
+  if (!builderReturnDef) return;
+  const def = builderReturnDef;
+  builderReturnDef = null;
+  customShareUrl = null;
+  endings.hideFlood();
+  elBackEditor.classList.remove('show');
+  document.getElementById('win')?.classList.remove('show');
+  void builder.open(def);
 }
 
 /* Playing your saved levels from the picker walks the "Your Levels" list: each
@@ -747,6 +762,14 @@ const builder = createBuilder({
   onExit: () => startMenu.open(),
   closeMenu: () => startMenu.close()
 });
+/* Registered AFTER createBuilder so the builder's own popstate handler runs
+   FIRST on a Back: while a built level is playing the editor is hidden, so that
+   handler no-ops, and then THIS one reopens the editor. The on-screen button
+   and the win "Editor" button reuse the same exit (history.back()). */
+window.addEventListener('popstate', () => {
+  if (builderReturnDef && !builder.isOpen()) returnToEditor();
+});
+elBackEditor.addEventListener('click', () => history.back());
 const startMenu = createStart({
   s,
   onPlay: () => {

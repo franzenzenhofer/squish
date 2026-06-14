@@ -1,7 +1,7 @@
-/* Builder DOM builders — size chips, the empty-cell tile backdrop (a CSS grid
-   behind the game-rendered canvas), and the paged tool palette with a real
-   scroll-driven page indicator and drag-to-board start. No board renderer lives
-   here: the board is the game's own canvas (see render.ts). */
+/* Builder DOM builders — size chips and the paged tool palette (pages + a
+   scroll-driven page indicator). The board is the game's own canvas (render.ts)
+   and ALL palette gestures (scroll + drag-to-board) live in one place: the
+   unified pointer handler in view.ts. No per-button listeners here. */
 
 import { TOOLS, PAGES, type ToolDef } from './tools';
 import { toolIcon } from './icons';
@@ -27,21 +27,7 @@ export function buildChips(host: HTMLElement, onPick: (n: number) => void): void
   }
 }
 
-/** Empty-cell tiles behind the canvas (pure CSS grid, w*h cells). */
-export function buildTiles(host: HTMLElement, w: number, h: number): void {
-  host.style.setProperty('--bw', String(w));
-  host.style.setProperty('--bh', String(h));
-  host.textContent = '';
-  for (let i = 0; i < w * h; i++) host.appendChild(el('div', 'btile'));
-}
-
-export interface PaletteHandlers {
-  onPick: (id: string) => void;
-  onPage: (page: number) => void;
-  onDragStart: (id: string, e: PointerEvent) => void;
-}
-
-function paletteButton(tool: ToolDef, h: PaletteHandlers): HTMLButtonElement {
+function paletteButton(tool: ToolDef): HTMLButtonElement {
   const b = el('button', 'btool') as HTMLButtonElement;
   b.dataset.testid = 'tool';
   b.dataset.tool = tool.id;
@@ -56,18 +42,24 @@ function paletteButton(tool: ToolDef, h: PaletteHandlers): HTMLButtonElement {
     img.draggable = false;
     b.appendChild(img);
   }
-  b.addEventListener('click', () => h.onPick(tool.id));
-  b.addEventListener('pointerdown', (e) => h.onDragStart(tool.id, e));
   return b;
 }
 
-export function buildPalette(host: HTMLElement, dots: HTMLElement, h: PaletteHandlers): void {
+/** Reflect the carousel's scroll position onto the page dots. */
+export function reflectPage(host: HTMLElement, dots: HTMLElement): void {
+  const page = Math.round(host.scrollLeft / Math.max(1, host.clientWidth));
+  for (const d of dots.children) {
+    (d as HTMLElement).dataset.active = String(Number((d as HTMLElement).dataset.page) === page);
+  }
+}
+
+export function buildPalette(host: HTMLElement, dots: HTMLElement): void {
   host.textContent = '';
   dots.textContent = '';
   for (let p = 0; p < PAGES; p++) {
     const page = el('div', 'bpage');
     page.dataset.page = String(p);
-    for (const tool of TOOLS.filter((t) => t.page === p)) page.appendChild(paletteButton(tool, h));
+    for (const tool of TOOLS.filter((t) => t.page === p)) page.appendChild(paletteButton(tool));
     host.appendChild(page);
     const dot = el('span', 'bdot');
     dot.dataset.testid = 'palette-page';
@@ -75,11 +67,5 @@ export function buildPalette(host: HTMLElement, dots: HTMLElement, h: PaletteHan
     if (p === 0) dot.dataset.active = 'true';
     dots.appendChild(dot);
   }
-  host.addEventListener('scroll', () => {
-    const page = Math.round(host.scrollLeft / Math.max(1, host.clientWidth));
-    for (const d of dots.children) {
-      (d as HTMLElement).dataset.active = String(Number((d as HTMLElement).dataset.page) === page);
-    }
-    h.onPage(page);
-  });
+  host.addEventListener('scroll', () => reflectPage(host, dots));
 }

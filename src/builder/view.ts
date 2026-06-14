@@ -12,7 +12,7 @@ import {
 } from './state';
 import { structuralErrors, canSolveCheck } from './validate';
 import { createSolveRunner, type SolveOutcome, type SolveStatus } from './solveDebounce';
-import { buildChips, buildTiles, buildPalette } from './dom';
+import { buildChips, buildPalette, reflectPage } from './dom';
 import { builderSession, drawBuilder, cellFromPoint } from './render';
 import { toolIcon } from './icons';
 import { saveCreation, listCreations, deleteCreation, getCreation, type KV, type CreationMeta } from './library';
@@ -23,6 +23,9 @@ import { mountWordmark } from '../game/logo';
 import { ICON_SHARE } from '../game/uiIcons';
 
 const HEART_HINT = 'Tip: a heart in a corner stays solvable most of the time!';
+
+/** A fresh editor opens on the smallest comfy board — a 4x4 (SSOT). */
+const NEW_BOARD = 4;
 
 export interface SolveInfo { status: SolveOutcome; par: number; }
 
@@ -62,7 +65,7 @@ export function createBuilder(d: BuilderDeps): BuilderApi {
   const kv: KV = d.kv ?? localStorage;
   const root = $('builder');
   const bc = $('bc') as HTMLCanvasElement;
-  let st: BuilderState = createBuilderState(6, 6);
+  let st: BuilderState = createBuilderState(NEW_BOARD, NEW_BOARD);
   let editingId: string | null = null;
   let status: SolveStatus = 'idle';
   let lastPar = 0;
@@ -100,21 +103,33 @@ export function createBuilder(d: BuilderDeps): BuilderApi {
   /** An explicit notification (Saved, Link copied) — always shown, then fades. */
   function notify(msg: string): void { lastMsg = ''; showBubble(msg); }
 
-  /** The single contextual message for the current board/tool, or '' for none. */
+  /** The ONLY contextual bubble message: the heart tip, surfaced when the user
+      picks the heart tool. The header status pill carries all other feedback, so
+      the editor never auto-pops a bubble (no spam, no "lovely - share it"). */
   function currentHint(): string {
-    if (st.active === 'heart') return HEART_HINT;
-    const errs = structuralErrors(st);
-    return errs[0] ?? (status === 'solvable' ? 'Lovely — share it with a friend!' : '');
+    return st.active === 'heart' ? HEART_HINT : '';
   }
 
   const runner = createSolveRunner(
     (def) => d.solveDef(def).then((r) => { lastPar = r.par; return r.status; }),
-    (s) => { status = s; paintStatus(); refreshBubble(); }
+    (s) => { status = s; paintStatus(); }
   );
+
+  /** Size the board to the largest square that fits its area — the game's own
+      layout() rule (min of available width/height), so the editor board sits and
+      scales EXACTLY like the real playing field. */
+  function fitBoard(): void {
+    const wrap = $('bBoardWrap');
+    const side = Math.floor(Math.min(wrap.clientWidth, wrap.clientHeight));
+    if (side <= 0) return;
+    const board = $('bBoard');
+    if (board.style.width !== side + 'px') { board.style.width = side + 'px'; board.style.height = side + 'px'; }
+  }
 
   function loop(now: number): void {
     if (!root.classList.contains('show')) return;
-    drawBuilder(bc, session, now);
+    fitBoard();
+    if (session) drawBuilder(bc, session, now, st.target !== null);
     raf = requestAnimationFrame(loop);
   }
 
@@ -126,8 +141,10 @@ export function createBuilder(d: BuilderDeps): BuilderApi {
         : status === 'unsolvable' ? 'NOT SOLVABLE'
           : status === 'checking' ? 'CHECKING…'
             : status === 'unknown' ? 'TOO TRICKY' : 'KEEP GOING';
+    /* Play needs a proven-solvable board (heart + squishy + a real solution);
+       Save/Share share the exact same gate. */
     const locked = status !== 'solvable';
-    for (const id of ['bSave', 'bShare']) $(id).dataset.locked = String(locked);
+    for (const id of ['bPlay', 'bSave', 'bShare']) $(id).dataset.locked = String(locked);
   }
 
   function refreshBubble(): void { showBubble(currentHint()); }
@@ -164,7 +181,6 @@ export function createBuilder(d: BuilderDeps): BuilderApi {
   function refresh(): void {
     session = builderSession(st);
     applyStage();
-    refreshBubble();
     paintStatus();
     scheduleSolve();
   }
@@ -187,10 +203,12 @@ export function createBuilder(d: BuilderDeps): BuilderApi {
       (b as HTMLElement).dataset.active = String((b as HTMLElement).dataset.tool === st.active);
     }
   }
-  function setActive(id: string): void {
+  /** Select a tool. Only a REAL user tap (userInitiated) surfaces the heart tip —
+      the guided auto pre-select on open stays silent so nothing pops unbidden. */
+  function setActive(id: string, userInitiated = false): void {
     selectTool(st, id);
     markActive();
-    refreshBubble(); // selecting the heart surfaces the corner tip
+    if (userInitiated) refreshBubble();
   }
 
   function reflectSize(): void {
@@ -202,16 +220,14 @@ export function createBuilder(d: BuilderDeps): BuilderApi {
   function setSize(n: number): void {
     resize(st, n, n);
     reflectSize();
-    buildTiles($('bTiles'), st.w, st.h);
     refresh();
   }
 
   /** A fresh blank board every time the editor opens (no resume). */
   function init(def?: LevelDef): void {
-    st = def ? fromDef(def) : createBuilderState(6, 6);
+    st = def ? fromDef(def) : createBuilderState(NEW_BOARD, NEW_BOARD);
     lastStage = -1; // re-arm the guided pre-select for this session
     reflectSize();
-    buildTiles($('bTiles'), st.w, st.h);
     refresh(); // applyStage pre-selects the heart on a fresh board
   }
 
@@ -270,35 +286,58 @@ export function createBuilder(d: BuilderDeps): BuilderApi {
     painting = null;
   });
 
-  // Palette pointerdown: DON'T grab yet — wait for the first move to tell a
-  // horizontal swipe (let the carousel scroll) from an upward drag (pick the
-  // piece up and carry it to the board). A plain tap still selects via click.
-  function onToolDragStart(id: string, e: PointerEvent): void {
-    const sx = e.clientX, sy = e.clientY;
-    let settled = false;
-    const decide = (ev: PointerEvent): void => {
-      if (settled) return;
-      const dx = ev.clientX - sx, dy = ev.clientY - sy;
-      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
-      settled = true;
-      cleanup();
-      if (Math.abs(dy) >= Math.abs(dx)) { // mostly vertical -> drag onto the board
-        setActive(id);
-        dragPiece(id, ev);
-      } // mostly horizontal -> leave it to the native carousel scroll
+  /* ONE pointer-driven palette gesture (scroll AND drag in the same component):
+     press a tool, then the FIRST move decides — a clear UPWARD move lifts the
+     piece and carries it to the board; any other move drag-scrolls the carousel
+     horizontally (snapping to the nearest page on release); no move at all is a
+     tap that selects the tool. Manual scroll (touch-action:none) so the gesture
+     is identical and reliable on every device, not at the mercy of native pan. */
+  const DEAD = 7;
+  function setupPaletteGestures(): void {
+    const pal = $('bPalette');
+    const dots = $('bDots');
+    let sx = 0, sy = 0, sScroll = 0, mode: '' | 'scroll' | 'drag' = '', tool = '';
+    /* tracked on DOCUMENT so the gesture keeps flowing even when the finger
+       leaves the palette (e.g. dragging a piece UP onto the board) */
+    const onMove = (e: PointerEvent): void => {
+      const dx = e.clientX - sx, dy = e.clientY - sy;
+      if (mode === '') {
+        if (Math.abs(dx) < DEAD && Math.abs(dy) < DEAD) return;
+        if (dy < -DEAD && Math.abs(dy) > Math.abs(dx)) {
+          mode = 'drag';
+          end();
+          if (tool) { setActive(tool); dragPiece(tool, e); } // lift + carry onto the board
+          return;
+        }
+        mode = 'scroll';
+      }
+      if (mode === 'scroll') { pal.scrollLeft = sScroll - dx; reflectPage(pal, dots); }
     };
-    const cleanup = (): void => {
-      document.removeEventListener('pointermove', decide);
-      document.removeEventListener('pointerup', cleanup);
-      document.removeEventListener('pointercancel', cleanup);
+    const onUp = (): void => {
+      if (mode === '') { if (tool) setActive(tool, true); } // a tap selects (+ heart tip)
+      else if (mode === 'scroll') {
+        const page = Math.round(pal.scrollLeft / Math.max(1, pal.clientWidth));
+        pal.scrollTo({ left: page * pal.clientWidth, behavior: 'smooth' });
+      }
+      end();
     };
-    document.addEventListener('pointermove', decide, { passive: true });
-    document.addEventListener('pointerup', cleanup, { once: true });
-    document.addEventListener('pointercancel', cleanup, { once: true });
+    const end = (): void => {
+      document.removeEventListener('pointermove', onMove);
+      document.removeEventListener('pointerup', onUp);
+      document.removeEventListener('pointercancel', onUp);
+    };
+    pal.addEventListener('pointerdown', (e) => {
+      tool = ((e.target as HTMLElement).closest('[data-tool]') as HTMLElement | null)?.dataset.tool ?? '';
+      sx = e.clientX; sy = e.clientY; sScroll = pal.scrollLeft; mode = '';
+      document.addEventListener('pointermove', onMove);
+      document.addEventListener('pointerup', onUp);
+      document.addEventListener('pointercancel', onUp);
+    });
   }
 
   buildChips($('bSizes'), setSize);
-  buildPalette($('bPalette'), $('bDots'), { onPick: setActive, onPage: () => undefined, onDragStart: onToolDragStart });
+  buildPalette($('bPalette'), $('bDots'));
+  setupPaletteGestures();
   /* canonical share glyph beside the label (DRY, from uiIcons) */
   $('bShare').innerHTML = ICON_SHARE + 'Share';
   $('bShareNative').innerHTML = ICON_SHARE + 'Share';
@@ -349,7 +388,7 @@ export function createBuilder(d: BuilderDeps): BuilderApi {
       w: st.w, h: st.h, target: st.target, dots: st.dots,
       cells: Object.fromEntries(st.cells), activeTool: st.active,
       structural: structuralErrors(st), solveStatus: status, par: lastPar,
-      canPublish: status === 'solvable'
+      canPublish: status === 'solvable', playEnabled: status === 'solvable'
     }),
     def: (): LevelDef => ({ ...toDef(st), par: lastPar }),
     validate: async (): Promise<SolveStatus> => {
@@ -359,10 +398,11 @@ export function createBuilder(d: BuilderDeps): BuilderApi {
       return status;
     },
     play: async (): Promise<void> => {
-      const def = { ...toDef(st), par: lastPar || 1 };
-      if (status === 'solvable') persist(); // a playable level auto-saves
+      /* Play is gated on a proven-solvable board (heart + squishy + a solution) */
+      if (status !== 'solvable') { notify('Make it solvable first!'); return Promise.resolve(); }
+      persist(); // a playable level auto-saves to Your Levels
       cancelAnimationFrame(raf);
-      root.classList.remove('show'); d.closeMenu(); d.playDef(def);
+      root.classList.remove('show'); d.closeMenu(); d.playDef({ ...toDef(st), par: lastPar || 1 });
       return Promise.resolve();
     },
     save: (): { id: string } => {

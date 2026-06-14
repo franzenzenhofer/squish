@@ -315,18 +315,11 @@ export interface RenderHooks {
   onAnimFinished: () => void;
 }
 
-export function drawFrame(
-  ctx: CanvasRenderingContext2D, s: Session, now: number, hooks: RenderHooks
-): void {
-  ctx.clearRect(0, 0, s.cssSize, s.cssSize);
-  ctx.save();
-  if (s.boardScale < 1) s.boardScale += (1 - s.boardScale) * 0.18;
-  const bcx = s.ox + (s.cell * s.level.w) / 2;
-  const bcy = s.oy + (s.cell * s.level.h) / 2;
-  ctx.translate(bcx, bcy);
-  ctx.scale(s.boardScale, s.boardScale);
-  ctx.translate(-bcx, -bcy);
-
+/** The board's static backdrop — rounded panel + pastel checkerboard "roads".
+    The SINGLE source for what an EMPTY board looks like, so the level editor
+    renders its blank board through the exact same painter as the live game
+    (no duplicate CSS card/tiles). Assumes the board-scale transform is applied. */
+export function drawBoardBackdrop(ctx: CanvasRenderingContext2D, s: Session, now: number): void {
   ctx.save();
   ctx.shadowColor = 'rgba(240,120,160,0.28)';
   ctx.shadowBlur = 22;
@@ -354,6 +347,25 @@ export function drawFrame(
     }
   }
   ctx.globalAlpha = 1;
+}
+
+/** Apply the entrance board-scale transform (shared so the editor matches). */
+export function applyBoardScale(ctx: CanvasRenderingContext2D, s: Session): void {
+  if (s.boardScale < 1) s.boardScale += (1 - s.boardScale) * 0.18;
+  const bcx = s.ox + (s.cell * s.level.w) / 2;
+  const bcy = s.oy + (s.cell * s.level.h) / 2;
+  ctx.translate(bcx, bcy);
+  ctx.scale(s.boardScale, s.boardScale);
+  ctx.translate(-bcx, -bcy);
+}
+
+export function drawFrame(
+  ctx: CanvasRenderingContext2D, s: Session, now: number, hooks: RenderHooks
+): void {
+  ctx.clearRect(0, 0, s.cssSize, s.cssSize);
+  ctx.save();
+  applyBoardScale(ctx, s);
+  drawBoardBackdrop(ctx, s, now);
   drawFields(ctx, s, now);
 
   if (s.mode === 'anim') {
