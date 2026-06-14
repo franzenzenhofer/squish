@@ -5,6 +5,7 @@
 import { unpackOracle, type Oracle } from '../engine/analyze';
 import type { GameState, LevelDef } from '../engine/types';
 import type { WorkerRequest, WorkerResponse } from '../workers/gen.worker';
+import { precomputedDaily } from './dailyManifest';
 import { CURATED, cacheGenLevel, cachedGenLevel } from './session';
 
 export type DeepSolveResult =
@@ -166,9 +167,15 @@ export function createAssist(): Assist {
         const req: WorkerRequest = { type: 'bake', id, hardness, seed };
         dailyWorker.postMessage(req);
       }),
-    getDaily: (date: string): Promise<LevelDef> => {
+    getDaily: async (date: string): Promise<LevelDef> => {
       const cached = cachedDaily(date);
-      if (cached) return Promise.resolve(cached);
+      if (cached) return cached;
+      /* shipped pre-solved daily: skips the slow in-worker generation + solve */
+      const pre = await precomputedDaily(date);
+      if (pre) {
+        cacheDaily(date, pre);
+        return pre;
+      }
       return new Promise((resolve) => {
         const id = nextId++;
         dailyWaiters.set(id, resolve);

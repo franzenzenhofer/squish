@@ -5,6 +5,7 @@ import { ser } from '../engine/core';
 import type { Dir } from '../engine/types';
 import type { Mode, Session } from './session';
 import type { Settings } from './settings';
+import { spriteIcon } from './spriteIcon';
 
 export interface TestApiDeps {
   s: Session;
@@ -41,6 +42,8 @@ export interface SquishyTestApi {
   tapCell: (x: number, y: number) => void;
   setInstantAnims: (b: boolean) => void;
   waitIdle: () => Promise<Mode>;
+  /** data URL of a piece icon drawn by the real SSOT painter (sprite or field) */
+  iconURL: (name: string, kind?: 'sprite' | 'field') => string;
 }
 
 declare global {
@@ -114,6 +117,7 @@ export function installTestApi(d: TestApiDeps): void {
     setInstantAnims: (b: boolean) => {
       s.instantAnims = b;
     },
-    waitIdle
+    waitIdle,
+    iconURL: (name: string, kind?: 'sprite' | 'field') => spriteIcon(name, kind ? { kind } : {})
   };
 }
