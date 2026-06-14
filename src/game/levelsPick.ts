@@ -72,10 +72,17 @@ function iconUrl(kind: string): string {
   return url;
 }
 
+/* Marketing showcase: the picker displays cards all the way to 200 so players
+   see the journey does not stop at the 50 curated levels. Cards 51-200 are the
+   auto-generated endless ladder (the live ongoing-levels logic is unchanged) -
+   their cast is decided at generation time, so they show a '?' instead. */
+const SHOWCASE_LEVELS = 200;
+
 function hearts(s: Session, li: number): string {
   const best = s.results[li];
-  if (best === undefined) return '';
-  const par = (CURATED[li] as LevelDef).par;
+  const cur = CURATED[li] as LevelDef | undefined;
+  if (best === undefined || !cur) return '';
+  const par = cur.par;
   const n = best <= par ? 3 : best <= par + 1 ? 2 : 1;
   return '♥'.repeat(n);
 }
@@ -93,11 +100,11 @@ function isDone(s: Session, li: number): boolean {
 }
 
 /** Lowest reachable level that is not yet solved — the single "open" level. */
-function nextOpen(s: Session, reach: number): number {
-  for (let i = 0; i <= reach && i < CURATED.length; i++) {
+function nextOpen(s: Session, reach: number, total: number): number {
+  for (let i = 0; i <= reach && i < total; i++) {
     if (!isDone(s, i)) return i;
   }
-  return Math.min(reach, CURATED.length - 1);
+  return Math.min(reach, total - 1);
 }
 
 function chipState(s: Session, li: number, open: number): ChipState {
@@ -133,11 +140,21 @@ export function createLevelsPick(d: LevelsDeps): LevelsPick {
     b.appendChild(hs);
     const cast = document.createElement('span');
     cast.className = 'lvcast';
-    for (const kind of castOf(CURATED[li] as LevelDef)) {
-      const img = document.createElement('img');
-      img.src = iconUrl(kind);
-      img.alt = kind;
-      cast.appendChild(img);
+    const curated = CURATED[li] as LevelDef | undefined;
+    if (curated) {
+      for (const kind of castOf(curated)) {
+        const img = document.createElement('img');
+        img.src = iconUrl(kind);
+        img.alt = kind;
+        cast.appendChild(img);
+      }
+    } else {
+      /* auto-generated level (51-200): its cast is chosen when it is generated,
+         so tease it with a '?' instead of a known friend line-up */
+      const q = document.createElement('span');
+      q.className = 'lvq';
+      q.textContent = '?';
+      cast.appendChild(q);
     }
     b.appendChild(cast);
     if (state !== 'locked') {
@@ -257,13 +274,17 @@ export function createLevelsPick(d: LevelsDeps): LevelsPick {
       stale.remove();
     }
     const reach = furthest(s);
-    const openIdx = nextOpen(s, reach);
-    for (let i = 0; i < CURATED.length; i++) {
+    /* debug keeps the curated grid + its own GENERATED/TEST/BAKE sections; the
+       shipping picker shows the full 200-level showcase (50 curated, then the
+       auto-generated ladder as '?' teasers) so players see it goes well past 50 */
+    const total = isDebug() ? CURATED.length : SHOWCASE_LEVELS;
+    const openIdx = nextOpen(s, reach, total);
+    for (let i = 0; i < total; i++) {
       grid.appendChild(card(i, chipState(s, i, openIdx)));
     }
-    if (!isDebug() && reach >= CURATED.length) {
+    if (!isDebug() && reach >= SHOWCASE_LEVELS) {
       grid.appendChild(chip('∞', () =>
-        d.onPick(Math.max(CURATED.length, s.play.kind === 'campaign' ? s.li : 0))));
+        d.onPick(Math.max(SHOWCASE_LEVELS, s.play.kind === 'campaign' ? s.li : 0))));
     }
     if (isDebug()) buildDebugSections();
   };
