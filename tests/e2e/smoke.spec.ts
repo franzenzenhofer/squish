@@ -118,6 +118,25 @@ test('a trapping line triggers the oh-no auto-undo', async ({ page }) => {
   );
 });
 
+test('the tutorial levels never let you get stuck: a heart-blocking move auto-undoes', async ({ page }) => {
+  /* level 2 (index 1): swiping up strands the two squishies so the heart is
+     unreachable (oracle winnable=false). A beginner must never be allowed to
+     block themselves with no recourse - oh-no must hop back here too. */
+  await boot(page);
+  await page.evaluate(() => localStorage.clear());
+  await page.evaluate(() => window.__squishy?.loadLevel(1));
+  await clearIntros(page);
+  await page.waitForFunction(() => window.__squishy?.state().oracleReady === true);
+  await page.evaluate(() => window.__squishy?.move('up' as never));
+  await page.waitForFunction(
+    () => {
+      const m = window.__squishy?.state();
+      return m?.mode === 'idle' && m.moves === 0 && m.winnable === true;
+    },
+    undefined, { timeout: 10000 }
+  );
+});
+
 test('daily solve shows the win card and returns to campaign', async ({ page }) => {
   await boot(page);
   await page.evaluate(() => localStorage.clear());

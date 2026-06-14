@@ -121,6 +121,18 @@ function layout(): void {
       s: 4 + Math.random() * 6, star: Math.random() < 0.4
     });
   }
+  if (elCap.classList.contains('show')) positionBubble();
+}
+
+/* Sit Squishy's speech bubble so its downward pointer lands ~3px above the
+   board's top edge, instead of floating up under the header (which it did on
+   iOS, where the centred board leaves a tall gap below the header). */
+function positionBubble(): void {
+  const boardTop = canvas.getBoundingClientRect().top;
+  const POINTER = 13; // the ::before tail that hangs below the bubble
+  const GAP = 3;      // Franz: just a few pixels above the playing field
+  const top = boardTop - elCap.offsetHeight - POINTER - GAP;
+  elCap.style.top = Math.max(8, Math.round(top)) + 'px';
 }
 
 /* ----------------------------- level flow ------------------------------- */
@@ -136,6 +148,7 @@ function setCap(txt: string, bad = false): void {
   elCapText.innerHTML = txt;
   if (txt) {
     elCap.classList.add('show');
+    positionBubble();
     audio.talk();
     s.capTimer = window.setTimeout(() => elCap.classList.remove('show'), 3600);
   } else {

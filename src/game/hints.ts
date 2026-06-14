@@ -102,9 +102,11 @@ export function createHints(s: Session, assist: Assist, hooks: HintHooks): Hints
     if (!s.oracle || s.oracleKey !== currentKey) return; // resolves on arrival
     const w = winnableState(s.oracle, ser(s.gs));
     if (w === false) {
-      /* tutorials (levels 1-2): let beginners explore and learn undo/retry
-         themselves — the eager "oh no" auto-undo only kicks in from level 3 */
-      if (s.play.kind === 'campaign' && s.li < 2) return;
+      /* oh-no fires on EVERY level, tutorials included. The first two levels
+         each have heart-blocking moves (L1: left/right, L2: up/down); leaving
+         beginners silently stuck there taught nothing - the gentle hop-back
+         ("Squishy hopped back - the heart stays reachable") is the tutorial.
+         (Root-cause fix, Franz 2026-06-14: removed the s.li<2 suppression.) */
       /* tripwire: an exactly-undoable swipe can never be a dead end. If the
          oracle disagrees, something upstream is broken - fail LOUD and never
          punish the player with a wrong oh-no. */

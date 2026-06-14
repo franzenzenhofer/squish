@@ -23,8 +23,14 @@ export function createSettingsView(d: SettingsViewDeps): SettingsView {
   const togAnalytics = document.getElementById('togAnalytics') as HTMLButtonElement;
   const rowAnalytics = document.getElementById('setrowAnalytics') as HTMLElement;
   /* the opt-out toggle is surfaced only in the iOS build; the hosted web keeps
-     anonymous counts always-on (as shipped, covered by the privacy card) */
-  if (import.meta.env.VITE_PLATFORM === 'ios') rowAnalytics.hidden = false;
+     anonymous counts always-on (as shipped, covered by the privacy card). The
+     privacy card itself swaps its host/delivery wording per target so it stays
+     legally accurate: web is served from Cloudflare, iOS runs fully offline. */
+  const isIos = import.meta.env.VITE_PLATFORM === 'ios';
+  if (isIos) rowAnalytics.hidden = false;
+  for (const el of document.querySelectorAll<HTMLElement>('[data-plat]')) {
+    el.hidden = isIos ? el.dataset.plat !== 'ios' : el.dataset.plat !== 'web';
+  }
 
   const reflect = (): void => {
     const st = getSettings();
