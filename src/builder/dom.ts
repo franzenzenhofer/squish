@@ -5,6 +5,7 @@
 
 import { TOOLS, PAGES, type ToolDef } from './tools';
 import { toolIcon } from './icons';
+import { ICON_ERASER } from '../game/uiIcons';
 
 const el = (tag: string, cls?: string): HTMLElement => {
   const e = document.createElement(tag);
@@ -47,7 +48,7 @@ function paletteButton(tool: ToolDef, h: PaletteHandlers): HTMLButtonElement {
   b.title = tool.label;
   if (tool.kind === 'eraser') {
     b.classList.add('btool-eraser');
-    b.textContent = '⌫';
+    b.innerHTML = ICON_ERASER;
   } else {
     const img = el('img') as HTMLImageElement;
     img.src = toolIcon(tool.id);

@@ -126,6 +126,15 @@ export function renderBoardCard(def: LevelDef, label: string): HTMLCanvasElement
   return card.el;
 }
 
+/** A small board-only thumbnail of a level, painted by the one game renderer
+    (no card chrome) — reused for the "Your Levels" cards. Supersampled, so it
+    stays crisp when displayed tiny. */
+export function renderLevelThumb(def: LevelDef): HTMLCanvasElement {
+  const board = shareCanvas(BOARD_PX, BOARD_PX);
+  drawFrame(board.ctx, cardSession(def), FROZEN, CARD_HOOKS);
+  return board.el;
+}
+
 /** The landing URL for a share. Daily shares deep-link to #daily so the tap
     drops straight into today's puzzle; everything else opens the campaign. */
 function shareUrl(daily: boolean): string {

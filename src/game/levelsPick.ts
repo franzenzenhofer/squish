@@ -12,6 +12,8 @@ import { DEBUG_GEN_COUNT, isDebug } from './debugMode';
 import { DEBUG_LEVELS } from './debugLevels';
 import { CURATED, cachedGenLevel, type Session } from './session';
 import { listCreations, getCreation, deleteCreation } from '../builder/library';
+import { renderLevelThumb } from './share';
+import { ICON_EDIT, ICON_TRASH } from './uiIcons';
 
 export interface LevelsDeps {
   s: Session;
@@ -302,28 +304,36 @@ export function createLevelsPick(d: LevelsDeps): LevelsPick {
       row.className = 'lvmrow';
       row.dataset.testid = 'creation-card';
       row.dataset.id = c.id;
+      const cr0 = getCreation(localStorage, c.id);
       const play = document.createElement('button');
       play.className = 'lvmplay';
       play.dataset.testid = 'creation-play';
+      const txt = document.createElement('span');
+      txt.className = 'lvmtxt';
       const nm = document.createElement('b');
       nm.textContent = c.name;
       const meta = document.createElement('span');
       meta.textContent = c.w + '×' + c.h + ' · par ' + c.par;
-      play.append(nm, meta);
+      txt.append(nm, meta);
+      /* a tiny real rendering of the level, painted by the one game renderer */
+      const thumb = document.createElement('img');
+      thumb.className = 'lvmthumb';
+      thumb.alt = '';
+      if (cr0) thumb.src = renderLevelThumb(cr0.def).toDataURL();
+      play.append(txt, thumb);
       play.addEventListener('click', () => {
         d.unlockAudio();
-        const cr = getCreation(localStorage, c.id);
-        if (cr) { close(); d.onPlayCustom(cr.def); }
+        if (cr0) { close(); d.onPlayCustom(cr0.def); }
       });
       const edit = document.createElement('button');
       edit.className = 'lvmbtn';
       edit.dataset.testid = 'creation-edit';
-      edit.textContent = '✎';
+      edit.innerHTML = ICON_EDIT;
       edit.addEventListener('click', () => { d.unlockAudio(); close(); d.onEditCustom(c.id); });
       const del = document.createElement('button');
       del.className = 'lvmbtn';
       del.dataset.testid = 'creation-delete';
-      del.textContent = '🗑';
+      del.innerHTML = ICON_TRASH;
       del.addEventListener('click', () => { deleteCreation(localStorage, c.id); rebuild(); });
       row.append(play, edit, del);
       list.appendChild(row);

@@ -20,7 +20,8 @@ import { buildShareUrl } from '../share/shareUrl';
 import { drawQr } from '../share/qr';
 import { shareCapabilities } from '../share/capabilities';
 import { mountWordmark } from '../game/logo';
-import { toast } from '../game/toast';
+
+const HEART_HINT = 'Tip: a heart in a corner stays solvable most of the time!';
 
 export interface SolveInfo { status: SolveOutcome; par: number; }
 
@@ -67,8 +68,19 @@ export function createBuilder(d: BuilderDeps): BuilderApi {
   let solveTimer = 0;
   let session: Session | null = null;
   let raf = 0;
+  let tip: string | null = null; // a transient message owning the bubble for a moment
+  let tipTimer = 0;
 
   mountWordmark($('bLogo'));
+
+  /** The speech bubble is the builder's ONLY notification — no toasts. */
+  function notify(msg: string, ms = 2400): void {
+    tip = msg;
+    $('bBubbleText').textContent = msg;
+    $('bBubble').classList.add('show');
+    window.clearTimeout(tipTimer);
+    tipTimer = window.setTimeout(() => { tip = null; paintBubble(); }, ms);
+  }
 
   const runner = createSolveRunner(
     (def) => d.solveDef(def).then((r) => { lastPar = r.par; return r.status; }),
@@ -94,8 +106,11 @@ export function createBuilder(d: BuilderDeps): BuilderApi {
   }
 
   function paintBubble(): void {
+    if (tip) return; // a transient notification is on screen
     const errs = structuralErrors(st);
-    const msg = errs[0] ?? (status === 'solvable' ? 'Lovely — share it with a friend!' : '');
+    const msg = st.active === 'heart'
+      ? HEART_HINT
+      : (errs[0] ?? (status === 'solvable' ? 'Lovely — share it with a friend!' : ''));
     $('bBubbleText').textContent = msg;
     $('bBubble').classList.toggle('show', msg !== '');
   }
@@ -127,6 +142,7 @@ export function createBuilder(d: BuilderDeps): BuilderApi {
     for (const b of root.querySelectorAll('[data-testid="tool"]')) {
       (b as HTMLElement).dataset.active = String((b as HTMLElement).dataset.tool === id);
     }
+    paintBubble(); // selecting the heart surfaces the corner tip
   }
 
   function reflectSize(): void {
@@ -215,8 +231,8 @@ export function createBuilder(d: BuilderDeps): BuilderApi {
   buildChips($('bSizes'), setSize);
   buildPalette($('bPalette'), $('bDots'), { onPick: setActive, onPage: () => undefined, onDragStart: onToolDragStart });
   $('bPlay').addEventListener('click', () => void api.play());
-  $('bSave').addEventListener('click', () => { try { api.save(); toast('Saved to Your Levels!'); } catch { toast('Make it solvable first!'); } });
-  $('bShare').addEventListener('click', () => { try { openShare(api.share()); } catch { toast('Make it solvable first!'); } });
+  $('bSave').addEventListener('click', () => { try { api.save(); notify('Saved to Your Levels!'); } catch { notify('Make it solvable first!'); } });
+  $('bShare').addEventListener('click', () => { try { openShare(api.share()); } catch { notify('Make it solvable first!'); } });
   $('bExit').addEventListener('click', () => api.close());
 
   function openShare(url: string): void {
@@ -230,7 +246,7 @@ export function createBuilder(d: BuilderDeps): BuilderApi {
     const cb = $('bShareCopy') as HTMLButtonElement;
     cb.style.display = caps.clipboard ? '' : 'none';
     sb.onclick = (): void => { void navigator.share?.({ url }); };
-    cb.onclick = (): void => { void navigator.clipboard?.writeText(url).then(() => toast('Link copied!')); };
+    cb.onclick = (): void => { void navigator.clipboard?.writeText(url).then(() => notify('Link copied!')); };
   }
   $('bShareClose').addEventListener('click', () => { $('bShareSheet').dataset.shown = 'false'; });
 
