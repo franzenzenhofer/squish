@@ -15,6 +15,11 @@ import { panda } from './friends/panda';
 import { penguin } from './friends/penguin';
 import { pig } from './friends/pig';
 import { star } from './friends/star';
+import { crab } from './friends/crab';
+import { puppy } from './friends/puppy';
+import { mouse } from './friends/mouse';
+import { owl } from './friends/owl';
+import { mole } from './friends/mole';
 
 export const SPR: Record<string, SpriteFn> = {
   squishy,
@@ -32,4 +37,9 @@ export const SPR: Record<string, SpriteFn> = {
   penguin,
   pig,
   star,
+  crab,
+  puppy,
+  mouse,
+  owl,
+  mole,
 };

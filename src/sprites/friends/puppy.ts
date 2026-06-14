@@ -1,4 +1,4 @@
-/* sprites/friends/puppy.ts — a caramel puppy with floppy ears who follows you. (mover friend) */
+/* sprites/friends/puppy.ts — a cute little puppy (dog-face icon) in our plush style. (mover friend) */
 import { C } from '../../lib/palette';
 import * as U from '../../lib/draw';
 import type { SpriteFn } from '../../lib/types';
@@ -10,42 +10,59 @@ export const puppy: SpriteFn = (ctx, o) => {
   const dx = o.dx ?? 0, dy = o.dy ?? 0;
   const mood = o.mood ?? 'happy';
   if (o.idle !== false) { const br = U.breathe(now, seed, 0.03); sx *= br.sx; sy *= br.sy; }
-  const col = { hi: '#FBD9A8', base: '#E8A35C', lo: '#D4863E', line: '#B86C2C', core: '#F0BE7E' };
-  const earc = '#C97F38';
-  const flop = Math.sin(now * 0.0045 + seed) * 0.1;
-  U.ground(ctx, x, y + r * 0.98, r * 0.95);
+  const col = { hi: '#FFF0D2', base: '#F7D9A0', lo: '#EBC079', line: '#CC9C53', core: '#FCE6BB' };
+  const ear = { hi: '#C5843C', lo: '#9A5F26', line: '#7A491C' };
+  const flop = Math.sin(now * 0.005 + seed) * 0.04;
+  U.ground(ctx, x, y + r * 0.98, r);
   ctx.save(); ctx.translate(x, y);
   if (o.rot) ctx.rotate(o.rot);
   ctx.scale(sx, sy);
-  /* long floppy ears hanging at the sides */
-  ctx.fillStyle = earc; ctx.strokeStyle = col.line; ctx.lineWidth = Math.max(2, r * 0.06); ctx.lineJoin = 'round';
+  /* big floppy ears: attached at the top corners, hanging down the outer sides */
   [-1, 1].forEach((s) => {
-    ctx.save(); ctx.translate(s * r * 0.82, -r * 0.3); ctx.rotate(s * (0.32 + flop));
-    ctx.beginPath(); ctx.ellipse(0, r * 0.44, r * 0.27, r * 0.56, 0, 0, 7); ctx.fill(); ctx.stroke();
+    ctx.save(); ctx.rotate(s * flop);
+    const eg = ctx.createLinearGradient(0, -r, 0, r * 0.2);
+    eg.addColorStop(0, ear.hi); eg.addColorStop(1, ear.lo);
+    ctx.fillStyle = eg; ctx.strokeStyle = ear.line; ctx.lineWidth = Math.max(2, r * 0.05); ctx.lineJoin = 'round';
+    ctx.beginPath();
+    ctx.moveTo(s * r * 0.30, -r * 0.70);
+    ctx.quadraticCurveTo(s * r * 0.32, -r * 0.98, s * r * 0.58, -r * 0.92);
+    ctx.quadraticCurveTo(s * r * 0.98, -r * 0.82, s * r * 0.93, -r * 0.28);
+    ctx.quadraticCurveTo(s * r * 0.88, r * 0.10, s * r * 0.56, r * 0.06);
+    ctx.quadraticCurveTo(s * r * 0.43, r * 0.02, s * r * 0.44, -r * 0.24);
+    ctx.quadraticCurveTo(s * r * 0.40, -r * 0.52, s * r * 0.30, -r * 0.70);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    /* inner-ear sheen near the top */
+    ctx.fillStyle = 'rgba(255,226,190,0.4)';
+    ctx.beginPath(); ctx.ellipse(s * r * 0.6, -r * 0.5, r * 0.13, r * 0.26, s * -0.3, 0, 7); ctx.fill();
     ctx.restore();
   });
   U.plush(ctx, r, col);
-  /* tan patch around one eye — classic puppy charm */
+  /* white lower muzzle */
   ctx.save(); ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.clip();
-  ctx.fillStyle = earc; ctx.globalAlpha = 0.9;
-  ctx.beginPath(); ctx.ellipse(-r * 0.36, -r * 0.06, r * 0.3, r * 0.34, 0.2, 0, 7); ctx.fill();
+  ctx.fillStyle = '#FFF8EC';
+  ctx.beginPath(); ctx.ellipse(0, r * 0.42, r * 0.5, r * 0.42, 0, 0, 7); ctx.fill();
   ctx.restore();
-  U.blush(ctx, r, { y: 0.34, spread: 0.66 });
-  U.eyes(ctx, r, { dx, dy, mood, seed, now, eyeY: -0.04, size: 0.16, spacing: 0.34 });
-  /* round nose with shine */
-  ctx.fillStyle = C.pupil;
-  ctx.beginPath(); ctx.ellipse(0, r * 0.18, r * 0.1, r * 0.08, 0, 0, 7); ctx.fill();
-  ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.beginPath(); ctx.arc(-r * 0.03, r * 0.15, r * 0.03, 0, 7); ctx.fill();
-  /* puppy mouth (two little humps) + a small panting tongue */
-  ctx.strokeStyle = C.line; ctx.lineWidth = Math.max(1.5, r * 0.05); ctx.lineCap = 'round';
+  U.blush(ctx, r, { y: 0.34, spread: 0.62, w: 0.18, h: 0.12, alpha: 0.55 });
+  U.eyes(ctx, r, { dx, dy, mood, seed, now, eyeY: -0.1, size: 0.18, spacing: 0.36 });
+  /* dark rounded nose */
+  ctx.fillStyle = C.pupil; ctx.beginPath(); ctx.ellipse(0, r * 0.18, r * 0.13, r * 0.1, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.beginPath(); ctx.ellipse(-r * 0.04, r * 0.14, r * 0.045, r * 0.03, -0.4, 0, 7); ctx.fill();
+  /* tiny smile under the nose to anchor the tongue */
+  ctx.strokeStyle = C.line; ctx.lineWidth = Math.max(1.4, r * 0.042); ctx.lineCap = 'round';
   ctx.beginPath();
-  ctx.moveTo(0, r * 0.26); ctx.lineTo(0, r * 0.34);
-  ctx.moveTo(0, r * 0.34); ctx.quadraticCurveTo(-r * 0.1, r * 0.42, -r * 0.17, r * 0.36);
-  ctx.moveTo(0, r * 0.34); ctx.quadraticCurveTo(r * 0.1, r * 0.42, r * 0.17, r * 0.36);
+  ctx.moveTo(0, r * 0.28); ctx.lineTo(0, r * 0.32);
+  ctx.moveTo(-r * 0.1, r * 0.31); ctx.quadraticCurveTo(0, r * 0.38, r * 0.1, r * 0.31);
   ctx.stroke();
-  if (mood === 'joy' || U.beat(now, seed, 3000, 1100)) {
-    ctx.fillStyle = C.tongue; ctx.strokeStyle = '#E2658F'; ctx.lineWidth = Math.max(1.2, r * 0.03);
-    ctx.beginPath(); ctx.ellipse(0, r * 0.44, r * 0.07, r * 0.1, 0, 0, 7); ctx.fill(); ctx.stroke();
-  }
+  /* plump little rounded tongue */
+  ctx.fillStyle = '#FF9DBE'; ctx.strokeStyle = '#EC7AA0'; ctx.lineWidth = Math.max(1.2, r * 0.028); ctx.lineJoin = 'round';
+  ctx.beginPath();
+  ctx.moveTo(-r * 0.08, r * 0.34);
+  ctx.quadraticCurveTo(-r * 0.11, r * 0.47, 0, r * 0.47);
+  ctx.quadraticCurveTo(r * 0.11, r * 0.47, r * 0.08, r * 0.34);
+  ctx.quadraticCurveTo(0, r * 0.38, -r * 0.08, r * 0.34);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.strokeStyle = 'rgba(214,86,122,0.55)'; ctx.lineWidth = Math.max(1, r * 0.022);
+  ctx.beginPath(); ctx.moveTo(0, r * 0.39); ctx.lineTo(0, r * 0.45); ctx.stroke();
+  U.sparkle(ctx, r * 0.5, -r * 0.74, r * 0.1, '#FFF3C4');
   ctx.restore();
 };

@@ -41,10 +41,11 @@ export const crab: SpriteFn = (ctx, o) => {
   [-1, 1].forEach((s) => {
     ctx.strokeStyle = col.line; ctx.lineWidth = Math.max(1.6, r * 0.05);
     ctx.beginPath(); ctx.moveTo(s * r * 0.22, -r * 0.78); ctx.lineTo(s * r * 0.24, -r * 1.0); ctx.stroke();
-    ctx.fillStyle = col.lo; ctx.beginPath(); ctx.arc(s * r * 0.24, -r * 1.04, r * 0.07, 0, 7); ctx.fill();
+    ctx.fillStyle = col.lo; ctx.beginPath(); ctx.arc(s * r * 0.24, -r * 1.04, r * 0.08, 0, 7); ctx.fill();
   });
-  U.blush(ctx, r, { y: 0.26, spread: 0.62 });
-  U.eyes(ctx, r, { dx, dy, mood, seed, now, eyeY: -0.02, size: 0.17, spacing: 0.34 });
-  U.mouth(ctx, r, { mood: mood === 'joy' ? 'joy' : 'cat', dx, y: 0.28 });
+  U.blush(ctx, r, { y: 0.28, spread: 0.62, w: 0.2, h: 0.13, alpha: 0.6 });
+  U.eyes(ctx, r, { dx, dy, mood, seed, now, eyeY: -0.02, size: 0.19, spacing: 0.34 });
+  U.mouth(ctx, r, { mood: mood === 'joy' ? 'joy' : 'cat', dx, y: 0.3 });
+  U.sparkle(ctx, -r * 0.66, -r * 0.5, r * 0.11, '#FFE8DF');
   ctx.restore();
 };
