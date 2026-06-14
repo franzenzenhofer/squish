@@ -18,9 +18,29 @@ export interface TrackEnv {
 
 const BODY_MAX = 256;
 
+/* Apple App Site Association — lets the installed iOS app claim
+   https://squishy.franzai.com links (Universal Links). The shared level lives in
+   the URL fragment (#level-...), which the app's in-page router reads after the
+   OS hands off, so any path opens the app. Served from the worker so the exact
+   application/json content-type and no-redirect contract Apple requires hold. */
+const AASA = JSON.stringify({
+  applinks: {
+    apps: [],
+    details: [{
+      appID: '7D2YX5DQ6M.com.franzai.squish',
+      appIDs: ['7D2YX5DQ6M.com.franzai.squish'],
+      paths: ['*'],
+      components: [{ '/': '*' }]
+    }]
+  }
+});
+
 export default {
   async fetch(req: Request, env: TrackEnv): Promise<Response> {
     const url = new URL(req.url);
+    if (url.pathname === '/.well-known/apple-app-site-association') {
+      return new Response(AASA, { headers: { 'content-type': 'application/json' } });
+    }
     if (req.method === 'POST' && url.pathname === '/t') {
       /* fire-and-forget: always 204, never cookies, never an error page */
       try {

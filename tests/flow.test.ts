@@ -25,6 +25,13 @@ describe('bootPlan', () => {
     expect(bootPlan(42, '')).toEqual({ daily: false, li: 42 });
     expect(bootPlan(7, '#whatever')).toEqual({ daily: false, li: 7 });
   });
+  it('opens the editor on #builder', () => {
+    expect(bootPlan(5, '#builder')).toEqual({ daily: false, li: 5, builder: true });
+  });
+  it('carries a shared level code on #level-', () => {
+    expect(bootPlan(5, '#level-1-3x3-M00000002.abc'))
+      .toEqual({ daily: false, li: 5, shared: 'level-1-3x3-M00000002.abc' });
+  });
 });
 
 describe('resumeSnapshot', () => {
