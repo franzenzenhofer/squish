@@ -80,10 +80,31 @@ export function decode(code: string): LevelDef {
   if (crc32Base36(v + '-' + w + 'x' + h + '|' + glyphs) !== crc) {
     throw new CodecError('checksum mismatch — link corrupted');
   }
-  return buildDef(glyphs, w, h);
+  return buildDefFromTokens(parseGlyphs(glyphs, w, h), w, h);
 }
 
-function buildDef(glyphs: string, w: number, h: number): LevelDef {
+/** Walk a glyph string into one token per cell ('' empty, glyph, or 2-char dir). */
+function parseGlyphs(glyphs: string, w: number, h: number): string[] {
+  const tokens: string[] = [];
+  let cur = 0;
+  for (let cell = 0; cell < w * h; cell++) {
+    const g = glyphs[cur++];
+    if (g === undefined) throw new CodecError('glyph stream too short');
+    if (g === EMPTY) { tokens.push(''); continue; }
+    if (BASE_DIR[g]) {
+      const suf = glyphs[cur++];
+      if (suf === undefined || !SUFFIX_DIR[suf]) throw new CodecError('bad direction at cell ' + cell);
+      tokens.push(g + suf);
+    } else {
+      tokens.push(g);
+    }
+  }
+  if (cur !== glyphs.length) throw new CodecError('glyph stream too long');
+  return tokens;
+}
+
+/** Rebuild a LevelDef from one token per cell (shared by the string + byte codecs). */
+function buildDefFromTokens(tokens: string[], w: number, h: number): LevelDef {
   const def: LevelDef = { w, h, target: [0, 0], dots: [], par: 0 };
   const push = (field: string, v: XY | XYDir): void => {
     const arr = (def[field as keyof LevelDef] as unknown[]) ?? [];
@@ -92,31 +113,70 @@ function buildDef(glyphs: string, w: number, h: number): LevelDef {
   };
   let portalA: XY | null = null;
   let portalB: XY | null = null;
-  let cur = 0;
   for (let cell = 0; cell < w * h; cell++) {
     const x = cell % w;
     const y = Math.floor(cell / w);
-    const g = glyphs[cur++];
-    if (g === undefined) throw new CodecError('glyph stream too short');
-    if (g === EMPTY) continue;
-    const dirField = BASE_DIR[g];
-    if (dirField) {
-      const suf = glyphs[cur++];
-      const dir = suf === undefined ? undefined : SUFFIX_DIR[suf];
-      if (!dir) throw new CodecError('bad direction suffix at cell ' + cell);
-      push(dirField, [x, y, dir as DirCode]);
+    const tok = tokens[cell] ?? '';
+    if (tok === '') continue;
+    if (tok.length === 2) {
+      const field = BASE_DIR[tok[0] as string];
+      const dir = SUFFIX_DIR[tok[1] as string];
+      if (!field || !dir) throw new CodecError('bad directional token "' + tok + '"');
+      push(field, [x, y, dir as DirCode]);
       continue;
     }
-    const field = GLYPH_CELL[g];
-    if (!field) throw new CodecError('unknown glyph "' + g + '"');
+    const field = GLYPH_CELL[tok];
+    if (!field) throw new CodecError('unknown glyph "' + tok + '"');
     if (field === 'target') def.target = [x, y];
     else if (field === 'portalA') portalA = [x, y];
     else if (field === 'portalB') portalB = [x, y];
     else push(field, [x, y]);
   }
-  if (cur !== glyphs.length) throw new CodecError('glyph stream too long');
   if (portalA && portalB) def.portals = [portalA, portalB];
   return def;
+}
+
+/* The token universe for byte packing: index 0 = empty, then every glyph, then
+   the 8 directional tokens. One byte per cell, so a sparse board is mostly
+   zeros and DEFLATE shrinks it dramatically (the compressed URL). */
+const BYTE_TOKENS: string[] = (() => {
+  const base = Object.keys(GLYPH_CELL);
+  const dirs: string[] = [];
+  for (const f of ['oneway', 'breeze'] as const) {
+    /* lowercase suffixes, exactly as cellMap emits them (e.g. "Vu", not "VU") */
+    for (const s of Object.values(DIR_SUFFIX)) dirs.push((DIR_BASE[f] as string) + s);
+  }
+  return [...base, ...dirs];
+})();
+const TOKEN_TO_IDX: Record<string, number> = Object.fromEntries(BYTE_TOKENS.map((t, i) => [t, i + 1]));
+const IDX_TO_TOKEN: string[] = ['', ...BYTE_TOKENS];
+
+/** Pack a level into compact bytes: [VERSION, w, h, one token index per cell]. */
+export function encodeBytes(def: LevelDef): Uint8Array {
+  const map = cellMap(def);
+  const out: number[] = [VERSION, def.w, def.h];
+  for (let y = 0; y < def.h; y++) {
+    for (let x = 0; x < def.w; x++) {
+      const tok = map.get(ck(x, y));
+      out.push(tok ? (TOKEN_TO_IDX[tok] ?? 0) : 0);
+    }
+  }
+  return Uint8Array.from(out);
+}
+
+export function decodeBytes(bytes: Uint8Array): LevelDef {
+  if (bytes[0] !== VERSION) throw new CodecError('unsupported version');
+  const w = bytes[1] as number;
+  const h = bytes[2] as number;
+  if (bytes.length !== 3 + w * h) throw new CodecError('byte length mismatch');
+  const tokens: string[] = [];
+  for (let i = 0; i < w * h; i++) {
+    const idx = bytes[3 + i] as number;
+    const tok = IDX_TO_TOKEN[idx];
+    if (tok === undefined) throw new CodecError('bad token index ' + idx);
+    tokens.push(tok);
+  }
+  return buildDefFromTokens(tokens, w, h);
 }
 
 /** Geometry-only equality (ignores par/sol/cap; order-independent). */

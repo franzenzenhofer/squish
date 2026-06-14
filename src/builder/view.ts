@@ -20,6 +20,7 @@ import { buildShareUrl } from '../share/shareUrl';
 import { drawQr } from '../share/qr';
 import { shareCapabilities } from '../share/capabilities';
 import { mountWordmark } from '../game/logo';
+import { ICON_SHARE } from '../game/uiIcons';
 
 const HEART_HINT = 'Tip: a heart in a corner stays solvable most of the time!';
 
@@ -68,18 +69,35 @@ export function createBuilder(d: BuilderDeps): BuilderApi {
   let solveTimer = 0;
   let session: Session | null = null;
   let raf = 0;
-  let tip: string | null = null; // a transient message owning the bubble for a moment
-  let tipTimer = 0;
+  let lastMsg = '';
+  let bubbleTimer = 0;
+  let lastStage = -1; // last guided-build stage (-1 forces a fresh pre-select on open)
 
   mountWordmark($('bLogo'));
 
-  /** The speech bubble is the builder's ONLY notification — no toasts. */
-  function notify(msg: string, ms = 2400): void {
-    tip = msg;
+  /** The speech bubble is the builder's ONLY notification, and it always fades —
+      it shows a message once when it CHANGES (no re-spam on every edit) and
+      auto-dismisses after a few seconds, exactly like the in-game bubble. */
+  function showBubble(msg: string): void {
+    if (!msg || msg === lastMsg) return;
+    lastMsg = msg;
     $('bBubbleText').textContent = msg;
     $('bBubble').classList.add('show');
-    window.clearTimeout(tipTimer);
-    tipTimer = window.setTimeout(() => { tip = null; paintBubble(); }, ms);
+    window.clearTimeout(bubbleTimer);
+    bubbleTimer = window.setTimeout(() => {
+      $('bBubble').classList.remove('show');
+      lastMsg = '';
+    }, 3600);
+  }
+
+  /** An explicit notification (Saved, Link copied) — always shown, then fades. */
+  function notify(msg: string): void { lastMsg = ''; showBubble(msg); }
+
+  /** The single contextual message for the current board/tool, or '' for none. */
+  function currentHint(): string {
+    if (st.active === 'heart') return HEART_HINT;
+    const errs = structuralErrors(st);
+    return errs[0] ?? (status === 'solvable' ? 'Lovely — share it with a friend!' : '');
   }
 
   const runner = createSolveRunner(
@@ -105,15 +123,7 @@ export function createBuilder(d: BuilderDeps): BuilderApi {
     for (const id of ['bSave', 'bShare']) $(id).dataset.locked = String(locked);
   }
 
-  function paintBubble(): void {
-    if (tip) return; // a transient notification is on screen
-    const errs = structuralErrors(st);
-    const msg = st.active === 'heart'
-      ? HEART_HINT
-      : (errs[0] ?? (status === 'solvable' ? 'Lovely — share it with a friend!' : ''));
-    $('bBubbleText').textContent = msg;
-    $('bBubble').classList.toggle('show', msg !== '');
-  }
+  function refreshBubble(): void { showBubble(currentHint()); }
 
   function scheduleSolve(): void {
     if (!canSolveCheck(st)) { status = 'idle'; paintStatus(); return; }
@@ -122,7 +132,35 @@ export function createBuilder(d: BuilderDeps): BuilderApi {
     solveTimer = window.setTimeout(() => runner.run(toDef(st)), 250);
   }
 
-  function refresh(): void { session = builderSession(st); paintBubble(); paintStatus(); scheduleSolve(); }
+  /** Guided build: only the heart is enabled until placed, then only the squishy,
+      then the whole palette — others are greyed out and the next tool is
+      pre-selected so a first-timer can't get lost. */
+  function applyStage(): void {
+    const stage = !st.target ? 0 : st.dots.length === 0 ? 1 : 2;
+    const ok = (id: string): boolean =>
+      stage === 2 ? true
+        : stage === 1 ? id === 'squishy' || id === 'heart' || id === 'eraser'
+          : id === 'heart';
+    for (const b of root.querySelectorAll('[data-testid="tool"]')) {
+      (b as HTMLElement).dataset.disabled = String(!ok((b as HTMLElement).dataset.tool ?? ''));
+    }
+    /* pre-select the next tool only when the STAGE changes, so the choice does
+       not snap back while the user is still tapping within a stage */
+    if (stage !== lastStage) {
+      lastStage = stage;
+      if (stage === 0) { setActive('heart'); return; }
+      if (stage === 1) { setActive('squishy'); return; }
+    }
+    markActive();
+  }
+
+  function refresh(): void {
+    session = builderSession(st);
+    applyStage();
+    refreshBubble();
+    paintStatus();
+    scheduleSolve();
+  }
   function edit(fn: () => void): void { fn(); refresh(); }
 
   /** Save (or update) the current board in Your Levels; returns its id. */
@@ -137,12 +175,15 @@ export function createBuilder(d: BuilderDeps): BuilderApi {
     return { id };
   }
 
+  function markActive(): void {
+    for (const b of root.querySelectorAll('[data-testid="tool"]')) {
+      (b as HTMLElement).dataset.active = String((b as HTMLElement).dataset.tool === st.active);
+    }
+  }
   function setActive(id: string): void {
     selectTool(st, id);
-    for (const b of root.querySelectorAll('[data-testid="tool"]')) {
-      (b as HTMLElement).dataset.active = String((b as HTMLElement).dataset.tool === id);
-    }
-    paintBubble(); // selecting the heart surfaces the corner tip
+    markActive();
+    refreshBubble(); // selecting the heart surfaces the corner tip
   }
 
   function reflectSize(): void {
@@ -161,10 +202,10 @@ export function createBuilder(d: BuilderDeps): BuilderApi {
   /** A fresh blank board every time the editor opens (no resume). */
   function init(def?: LevelDef): void {
     st = def ? fromDef(def) : createBuilderState(6, 6);
-    setActive('squishy');
+    lastStage = -1; // re-arm the guided pre-select for this session
     reflectSize();
     buildTiles($('bTiles'), st.w, st.h);
-    refresh();
+    refresh(); // applyStage pre-selects the heart on a fresh board
   }
 
   /** A happy floating piece that follows the finger while dragging (the icon is
@@ -230,6 +271,9 @@ export function createBuilder(d: BuilderDeps): BuilderApi {
 
   buildChips($('bSizes'), setSize);
   buildPalette($('bPalette'), $('bDots'), { onPick: setActive, onPage: () => undefined, onDragStart: onToolDragStart });
+  /* canonical share glyph beside the label (DRY, from uiIcons) */
+  $('bShare').innerHTML = ICON_SHARE + 'Share';
+  $('bShareNative').innerHTML = ICON_SHARE + 'Share';
   $('bPlay').addEventListener('click', () => void api.play());
   $('bSave').addEventListener('click', () => { try { api.save(); notify('Saved to Your Levels!'); } catch { notify('Make it solvable first!'); } });
   $('bShare').addEventListener('click', () => { try { openShare(api.share()); } catch { notify('Make it solvable first!'); } });
@@ -239,7 +283,9 @@ export function createBuilder(d: BuilderDeps): BuilderApi {
     const sheet = $('bShareSheet');
     sheet.dataset.shown = 'true';
     drawQr($('bShareQr') as HTMLCanvasElement, url);
-    $('bShareUrl').textContent = url;
+    const link = $('bShareUrl') as HTMLAnchorElement;
+    link.textContent = url;
+    link.href = url;
     const caps = shareCapabilities();
     const sb = $('bShareNative') as HTMLButtonElement;
     sb.style.display = caps.share ? '' : 'none';

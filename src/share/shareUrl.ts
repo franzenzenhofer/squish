@@ -7,36 +7,49 @@
    solver is injected so this module stays pure and cycle-free. */
 
 import type { LevelDef, SolveResult } from '../engine/types';
-import { encode, decode, geometryEqual, CodecError } from './codec';
+import { encode, decode, encodeBytes, decodeBytes, geometryEqual, CodecError } from './codec';
+import { compress, decompress } from './compress';
 
 export const SHARE_ORIGIN = 'https://squishy.franzai.com';
 
-/** Encode a level to its share code, proving the round-trip before returning. */
+/** Encode a level to its readable glyph code, proving the round-trip first. */
 export function buildShareCode(def: LevelDef): string {
   const code = encode(def);
-  const back = decode(code);
-  if (!geometryEqual(back, def)) {
+  if (!geometryEqual(decode(code), def)) {
     throw new Error('share self-check failed — refusing to emit a broken link');
   }
   return code;
 }
 
-/** Full public https share URL (never an app:// url — Web Share rejects those). */
+/** The compact, zip-compressed payload (z-...), self-checked before returning. */
+export function buildSharePayload(def: LevelDef): string {
+  const z = 'z-' + compress(encodeBytes(def));
+  if (!geometryEqual(decodeBytes(decompress(z.slice(2))), def)) {
+    throw new Error('share self-check failed — refusing to emit a broken link');
+  }
+  return z;
+}
+
+/** Full public https share URL (compressed; never an app:// url). */
 export function buildShareUrl(def: LevelDef, origin: string = SHARE_ORIGIN): string {
-  return origin + '/#' + buildShareCode(def);
+  return origin + '/#' + buildSharePayload(def);
 }
 
-/** Extract a level code from a location hash, or null. */
+/** Extract a share payload (z-... compressed, or level-... readable) from a hash. */
 export function parseShareHash(hash: string): string | null {
-  return hash.startsWith('#level-') ? hash.slice(1) : null;
+  if (hash.startsWith('#z-')) return hash.slice(1);
+  if (hash.startsWith('#level-')) return hash.slice(1);
+  return null;
 }
 
-/** CRC-verify + decode (untrusted), then solve to validate and stamp par. */
+/** Decode an untrusted payload (both forms), then solve to validate + stamp par. */
 export function importShareCode(
-  code: string,
+  payload: string,
   solveDef: (def: LevelDef) => SolveResult
 ): LevelDef {
-  const def = decode(code); // throws CodecError on corruption, before solving
+  const def = payload.startsWith('z-')
+    ? decodeBytes(decompress(payload.slice(2)))
+    : decode(payload); // throws CodecError on corruption, before solving
   const res = solveDef(def);
   if (res.status !== 'solved') {
     throw new CodecError('shared level is not solvable (' + res.status + ')');

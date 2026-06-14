@@ -14,15 +14,18 @@ describe('buildShareCode / buildShareUrl', () => {
     const code = buildShareCode(def);
     expect(code).toMatch(/^level-/);
   });
-  it('builds a public https url with the code in the hash', () => {
+  it('builds a public https url with a compressed payload in the hash', () => {
     const url = buildShareUrl(def);
-    expect(url).toMatch(/^https:\/\/squishy\.franzai\.com\/#level-/);
+    expect(url).toMatch(/^https:\/\/squishy\.franzai\.com\/#z-/);
     expect(url).not.toContain('app://');
   });
 });
 
 describe('parseShareHash', () => {
-  it('extracts a #level- code', () => {
+  it('extracts a compressed #z- payload', () => {
+    expect(parseShareHash('#z-eJxABC')).toBe('z-eJxABC');
+  });
+  it('still extracts a readable #level- code (backward compatible)', () => {
     expect(parseShareHash('#level-1-3x3-M00000002.abc')).toBe('level-1-3x3-M00000002.abc');
   });
   it('ignores other hashes', () => {

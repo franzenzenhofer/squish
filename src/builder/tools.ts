@@ -37,17 +37,18 @@ export const TOOLS: ToolDef[] = [
 
   { id: 'balloon', kind: 'paint', field: 'balloons', render: { type: 'sprite', name: 'balloon' }, label: 'Balloon', page: 2 },
   { id: 'snail', kind: 'paint', field: 'snails', render: { type: 'sprite', name: 'snail' }, label: 'Snail', page: 2 },
-  { id: 'nom', kind: 'paint', field: 'noms', render: { type: 'sprite', name: 'nomster' }, label: 'Nomster', page: 2 },
   { id: 'frog', kind: 'paint', field: 'frogs', render: { type: 'sprite', name: 'frog' }, label: 'Frog', page: 2 },
   { id: 'bear', kind: 'paint', field: 'bears', render: { type: 'sprite', name: 'bear' }, label: 'Bear', page: 2 },
   { id: 'penguin', kind: 'paint', field: 'penguins', render: { type: 'sprite', name: 'penguin' }, label: 'Penguin', page: 2 },
+  { id: 'bunny', kind: 'paint', field: 'bunnies', render: { type: 'sprite', name: 'bunny' }, label: 'Bunny', page: 2 },
 
-  { id: 'bunny', kind: 'paint', field: 'bunnies', render: { type: 'sprite', name: 'bunny' }, label: 'Bunny', page: 3 },
   { id: 'cat', kind: 'paint', field: 'cats', render: { type: 'sprite', name: 'cat' }, label: 'Cat', page: 3 },
   { id: 'chick', kind: 'paint', field: 'chicks', render: { type: 'sprite', name: 'chick' }, label: 'Chick', page: 3 },
   { id: 'pig', kind: 'paint', field: 'pigs', render: { type: 'sprite', name: 'pig' }, label: 'Pig', page: 3 },
   { id: 'ghost', kind: 'paint', field: 'ghosts', render: { type: 'sprite', name: 'ghost' }, label: 'Ghost', page: 3 },
-  { id: 'panda', kind: 'paint', field: 'pandas', render: { type: 'sprite', name: 'panda' }, label: 'Panda', page: 3 }
+  { id: 'panda', kind: 'paint', field: 'pandas', render: { type: 'sprite', name: 'panda' }, label: 'Panda', page: 3 },
+  /* the nomster eats squishies — it lives last in the palette */
+  { id: 'nom', kind: 'paint', field: 'noms', render: { type: 'sprite', name: 'nomster' }, label: 'Nomster', page: 3 }
 ];
 
 const BY_ID: Record<string, ToolDef> = Object.fromEntries(TOOLS.map((t) => [t.id, t]));

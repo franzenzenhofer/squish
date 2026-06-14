@@ -24,6 +24,8 @@ export interface BootPlan {
     resumes the saved campaign level. */
 export function bootPlan(savedLi: number, hash: string): BootPlan {
   if (hash === '#builder') return { daily: false, li: savedLi, builder: true };
-  if (hash.startsWith('#level-')) return { daily: false, li: savedLi, shared: hash.slice(1) };
+  if (hash.startsWith('#z-') || hash.startsWith('#level-')) {
+    return { daily: false, li: savedLi, shared: hash.slice(1) };
+  }
   return { daily: hash === '#daily', li: savedLi };
 }

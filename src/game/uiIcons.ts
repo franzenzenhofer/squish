@@ -13,3 +13,7 @@ export const ICON_ERASER =
 
 export const ICON_PLAY =
   '<svg class="uicon" viewBox="0 0 24 24"><path d="M8 6.2 L18 12 L8 17.8 Z" fill="currentColor" stroke="none"/></svg>';
+
+/* the canonical share glyph (same outline as the win card's Share button) */
+export const ICON_SHARE =
+  '<svg class="uicon" viewBox="0 0 24 24"><path d="M12 15 V4"/><path d="M8.5 7.5 L12 4 L15.5 7.5"/><path d="M6 12 V18.5 H18 V12"/></svg>';

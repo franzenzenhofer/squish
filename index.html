@@ -582,6 +582,7 @@
   .btool { aspect-ratio: 1; border: 2px solid #FCE3EE; border-radius: 16px; background: #FFF6FA; cursor: pointer;
     display: flex; align-items: center; justify-content: center; padding: 4px; touch-action: none; }
   .btool[data-active="true"] { border-color: var(--heart); background: #FFEAF2; }
+  .btool[data-disabled="true"] { opacity: .26; pointer-events: none; filter: grayscale(.5); }
   .btool img { width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
   .btool-eraser { color: var(--dim2); }
   .btool-eraser .uicon { width: 60%; height: 60%; }
@@ -598,11 +599,14 @@
   #bShareSheet { position: fixed; inset: 0; z-index: 12; display: none; align-items: center; justify-content: center;
     background: rgba(60,38,48,.4); }
   #bShareSheet[data-shown="true"] { display: flex; }
-  .bsheetcard { background: #fff; border-radius: 26px; padding: 22px; width: min(340px,90vw);
+  .bsheetx { position: absolute; top: 12px; right: 12px; }
+  .bact .uicon, #bActions button .uicon, .bsheetbtn .uicon { width: 19px; height: 19px; }
+  .bsheetcard { position: relative; background: #fff; border-radius: 26px; padding: 22px; width: min(340px,90vw);
     display: flex; flex-direction: column; align-items: center; gap: 14px; }
   .bsheettitle { font-weight: 800; color: var(--heart); font-size: 20px; }
   #bShareQr { width: 240px; height: 240px; image-rendering: pixelated; border-radius: 12px; }
-  #bShareUrl { font-size: 11px; color: var(--dim2); word-break: break-all; text-align: center; }
+  .bshareurl { font-size: 15px; font-weight: 700; color: #2563EB; text-decoration: underline;
+    word-break: break-all; text-align: center; cursor: pointer; }
   .bsheetbtns { display: flex; gap: 8px; width: 100%; }
   .bsheetbtn { flex: 1; font: inherit; font-weight: 700; font-size: 16px; padding: 13px 0; cursor: pointer;
     border: 2px solid var(--border); border-radius: 18px; background: #fff; color: var(--ink); box-shadow: 0 4px 0 var(--shadow); }
@@ -723,14 +727,16 @@
   </div>
   <div id="bShareSheet" data-testid="builder-share-sheet" data-shown="false">
     <div class="bsheetcard">
+      <button id="bShareClose" class="bexit bsheetx" aria-label="close">
+        <svg viewBox="0 0 24 24"><path d="M6 6 L18 18 M18 6 L6 18"/></svg>
+      </button>
       <div class="bsheettitle">Share your level</div>
       <canvas id="bShareQr" width="280" height="280"></canvas>
-      <div id="bShareUrl" data-testid="share-url"></div>
+      <a id="bShareUrl" class="bshareurl" data-testid="share-url" target="_blank" rel="noopener"></a>
       <div class="bsheetbtns">
         <button id="bShareNative" class="bsheetbtn primary">Share</button>
         <button id="bShareCopy" class="bsheetbtn">Copy link</button>
       </div>
-      <button id="bShareClose" class="bsheetbtn">Done</button>
     </div>
   </div>
 </div>
