@@ -58,8 +58,12 @@ function drawIcon(ctx: CanvasRenderingContext2D, spec: IntroSpec, now: number): 
     FLD[fld]?.(ctx, { px: 48, py: 50, cell: 88, now, gx: 0, gy: 0, dir: spec.tileDir });
     return;
   }
+  /* the bunny's tall ears reach ~1.68r above centre - at the shared portrait
+     size they poke past the top of the 96px canvas and get clipped, so give the
+     bunny a little more headroom (smaller body, nudged down) */
+  const tall = spec.kind === 'bunny';
   SPR[spec.kind === 'dot' ? 'star' : spec.kind]?.(ctx, {
-    x: 48, y: 52, cell: 110, now, idle: true, mood: 'happy', seed: 3
+    x: 48, y: tall ? 56 : 52, cell: tall ? 92 : 110, now, idle: true, mood: 'happy', seed: 3
   });
 }
 
