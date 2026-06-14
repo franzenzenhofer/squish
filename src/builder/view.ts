@@ -109,7 +109,7 @@ export function createBuilder(d: BuilderDeps): BuilderApi {
 
   const runner = createSolveRunner(
     (def) => d.solveDef(def).then((r) => { lastPar = r.par; return r.status; }),
-    (s) => { status = s; paintStatus(); }
+    (s) => { status = s; paintStatus(); refreshBubble(); }
   );
 
   function loop(now: number): void {
