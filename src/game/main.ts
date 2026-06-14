@@ -32,7 +32,7 @@ import type { PlayKind, Platform } from '../lib/trackSchema';
 import { solve } from '../engine/solve';
 import { createBuilder, type SolveInfo } from '../builder/view';
 import { installBuilderTestApi } from '../builder/testApi';
-import { importShareCode } from '../share/shareUrl';
+import { importShareCode, buildShareUrl } from '../share/shareUrl';
 
 const audio = createAudio();
 const assist = createAssist();
@@ -301,6 +301,8 @@ function showGoalCap(): void {
 function loadLevel(li: number, fromWin = false): void {
   s.li = li;
   s.play = { kind: 'campaign' };
+  customShareUrl = null; // a campaign level is not a custom share
+  builderReturnDef = null;
   s.mode = 'loading';
   const defP = assist.getLevel(li);
   /* deep endless levels bake in the worker — cover a cold bake cutely (the
@@ -500,8 +502,17 @@ const endings = createEndings({
   s, audio, main, canvas, reduced, track,
   caption: setCap,
   reload: () => fadeSwap(reduced, async () => applyLevel(await currentDef())),
-  /* daily solved -> back to the campaign; debug solved -> back to the picker */
+  /* an editor test-play returns to the editor; daily -> campaign; other debug
+     -> the picker; campaign -> the next level */
   next: () => {
+    if (builderReturnDef) {
+      endings.hideFlood();
+      const def = builderReturnDef;
+      builderReturnDef = null;
+      customShareUrl = null;
+      void builder.open(def);
+      return;
+    }
     if (s.play.kind === 'debug') {
       endings.hideFlood();
       s.play = { kind: 'campaign' };
@@ -510,7 +521,8 @@ const endings = createEndings({
       return;
     }
     loadLevel(s.play.kind === 'daily' ? s.li : s.li + 1, true);
-  }
+  },
+  shareUrlOverride: () => customShareUrl
 });
 
 const hooks: RenderHooks = {
@@ -675,8 +687,17 @@ const levelsPick = createLevelsPick({
 /* the level editor — plays a built level through the SAME applyLevel path, and
    judges solvability with the SAME worker solver (par = the optimal solution
    length). It returns to the start menu on exit. */
+/* a custom/shared level in play: its #level- URL (for the win-card Share) and,
+   for an editor test-play, the def to return to when the player is done. */
+let customShareUrl: string | null = null;
+let builderReturnDef: LevelDef | null = null;
+function customUrlOf(def: LevelDef): string | null {
+  try { return buildShareUrl(def); } catch { return null; }
+}
 function playBuilderLevel(def: LevelDef): void {
   s.play = { kind: 'debug', di: -1 };
+  customShareUrl = customUrlOf(def);
+  builderReturnDef = def; // a Play test returns to the editor when finished
   fadeSwap(reduced, async () => applyLevel(def));
 }
 const builderSolve = async (def: LevelDef): Promise<SolveInfo> => {
@@ -733,6 +754,8 @@ function startShared(code: string): void {
   try {
     const def = importShareCode(code, (d) => solve(makeLevel(d)));
     s.play = { kind: 'debug', di: -1 };
+    customShareUrl = customUrlOf(def);
+    builderReturnDef = null;
     history.replaceState(null, '', location.pathname + location.search);
     fadeSwap(reduced, async () => applyLevel(def));
   } catch (e) {

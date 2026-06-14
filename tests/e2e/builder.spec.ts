@@ -33,8 +33,8 @@ test('build a solvable level, save, see it, play it, delete it', async ({ page }
   await expect(page.locator('[data-testid="builder-status"]')).toHaveAttribute('data-status', 'solvable', { timeout: 10000 });
   await expect(page.locator('[data-testid="action-save"]')).toHaveAttribute('data-locked', 'false');
 
-  // a cell reports its fill through the DOM (AI-assertable board)
-  await expect(page.locator('.bcell[data-x="2"][data-y="0"]')).toHaveAttribute('data-fill', 'heart');
+  // the board state is AI-assertable through the API (the board is a canvas)
+  expect(await page.evaluate(() => window.__squishBuilder!.getState().target)).toEqual([2, 0]);
 
   // save -> appears in creations
   const id = await page.evaluate(() => window.__squishBuilder!.save().id);
@@ -57,9 +57,9 @@ test('drag-off deletes a piece and the pill reflects the DOM', async ({ page }) 
     b.resize(4, 4);
     b.selectTool('wall'); b.place(1, 1);
   });
-  await expect(page.locator('.bcell[data-x="1"][data-y="1"]')).toHaveAttribute('data-fill', 'wall');
+  expect(await page.evaluate(() => window.__squishBuilder!.getState().cells)).toHaveProperty('1,1', 'wall');
   await page.evaluate(() => window.__squishBuilder!.dragOff(1, 1));
-  await expect(page.locator('.bcell[data-x="1"][data-y="1"]')).toHaveAttribute('data-fill', 'empty');
+  expect(await page.evaluate(() => window.__squishBuilder!.getState().cells)).not.toHaveProperty('1,1');
 });
 
 test('a saved level shows in Your Levels and deletes from there', async ({ page }) => {

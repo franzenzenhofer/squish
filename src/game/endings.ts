@@ -27,6 +27,8 @@ export interface EndingsDeps {
   caption: (txt: string, bad: boolean) => void;
   reload: () => void;
   next: () => void;
+  /** when the played level is a custom/shared one, its #level- share URL */
+  shareUrlOverride: () => string | null;
   track: Tracker['track'];
 }
 
@@ -183,7 +185,8 @@ export function createEndings(d: EndingsDeps): Endings {
     if (ds.def && ds.label) {
       d.track('share', { k: trackKind(s), li: s.li });
       void shareCard(
-        JSON.parse(ds.def) as Session['def'], ds.label, ds.line ?? '', ds.daily === '1');
+        JSON.parse(ds.def) as Session['def'], ds.label, ds.line ?? '', ds.daily === '1',
+        d.shareUrlOverride() ?? undefined);
     }
   });
   elNext.addEventListener('click', () => {

@@ -133,8 +133,8 @@ function shareUrl(daily: boolean): string {
 }
 
 /** Share payload — the level + the open invitation, nothing competitive. */
-function shareText(label: string, daily: boolean): string {
-  return 'Squishy & Friends ' + label + ' - Can you solve it? ' + shareUrl(daily);
+function shareText(label: string, url: string): string {
+  return 'Squishy & Friends ' + label + ' - Can you solve it? ' + url;
 }
 
 function shareName(label: string, ext: string): string {
@@ -150,9 +150,12 @@ function canShareFile(file: File): boolean {
     fading into the claim card. Fallbacks, in order: the static postcard PNG,
     a plain link share, the clipboard. Exports are square and opaque. */
 export async function shareCard(
-  def: LevelDef, label: string, line = '', daily = false
+  def: LevelDef, label: string, line = '', daily = false, customUrl?: string
 ): Promise<void> {
-  const text = shareText(label, daily);
+  /* a custom/shared level shares ITS own #level- link so the recipient gets that
+     exact level; campaign/daily share the site (daily deep-links to #daily) */
+  const url = customUrl ?? shareUrl(daily);
+  const text = shareText(label, url);
   let gif: File | null = null;
   if (line) {
     try {
@@ -179,7 +182,7 @@ export async function shareCard(
       return;
     }
     if (navigator.share) {
-      await navigator.share({ text, url: shareUrl(daily) });
+      await navigator.share({ text, url });
       return;
     }
   } catch {
