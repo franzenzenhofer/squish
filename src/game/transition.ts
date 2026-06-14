@@ -8,16 +8,24 @@ const FADE_IN_MS = 240;
    the first 200ms after the click read as static pink) */
 const DRAIN_MS = 360;
 
+async function runApply(apply: () => Promise<void>): Promise<void> {
+  try {
+    await apply();
+  } catch (e) {
+    console.error('[squishy] level transition failed:', e);
+  }
+}
+
 /** Fade the veil in, run `apply` (may await level data), fade out. */
 export function fadeSwap(reduced: boolean, apply: () => Promise<void>): void {
   const el = document.getElementById('fade');
   if (!el || reduced) {
-    void apply();
+    void runApply(apply);
     return;
   }
   el.classList.add('show');
   const shown = new Promise((r) => setTimeout(r, FADE_IN_MS));
-  void Promise.all([shown, apply()]).then(() => {
+  void Promise.all([shown, runApply(apply)]).then(() => {
     requestAnimationFrame(() => el.classList.remove('show'));
   });
 }

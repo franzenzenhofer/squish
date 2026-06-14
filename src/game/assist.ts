@@ -72,6 +72,11 @@ export function createAssist(): Assist {
   const solveWaiters = new Map<number, (r: DeepSolveResult) => void>();
   const oracles = new Map<string, Promise<Oracle>>();
 
+  const dailyFallback = (date: string): LevelDef => {
+    console.error('[squishy] daily generation failed for ' + date + ' - using campaign fallback');
+    return CURATED[0] as LevelDef;
+  };
+
   dailyWorker.onmessage = (ev: MessageEvent<WorkerResponse>): void => {
     const msg = ev.data;
     if (msg.type === 'bake') {
@@ -84,10 +89,7 @@ export function createAssist(): Assist {
     if (msg.def) cacheDaily(msg.date, msg.def);
     const w = dailyWaiters.get(msg.id);
     dailyWaiters.delete(msg.id);
-    if (w && msg.def) w(msg.def);
-    if (w && !msg.def) {
-      throw new Error('daily generation failed for ' + msg.date);
-    }
+    if (w) w(msg.def ?? dailyFallback(msg.date));
   };
 
   worker.onmessage = (ev: MessageEvent<WorkerResponse>): void => {
