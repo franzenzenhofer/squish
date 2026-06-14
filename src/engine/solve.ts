@@ -32,7 +32,7 @@ export function solve(level: Level, opts?: SolveOptions, from?: GameState): Solv
     let winKey: string | null = null;
     for (const node of frontier) {
       for (const dirn of DIRNAMES) {
-        const r = move(level, node.st, dirn);
+        const r = move(level, node.st, dirn, { reports: false });
         if (!r.moved) continue;
         if (r.state.dots.length === 0) continue; // dead branch: dots never respawn
         const k = ser(r.state);

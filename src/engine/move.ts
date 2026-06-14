@@ -8,7 +8,7 @@
    every loop so all paths are finite. */
 import { DIRS, REV, ROTCW, key } from './core';
 import type {
-  Dir, Fx, GameState, Level, MoveEnd, MoveResult, MoverKind, MoverReport, PathStep, Pt
+  Dir, Fx, GameState, Level, MoveEnd, MoveOptions, MoveResult, MoverKind, MoverReport, PathStep, Pt
 } from './types';
 
 interface Settled extends Pt {
@@ -44,7 +44,8 @@ function frontMostFirst(movers: Runner[], d: Dir): Runner[] {
   return movers.sort((a, b) => (dx !== 0 ? (b.x - a.x) * dx : (b.y - a.y) * dy));
 }
 
-export function move(level: Level, state: GameState, dir: Dir): MoveResult {
+export function move(level: Level, state: GameState, dir: Dir, opts?: MoveOptions): MoveResult {
+  const withReports = opts?.reports !== false;
   const settled = new Map<string, Settled>();
   const broken = new Set(state.broken);
   const fed = new Set(state.fed);
@@ -64,16 +65,20 @@ export function move(level: Level, state: GameState, dir: Dir): MoveResult {
   }
   for (const p of state.pigs) {
     settled.set(key(p.x, p.y), { kind: 'pig', m: 1, x: p.x, y: p.y });
-    pigRecords.set(key(p.x, p.y), {
-      path: [{ x: p.x, y: p.y }], fx: [], end: 'rest', delayCells: 0
-    });
+    if (withReports) {
+      pigRecords.set(key(p.x, p.y), {
+        path: [{ x: p.x, y: p.y }], fx: [], end: 'rest', delayCells: 0
+      });
+    }
   }
   if (!pandaAwake) {
     for (const p of state.pandas) {
       settled.set(key(p.x, p.y), { kind: 'panda', m: 1, x: p.x, y: p.y });
-      out.push({
-        kind: 'panda', m0: 1, m: 1, path: [{ x: p.x, y: p.y }], fx: [], end: 'rest', stick: false
-      });
+      if (withReports) {
+        out.push({
+          kind: 'panda', m0: 1, m: 1, path: [{ x: p.x, y: p.y }], fx: [], end: 'rest', stick: false
+        });
+      }
     }
   }
 
@@ -95,27 +100,31 @@ export function move(level: Level, state: GameState, dir: Dir): MoveResult {
     const ow = level.oneway.get(tk);
     if (ow !== undefined && ow !== d) return 'blocked';
     if (settled.has(tk)) return 'blocked';
-    const rec = pigRecords.get(key(pig.x, pig.y));
-    if (!rec) return 'blocked';
+    const rec = withReports ? pigRecords.get(key(pig.x, pig.y)) : undefined;
+    if (withReports && !rec) return 'blocked';
     settled.delete(pk);
     moved = true;
-    rec.delayCells = delayCells;
+    if (rec) rec.delayCells = delayCells;
     if (level.ice.has(pk) && !broken.has(pk)) {
       broken.add(pk);
-      rec.fx.push({ type: 'crack', cell: { x: pig.x, y: pig.y }, idx: 0 });
+      if (rec) rec.fx.push({ type: 'crack', cell: { x: pig.x, y: pig.y }, idx: 0 });
     }
     if (isNom(tk)) {
       fed.add(tk);
-      rec.path.push({ x: tx, y: ty });
-      rec.fx.push({ type: 'feed', cell: { x: tx, y: ty }, idx: 1 });
-      rec.end = 'feed';
-      pigRecords.delete(pk);
-      pigRecords.set(tk + '!fed', rec);
+      if (rec) {
+        rec.path.push({ x: tx, y: ty });
+        rec.fx.push({ type: 'feed', cell: { x: tx, y: ty }, idx: 1 });
+        rec.end = 'feed';
+        pigRecords.delete(pk);
+        pigRecords.set(tk + '!fed', rec);
+      }
     } else {
       settled.set(tk, { kind: 'pig', m: 1, x: tx, y: ty, shoved: true });
-      rec.path.push({ x: tx, y: ty });
-      pigRecords.delete(pk);
-      pigRecords.set(tk, rec);
+      if (rec) {
+        rec.path.push({ x: tx, y: ty });
+        pigRecords.delete(pk);
+        pigRecords.set(tk, rec);
+      }
     }
     return broken.has(pk) ? 'cracked' : 'enter';
   }
@@ -123,17 +132,28 @@ export function move(level: Level, state: GameState, dir: Dir): MoveResult {
   function runMover(M: Runner, d0: Dir): void {
     let d = d0;
     let cur: Pt = { x: M.x, y: M.y };
-    const path: PathStep[] = [{ x: cur.x, y: cur.y }];
-    const fx: Fx[] = [];
+    const path: PathStep[] = withReports ? [{ x: cur.x, y: cur.y }] : [];
+    const fx: Fx[] = withReports ? [] : [];
     const entered = new Set<string>();
     let usedTp = false, usedTurn = false, usedBounce = false, usedWind = false;
     let usedCatTurn = false;
     let end: MoveEnd | null = null;
     let stick = false;
+    let pathLen = 1;
+    let effected = false;
     let steps = 0;
     const budget = budgetOf(M.kind);
     let guard = 6 * level.w * level.h + 16;
     const ghost = M.kind === 'ghost';
+
+    function pushStep(step: PathStep): void {
+      pathLen++;
+      if (withReports) path.push(step);
+    }
+
+    function effect(): void {
+      effected = true;
+    }
 
     /** Leaving a cell: shatter intact ice (not penguins/ghosts gliding);
         drop a splitter clone if a dot passed through. */
@@ -141,13 +161,15 @@ export function move(level: Level, state: GameState, dir: Dir): MoveResult {
       const ck = key(c.x, c.y);
       if (level.ice.has(ck) && !broken.has(ck) && M.kind !== 'penguin' && !ghost) {
         broken.add(ck);
-        fx.push({ type: 'crack', cell: { x: c.x, y: c.y }, idx: path.length - 1 });
+        effect();
+        if (withReports) fx.push({ type: 'crack', cell: { x: c.x, y: c.y }, idx: pathLen - 1 });
       }
       if (M.kind === 'dot' && level.split.has(ck) && entered.has(ck) && !settled.has(ck)) {
         const cm = Math.max(1, Math.floor(M.m / 2));
         M.m = Math.max(1, Math.ceil(M.m / 2));
         settled.set(ck, { kind: 'dot', m: cm, x: c.x, y: c.y });
-        fx.push({ type: 'split', cell: { x: c.x, y: c.y }, idx: path.length - 1, m: cm });
+        effect();
+        if (withReports) fx.push({ type: 'split', cell: { x: c.x, y: c.y }, idx: pathLen - 1, m: cm });
       }
     }
 
@@ -157,12 +179,14 @@ export function move(level: Level, state: GameState, dir: Dir): MoveResult {
         const k = key(cur.x, cur.y);
         if (M.kind === 'dot' && stars.has(k)) {
           stars.delete(k);
-          fx.push({ type: 'collect', cell: { x: cur.x, y: cur.y }, idx: path.length - 1 });
+          effect();
+          if (withReports) fx.push({ type: 'collect', cell: { x: cur.x, y: cur.y }, idx: pathLen - 1 });
         }
         if (isNom(k)) {
           if (M.kind === 'box' || M.kind === 'balloon') {
             fed.add(k);
-            fx.push({ type: 'feed', cell: { x: cur.x, y: cur.y }, idx: path.length - 1 });
+            effect();
+            if (withReports) fx.push({ type: 'feed', cell: { x: cur.x, y: cur.y }, idx: pathLen - 1 });
             return 'feed';
           }
           return 'die';
@@ -177,12 +201,15 @@ export function move(level: Level, state: GameState, dir: Dir): MoveResult {
           if (!settled.has(dk) && !isWallLike(dk)) {
             usedTp = true;
             leaveCell(cur);
-            fx.push({
-              type: 'beam', cell: { x: cur.x, y: cur.y },
-              to: { x: dest.x, y: dest.y }, idx: path.length - 1
-            });
+            effect();
+            if (withReports) {
+              fx.push({
+                type: 'beam', cell: { x: cur.x, y: cur.y },
+                to: { x: dest.x, y: dest.y }, idx: pathLen - 1
+              });
+            }
             cur = { x: dest.x, y: dest.y };
-            path.push({ x: dest.x, y: dest.y, tp: true });
+            pushStep({ x: dest.x, y: dest.y, tp: true });
             entered.add(dk);
             continue;
           }
@@ -199,11 +226,11 @@ export function move(level: Level, state: GameState, dir: Dir): MoveResult {
               leaveCell(cur);
               if (landOcc) {
                 landOcc.m += M.m;
-                path.push({ x: lx, y: ly, hop: true });
+                pushStep({ x: lx, y: ly, hop: true });
                 return 'merge';
               }
               cur = { x: lx, y: ly };
-              path.push({ x: lx, y: ly, hop: true });
+              pushStep({ x: lx, y: ly, hop: true });
               entered.add(lk);
               continue;
             }
@@ -212,15 +239,18 @@ export function move(level: Level, state: GameState, dir: Dir): MoveResult {
         if (level.turn.has(k) && !usedTurn) {
           usedTurn = true;
           d = ROTCW[d];
-          fx.push({ type: 'turn', cell: { x: cur.x, y: cur.y }, idx: path.length - 1 });
+          effect();
+          if (withReports) fx.push({ type: 'turn', cell: { x: cur.x, y: cur.y }, idx: pathLen - 1 });
         } else if (level.spring.has(k) && !usedBounce) {
           usedBounce = true;
           d = REV[d];
-          fx.push({ type: 'bounce', cell: { x: cur.x, y: cur.y }, idx: path.length - 1 });
+          effect();
+          if (withReports) fx.push({ type: 'bounce', cell: { x: cur.x, y: cur.y }, idx: pathLen - 1 });
         } else if (level.breeze.has(k) && !usedWind) {
           usedWind = true;
           d = level.breeze.get(k) as Dir;
-          fx.push({ type: 'wind', cell: { x: cur.x, y: cur.y }, idx: path.length - 1 });
+          effect();
+          if (withReports) fx.push({ type: 'wind', cell: { x: cur.x, y: cur.y }, idx: pathLen - 1 });
         }
         return 'continue';
       }
@@ -232,7 +262,8 @@ export function move(level: Level, state: GameState, dir: Dir): MoveResult {
       if (M.kind === 'cat' && !usedCatTurn) {
         usedCatTurn = true;
         d = ROTCW[d];
-        fx.push({ type: 'catturn', cell: { x: cur.x, y: cur.y }, idx: path.length - 1 });
+        effect();
+        if (withReports) fx.push({ type: 'catturn', cell: { x: cur.x, y: cur.y }, idx: pathLen - 1 });
         return 'turned';
       }
       return 'rest';
@@ -265,7 +296,7 @@ export function move(level: Level, state: GameState, dir: Dir): MoveResult {
         }
         leaveCell(cur);
         cur = { x: cur.x + dist * DIRS[d][0], y: cur.y + dist * DIRS[d][1] };
-        path.push({ x: cur.x, y: cur.y, hop: true });
+        pushStep({ x: cur.x, y: cur.y, hop: true });
         entered.add(key(cur.x, cur.y));
         steps++;
         const act = enterAt();
@@ -299,7 +330,8 @@ export function move(level: Level, state: GameState, dir: Dir): MoveResult {
       }
       if (!ghost && M.kind === 'bear' && isNom(k)) {
         fed.add(k);
-        fx.push({ type: 'scare', cell: { x: nx, y: ny }, idx: path.length - 1 });
+        effect();
+        if (withReports) fx.push({ type: 'scare', cell: { x: nx, y: ny }, idx: pathLen - 1 });
         end = 'rest';
         break;
       }
@@ -308,18 +340,19 @@ export function move(level: Level, state: GameState, dir: Dir): MoveResult {
         if (M.kind === 'dot' && occ.kind === 'dot' && !occ.phantom) {
           leaveCell(cur);
           occ.m += M.m;
-          path.push({ x: nx, y: ny });
+          pushStep({ x: nx, y: ny });
           end = 'merge';
           break;
         }
         if (occ.kind === 'pig' && M.kind !== 'bunny') {
-          const res = tryShove(k, occ, d, path.length - 1);
+          const res = tryShove(k, occ, d, pathLen - 1);
           if (res !== 'blocked') {
-            fx.push({ type: 'shove', cell: { x: nx, y: ny }, idx: path.length - 1 });
+            effect();
+            if (withReports) fx.push({ type: 'shove', cell: { x: nx, y: ny }, idx: pathLen - 1 });
             if (res === 'enter') {
               leaveCell(cur);
               cur = { x: nx, y: ny };
-              path.push({ x: nx, y: ny });
+              pushStep({ x: nx, y: ny });
             }
             end = 'rest';
             break;
@@ -331,7 +364,7 @@ export function move(level: Level, state: GameState, dir: Dir): MoveResult {
       }
       leaveCell(cur);
       cur = { x: nx, y: ny };
-      path.push(stepLen === 2 ? { x: nx, y: ny, hop: true } : { x: nx, y: ny });
+      pushStep(stepLen === 2 ? { x: nx, y: ny, hop: true } : { x: nx, y: ny });
       entered.add(k);
       steps++;
       if (ghost) continue;
@@ -346,8 +379,8 @@ export function move(level: Level, state: GameState, dir: Dir): MoveResult {
     if (end === 'rest') {
       settled.set(key(cur.x, cur.y), { kind: M.kind, m: M.m, x: cur.x, y: cur.y });
     }
-    if (path.length > 1 || fx.length > 0) moved = true;
-    out.push({ kind: M.kind, m0: M.m0, m: M.m, path, fx, end, stick });
+    if (pathLen > 1 || effected) moved = true;
+    if (withReports) out.push({ kind: M.kind, m0: M.m0, m: M.m, path, fx, end, stick });
   }
 
   /* ---- pass 1 ----------------------------------------------------------- */
@@ -375,9 +408,11 @@ export function move(level: Level, state: GameState, dir: Dir): MoveResult {
       for (const c of state.chicks) {
         settled.delete(key(c.x, c.y));
         settled.set(key(c.x, c.y), { kind: 'chick', m: 1, x: c.x, y: c.y });
-        out.push({
-          kind: 'chick', m0: 1, m: 1, path: [{ x: c.x, y: c.y }], fx: [], end: 'rest', stick: false
-        });
+        if (withReports) {
+          out.push({
+            kind: 'chick', m0: 1, m: 1, path: [{ x: c.x, y: c.y }], fx: [], end: 'rest', stick: false
+          });
+        }
       }
     } else {
       const pc: Runner[] = state.chicks.map((p) => ({ kind: 'chick', x: p.x, y: p.y, m: 1, m0: 1 }));
@@ -399,11 +434,13 @@ export function move(level: Level, state: GameState, dir: Dir): MoveResult {
   }
 
   /* ---- pig reports ------------------------------------------------------- */
-  for (const rec of pigRecords.values()) {
-    out.push({
-      kind: 'pig', m0: 1, m: 1, path: rec.path, fx: rec.fx, end: rec.end,
-      stick: false, delayCells: rec.delayCells
-    });
+  if (withReports) {
+    for (const rec of pigRecords.values()) {
+      out.push({
+        kind: 'pig', m0: 1, m: 1, path: rec.path, fx: rec.fx, end: rec.end,
+        stick: false, delayCells: rec.delayCells
+      });
+    }
   }
 
   /* ---- collect the new state --------------------------------------------- */

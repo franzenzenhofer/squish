@@ -13,6 +13,7 @@ import {
 import { toolById } from './tools';
 import { structuralErrors, canSolveCheck } from './validate';
 import { createSolveRunner, type SolveOutcome, type SolveStatus } from './solveDebounce';
+import { solveWithBrowserCache } from './solveCache';
 import { buildChips, buildPalette } from './dom';
 import { builderSession, drawBuilder, cellFromPoint } from './render';
 import { toolIcon } from './icons';
@@ -127,7 +128,7 @@ export function createBuilder(d: BuilderDeps): BuilderApi {
   }
 
   const runner = createSolveRunner(
-    (def) => d.solveDef(def).then((r) => { lastPar = r.par; return r.status; }),
+    (def) => solveWithBrowserCache(kv, def, d.solveDef).then((r) => { lastPar = r.par; return r.status; }),
     (s) => { status = s; paintStatus(); if (s === 'solvable' && lastMsg === HEART_HINT) hideBubble(); }
   );
 
@@ -479,7 +480,7 @@ export function createBuilder(d: BuilderDeps): BuilderApi {
     def: (): LevelDef => ({ ...toDef(st), par: lastPar }),
     validate: async (): Promise<SolveStatus> => {
       if (!canSolveCheck(st)) return 'idle';
-      const r = await d.solveDef(toDef(st));
+      const r = await solveWithBrowserCache(kv, toDef(st), d.solveDef);
       lastPar = r.par; status = r.status; paintStatus();
       return status;
     },

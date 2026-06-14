@@ -27,9 +27,13 @@ export interface AnalyzeOptions {
 
 interface Node {
   st: GameState;
-  edges: Array<{ dir: Dir; to: number }>;
+  /** encoded as (to << 2) | dirIndex */
+  edges: number[];
   win: boolean;
 }
+
+const edgeTo = (edge: number): number => edge >> 2;
+const edgeDir = (edge: number): Dir => DIRNAMES[edge & 3] as Dir;
 
 function nowMs(): number {
   return typeof performance !== 'undefined' ? performance.now() : Date.now();
@@ -44,11 +48,13 @@ export function analyzeLevel(level: Level, opts?: AnalyzeOptions): Oracle {
   const idx = new Map<string, number>();
   const nodes: Node[] = [];
   const keys: string[] = [];
+  const radj: number[][] = [];
   const addNode = (st: GameState, k: string): number => {
     const i = nodes.length;
     idx.set(k, i);
     keys.push(k);
     nodes.push({ st, edges: [], win: isWin(level, st) });
+    radj.push([]);
     return i;
   };
 
@@ -62,8 +68,9 @@ export function analyzeLevel(level: Level, opts?: AnalyzeOptions): Oracle {
       exhausted = false;
       break;
     }
-    for (const dir of DIRNAMES) {
-      const r = move(level, node.st, dir);
+    for (let dirIndex = 0; dirIndex < DIRNAMES.length; dirIndex++) {
+      const dir = DIRNAMES[dirIndex] as Dir;
+      const r = move(level, node.st, dir, { reports: false });
       if (!r.moved) continue;
       if (r.state.dots.length === 0) continue; // dead leaf: dots never respawn
       const k = ser(r.state);
@@ -75,15 +82,12 @@ export function analyzeLevel(level: Level, opts?: AnalyzeOptions): Oracle {
         }
         to = addNode(r.state, k);
       }
-      node.edges.push({ dir, to });
+      node.edges.push((to << 2) | dirIndex);
+      (radj[to] as number[]).push(i);
     }
   }
 
   /* reverse BFS from all win states */
-  const radj: number[][] = nodes.map(() => []);
-  for (let i = 0; i < nodes.length; i++) {
-    for (const e of (nodes[i] as Node).edges) (radj[e.to] as number[]).push(i);
-  }
   const distArr = new Int32Array(nodes.length).fill(-1);
   let frontier: number[] = [];
   for (let i = 0; i < nodes.length; i++) {
@@ -120,8 +124,8 @@ export function analyzeLevel(level: Level, opts?: AnalyzeOptions): Oracle {
       policy.set(k, '');
       continue;
     }
-    const best = (nodes[i] as Node).edges.find((e) => distArr[e.to] === d - 1);
-    policy.set(k, best ? best.dir : '');
+    const best = (nodes[i] as Node).edges.find((e) => distArr[edgeTo(e)] === d - 1);
+    policy.set(k, best === undefined ? '' : edgeDir(best));
   }
   return { exhausted, states: nodes.length, policy, dist };
 }
@@ -145,7 +149,7 @@ export function solutionFrom(level: Level, gs: GameState, oracle: Oracle): Dir[]
     if (isWin(level, st)) return line;
     const dir = oracle.policy.get(ser(st));
     if (dir === undefined || dir === '') return null;
-    const r = move(level, st, dir);
+    const r = move(level, st, dir, { reports: false });
     if (!r.moved) return null;
     st = r.state;
     line.push(dir);

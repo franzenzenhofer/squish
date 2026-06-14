@@ -150,6 +150,11 @@ export interface MoveResult {
   moved: boolean;
 }
 
+export interface MoveOptions {
+  /** false for solver/oracle paths that need only the next state */
+  reports?: boolean;
+}
+
 export type SolveStatus = 'solved' | 'unsolvable' | 'unknown';
 
 export interface SolveOptions {

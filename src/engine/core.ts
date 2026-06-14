@@ -113,7 +113,18 @@ export function isWin(level: Level, state: GameState): boolean {
 }
 
 function j(a: Pt[]): string {
+  if (a.length === 0) return '';
+  if (a.length === 1) {
+    const p = a[0] as Pt;
+    return key(p.x, p.y);
+  }
   return a.map((p) => key(p.x, p.y)).sort().join('|');
+}
+
+function setKey(a: Set<string>): string {
+  if (a.size === 0) return '';
+  if (a.size === 1) return a.values().next().value as string;
+  return Array.from(a).sort().join('|');
 }
 
 /** Canonical state string for BFS dedup (dot mass is cosmetic — excluded). */
@@ -122,9 +133,9 @@ export function ser(state: GameState): string {
     j(state.dots), j(state.boxes), j(state.balloons), j(state.snails),
     j(state.penguins), j(state.bears), j(state.ghosts), j(state.bunnies),
     j(state.frogs), j(state.pandas), j(state.cats), j(state.chicks), j(state.pigs),
-    Array.from(state.broken).sort().join('|'),
-    Array.from(state.fed).sort().join('|'),
-    Array.from(state.stars).sort().join('|'),
+    setKey(state.broken),
+    setKey(state.fed),
+    setKey(state.stars),
     String(state.parity),
     state.lastDir ?? '·'
   ].join('#');

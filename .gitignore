@@ -8,3 +8,4 @@ appstore/raw
 
 # test solver/oracle memo (per-environment, rebuilt on demand)
 tests/.solver-cache.json
+.daily-verify-cache.json
