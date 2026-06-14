@@ -160,6 +160,24 @@ test('the palette is ONE flat scroll row - no page dots', async ({ page }) => {
   expect(overflow).toBe(true);
 });
 
+test('closing the editor cancels an in-flight palette drag', async ({ page }) => {
+  const tool = page.locator('[data-testid="tool"][data-tool="heart"]');
+  const box = await tool.boundingBox();
+  expect(box).not.toBeNull();
+  const rect = box as NonNullable<typeof box>;
+  const x = rect.x + rect.width / 2;
+  const y = rect.y + rect.height / 2;
+
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x, y - 90, { steps: 6 });
+  await expect(page.locator('.bghost')).toHaveCount(1);
+
+  await page.evaluate(() => window.__squishBuilder!.close());
+  await expect(page.locator('.bghost')).toHaveCount(0);
+  await page.mouse.up();
+});
+
 test('New resets the editor to a fresh 4x4 board', async ({ page }) => {
   await page.evaluate(() => {
     const b = window.__squishBuilder!;

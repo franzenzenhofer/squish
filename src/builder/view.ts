@@ -76,6 +76,8 @@ export function createBuilder(d: BuilderDeps): BuilderApi {
   let bubbleTimer = 0;
   let cornerTipShown = false; // the corner tip fires once per level creation
   let lastStage = -1; // last guided-build stage (-1 forces a fresh pre-select on open)
+  let cancelActiveDrag: (() => void) | null = null;
+  let cancelPaletteGesture: (() => void) | null = null;
   const headerEl = document.querySelector('header') as HTMLElement; // the SHARED game header
 
   /* the browser Back button steps out: share sheet -> editor -> previous view.
@@ -290,12 +292,17 @@ export function createBuilder(d: BuilderDeps): BuilderApi {
     const blockScroll = (ev: TouchEvent): void => ev.preventDefault();
     document.addEventListener('touchmove', blockScroll, { passive: false });
     const move = (ev: PointerEvent): void => at(ev.clientX, ev.clientY);
+    let done = false;
+    let cancelThisDrag = (): void => undefined;
     const end = (place: boolean): void => {
+      if (done) return;
+      done = true;
       document.removeEventListener('pointermove', move);
       document.removeEventListener('pointerup', onUp);
       document.removeEventListener('pointercancel', onCancel);
       document.removeEventListener('touchmove', blockScroll);
       try { bc.releasePointerCapture(e.pointerId); } catch { /* already released */ }
+      if (cancelActiveDrag === cancelThisDrag) cancelActiveDrag = null;
       ghost.remove();
       const c = place ? cellFromPoint(bc, lx, ly, st.w, st.h) : null;
       if (c) edit(() => applyToolAt(st, tool, c[0], c[1]));        // dropped on the board
@@ -303,6 +310,8 @@ export function createBuilder(d: BuilderDeps): BuilderApi {
     };
     const onUp = (ev: PointerEvent): void => { at(ev.clientX, ev.clientY); end(true); };
     const onCancel = (): void => end(false); // the OS stole the touch: abort, restore
+    cancelThisDrag = onCancel;
+    cancelActiveDrag = cancelThisDrag;
     document.addEventListener('pointermove', move);
     document.addEventListener('pointerup', onUp);
     document.addEventListener('pointercancel', onCancel);
@@ -311,7 +320,16 @@ export function createBuilder(d: BuilderDeps): BuilderApi {
   // --- board: tap empty to place; pick up an existing piece and drag it around
   //     (or off the board to delete); drag-paint over empty cells ---
   let painting: [number, number] | null = null;
+  let paintingPointerId: number | null = null;
   let lastCell = '';
+  const stopPainting = (e?: PointerEvent): void => {
+    const pointerId = e?.pointerId ?? paintingPointerId;
+    if (pointerId !== null) {
+      try { bc.releasePointerCapture(pointerId); } catch { /* already released */ }
+    }
+    painting = null;
+    paintingPointerId = null;
+  };
   bc.addEventListener('pointerdown', (e) => {
     const c = cellFromPoint(bc, e.clientX, e.clientY, st.w, st.h);
     if (!c) return;
@@ -324,6 +342,7 @@ export function createBuilder(d: BuilderDeps): BuilderApi {
       return;
     }
     bc.setPointerCapture(e.pointerId);
+    paintingPointerId = e.pointerId;
     painting = c; lastCell = c.join(',');
     edit(() => placeAt(st, c[0], c[1]));
   });
@@ -338,9 +357,9 @@ export function createBuilder(d: BuilderDeps): BuilderApi {
     if (painting && !cellFromPoint(bc, e.clientX, e.clientY, st.w, st.h)) {
       edit(() => eraseAt(st, painting![0], painting![1])); // painted then off-board -> delete
     }
-    painting = null;
+    stopPainting(e);
   });
-  bc.addEventListener('pointercancel', () => { painting = null; }); // never stay stuck in paint mode
+  bc.addEventListener('pointercancel', stopPainting); // never stay stuck in paint mode
 
   /* The palette is a plain, fast, NATIVE left-right scroller (touch-action:pan-x
      gives momentum, no snap, no pages). The ONLY thing JS adds is the drag-out:
@@ -373,12 +392,14 @@ export function createBuilder(d: BuilderDeps): BuilderApi {
       document.removeEventListener('pointermove', onMove);
       document.removeEventListener('pointerup', onUp);
       document.removeEventListener('pointercancel', endOnly);
+      if (cancelPaletteGesture === end) cancelPaletteGesture = null;
     };
     const endOnly = (): void => end(); // a cancel (native scroll took over) never selects
     pal.addEventListener('pointerdown', (e) => {
       if (listening) return; // a gesture is already in flight (multi-touch)
       tool = ((e.target as HTMLElement).closest('[data-tool]') as HTMLElement | null)?.dataset.tool ?? '';
       sx = e.clientX; sy = e.clientY; decided = false; listening = true;
+      cancelPaletteGesture = end;
       document.addEventListener('pointermove', onMove);
       document.addEventListener('pointerup', onUp);
       document.addEventListener('pointercancel', endOnly);
@@ -432,7 +453,11 @@ export function createBuilder(d: BuilderDeps): BuilderApi {
     },
     close: (): void => {
       cancelAnimationFrame(raf);
-      painting = null; // never carry a half-finished paint/drag into the next open
+      cancelActiveDrag?.();
+      cancelActiveDrag = null;
+      cancelPaletteGesture?.();
+      cancelPaletteGesture = null;
+      stopPainting(); // never carry a half-finished paint/drag into the next open
       hideBubble();
       document.body.classList.remove('building'); // restore the game header
       root.classList.remove('show'); $('bShareSheet').dataset.shown = 'false';
@@ -462,6 +487,11 @@ export function createBuilder(d: BuilderDeps): BuilderApi {
       /* Play is gated on a proven-solvable board (heart + squishy + a solution) */
       if (status !== 'solvable') { notify('Make it solvable first!'); return Promise.resolve(); }
       persist(); // a playable level auto-saves to Your Levels
+      cancelActiveDrag?.();
+      cancelActiveDrag = null;
+      cancelPaletteGesture?.();
+      cancelPaletteGesture = null;
+      stopPainting();
       cancelAnimationFrame(raf);
       document.body.classList.remove('building'); // the play view uses the normal game header
       root.classList.remove('show'); d.closeMenu(); d.playDef({ ...toDef(st), par: lastPar || 1 });
