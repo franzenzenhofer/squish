@@ -80,7 +80,7 @@ test('tapping a saved level in Your Levels PLAYS it (not back to the start scree
   await page.waitForFunction(() => window.__squishy?.state().mode === 'idle', undefined, { timeout: 10000 });
   await expect(page.locator('#start')).not.toHaveClass(/show/);
   await expect(page.locator('#levels')).not.toHaveClass(/show/);
-  expect(await page.evaluate(() => window.__squishy?.state().play)).toContain('debug');
+  expect(await page.evaluate(() => window.__squishy?.state().play)).toBe('custom:saved');
 });
 
 test('after the last saved level, Next continues the normal campaign (no picker)', async ({ page }) => {
@@ -95,9 +95,11 @@ test('after the last saved level, Next continues the normal campaign (no picker)
   await page.evaluate(() => window.__squishy?.setInstantAnims(true));
   await page.click('[data-testid="creation-play"]');
   await page.waitForFunction(() => window.__squishy?.state().mode === 'idle', undefined, { timeout: 10000 });
+  await expect(page.locator('#lvl')).toHaveText('Yours');
   await waitForOracle(page);
   await page.evaluate(async () => { const g = window.__squishy!; for (const d of g.solution() ?? []) await g.move(d as never); });
   await expect(page.locator('#win')).toHaveClass(/show/, { timeout: 10000 });
+  await expect(page.locator('#winSub')).toContainText('Your level');
   await page.click('#winNext');
   await page.waitForFunction(() => window.__squishy?.state().play === 'campaign', undefined, { timeout: 10000 });
   await expect(page.locator('#levels')).not.toHaveClass(/show/);
@@ -147,7 +149,7 @@ test('a #level- deep link opens the shared level in play', async ({ page }) => {
   await page.goto('/?test=1' + hash);
   await page.waitForFunction(() => window.__squishy !== undefined);
   await page.waitForFunction(() => window.__squishy?.state().mode === 'idle', undefined, { timeout: 10000 });
-  expect(await page.evaluate(() => window.__squishy?.state().play)).toContain('debug');
+  expect(await page.evaluate(() => window.__squishy?.state().play)).toBe('custom:shared');
 });
 
 test('the browser back button steps out: share sheet -> editor -> previous view', async ({ page }) => {

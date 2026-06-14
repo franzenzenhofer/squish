@@ -58,12 +58,17 @@ export interface Ambient {
 export type Mode =
   | 'idle' | 'anim' | 'ohno' | 'win' | 'lose' | 'loading' | 'intro' | 'menu';
 
-/** What is being played — the campaign ladder, a dated daily puzzle, or a
-    debug test level (di = index into DEBUG_LEVELS; -1 = a baked one-off). */
+/** Where a one-off custom level came from. */
+export type CustomSource = 'builder' | 'saved' | 'shared' | 'bake';
+
+/** What is being played — campaign, daily, a debug test level, or a one-off
+    custom level. Custom source is explicit so UI/next-flow code does not need
+    to infer intent from the old overloaded debug -1 sentinel. */
 export type PlayTag =
   | { kind: 'campaign' }
   | { kind: 'daily'; date: string }
-  | { kind: 'debug'; di: number };
+  | { kind: 'debug'; di: number }
+  | { kind: 'custom'; source: CustomSource };
 
 export interface Session {
   li: number;

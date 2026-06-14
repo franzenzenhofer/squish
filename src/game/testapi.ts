@@ -77,7 +77,8 @@ export function installTestApi(d: TestApiDeps): void {
       moves: s.moves,
       mode: s.mode,
       play: s.play.kind === 'daily' ? 'daily:' + s.play.date
-        : s.play.kind === 'debug' ? 'debug:' + s.play.di : 'campaign',
+        : s.play.kind === 'debug' ? 'debug:' + s.play.di
+          : s.play.kind === 'custom' ? 'custom:' + s.play.source : 'campaign',
       line: s.line.join(''),
       ser: ser(s.gs),
       winnable: s.oracle

@@ -6,7 +6,7 @@ import { cx, cy, heartBurst } from './fx';
 import { saveAdvance, saveGame } from './persist';
 import { getSettings } from './settings';
 import { shareCard } from './share';
-import type { Session } from './session';
+import type { CustomSource, Session } from './session';
 import type { Tracker } from '../lib/track';
 import type { PlayKind } from '../lib/trackSchema';
 import { pickHintedLine, pickWinLine, pickWinTitle } from './winLines';
@@ -36,7 +36,7 @@ export interface EndingsDeps {
 
 /** Single-letter anonymous play kind for the counters. */
 function trackKind(s: Session): PlayKind {
-  return s.play.kind === 'daily' ? 'd' : s.play.kind === 'debug' ? 'g' : 'c';
+  return s.play.kind === 'campaign' ? 'c' : s.play.kind === 'daily' ? 'd' : 'g';
 }
 
 export interface Endings {
@@ -59,10 +59,15 @@ function ratingHearts(n: number): string {
 /** Campaign "Level 12" / daily "Daily 06-12" / debug "Test 3" — card + share label. */
 function levelLabel(s: Session): string {
   if (s.play.kind === 'daily') return 'Daily ' + s.play.date;
-  if (s.play.kind === 'debug') {
-    return s.play.di < 0 ? 'Baked level' : 'Test ' + (s.play.di + 1);
-  }
+  if (s.play.kind === 'debug') return 'Test ' + (s.play.di + 1);
+  if (s.play.kind === 'custom') return customLevelLabel(s.play.source);
   return 'Level ' + (s.li + 1);
+}
+
+function customLevelLabel(source: CustomSource): string {
+  return source === 'builder' ? 'Built level'
+    : source === 'saved' ? 'Your level'
+      : source === 'shared' ? 'Shared level' : 'Baked level';
 }
 
 export function createEndings(d: EndingsDeps): Endings {

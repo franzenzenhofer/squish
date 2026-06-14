@@ -524,7 +524,7 @@ test('?debug=doit: picker unlocks everything, test levels fire the oh-no', async
   await page.click('.lvbake .bkgo');
   await page.waitForFunction(() => {
     const m = window.__squishy?.state();
-    return m?.play === 'debug:-1' && (m.mode === 'idle' || m.mode === 'intro');
+    return m?.play === 'custom:bake' && (m.mode === 'idle' || m.mode === 'intro');
   }, undefined, { timeout: 60000 });
   expect(await page.evaluate(
     () => document.getElementById('levels')?.classList.contains('show'))).toBe(false);

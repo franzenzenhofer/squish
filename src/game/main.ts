@@ -25,7 +25,7 @@ import { createStart } from './start';
 import { mountWordmark } from './logo';
 import { hideToast, toast } from './toast';
 import { drawFrame, type RenderHooks } from './render';
-import { CURATED, blankSession, type Session } from './session';
+import { CURATED, blankSession, type CustomSource, type Session } from './session';
 import { installTestApi } from './testapi';
 import { createTracker } from '../lib/track';
 import type { PlayKind, Platform } from '../lib/trackSchema';
@@ -64,7 +64,7 @@ const { track } = createTracker({
   }
 });
 const playKind = (): PlayKind =>
-  s.play.kind === 'daily' ? 'd' : s.play.kind === 'debug' ? 'g' : 'c';
+  s.play.kind === 'campaign' ? 'c' : s.play.kind === 'daily' ? 'd' : 'g';
 /* one quit beacon per level attempt: backgrounding mid-level counts once */
 let quitSent = false;
 document.addEventListener('visibilitychange', () => {
@@ -175,14 +175,14 @@ function dismissCap(): void {
 }
 document.getElementById('capX')?.addEventListener('click', dismissCap);
 
-/* each bake gets a fresh oracle-cache key — two bakes are different levels */
-let debugPlaySeq = 0; /* a fresh oracle-cache key per custom/editor/shared/bake play */
+/* each custom play gets a fresh oracle-cache key — two equal-looking saved or
+   baked plays can still be different in the player flow. */
+let customPlaySeq = 0;
 
 function oracleKey(): string {
   if (s.play.kind === 'daily') return 'daily:' + s.play.date;
-  if (s.play.kind === 'debug') {
-    return s.play.di < 0 ? 'debug:play:' + debugPlaySeq : 'debug:' + s.play.di;
-  }
+  if (s.play.kind === 'debug') return 'debug:' + s.play.di;
+  if (s.play.kind === 'custom') return 'custom:' + s.play.source + ':' + customPlaySeq;
   return 'lvl:' + s.li;
 }
 
@@ -191,7 +191,8 @@ function hud(): void {
   /* one continuous ladder: plain numbers forever */
   elLvl.textContent =
     s.play.kind === 'daily' ? 'Daily'
-    : s.play.kind === 'debug' ? (s.play.di < 0 ? 'Bake' : 'T' + (s.play.di + 1))
+    : s.play.kind === 'debug' ? 'T' + (s.play.di + 1)
+    : s.play.kind === 'custom' ? customHudLabel(s.play.source)
     : String(n).padStart(2, '0');
   elMoves.innerHTML =
     '<b class="' + (s.moves > s.def.par ? 'over' : '') + '">' + s.moves +
@@ -208,7 +209,13 @@ function hud(): void {
   }
   /* debug plays carry the JSON export pill in the header */
   document.getElementById('dbgExport')?.classList.toggle(
-    'show', isDebug() && s.play.kind === 'debug');
+    'show', isDebug() && (s.play.kind === 'debug' || s.play.kind === 'custom'));
+}
+
+function customHudLabel(source: CustomSource): string {
+  return source === 'builder' ? 'Build'
+    : source === 'saved' ? 'Yours'
+      : source === 'shared' ? 'Shared' : 'Bake';
 }
 
 /** Push the current settings into the live chrome (footer classes, labels). */
@@ -433,8 +440,8 @@ function undo(): void {
 
 function currentDef(): Promise<LevelDef> {
   if (s.play.kind === 'daily') return assist.getDaily(s.play.date);
-  /* debug/baked: the def in play IS the level — reapply it as-is */
-  if (s.play.kind === 'debug') return Promise.resolve(s.def);
+  /* debug/custom: the def in play IS the level — reapply it as-is */
+  if (s.play.kind === 'debug' || s.play.kind === 'custom') return Promise.resolve(s.def);
   return assist.getLevel(s.li);
 }
 
@@ -458,8 +465,8 @@ async function bakeAndPlay(hardness: number): Promise<boolean> {
     toast('That bake fell flat - try again!', { ms: 2200 });
     return false;
   }
-  s.play = { kind: 'debug', di: -1 };
-  debugPlaySeq++; /* unique oracle key for THIS custom level */
+  s.play = { kind: 'custom', source: 'bake' };
+  customPlaySeq++; /* unique oracle key for THIS custom level */
   s.mode = 'loading';
   fadeSwap(reduced, async () => applyLevel(def));
   return true;
@@ -528,7 +535,7 @@ const endings = createEndings({
       loadLevel(s.li, true);
       return;
     }
-    if (s.play.kind === 'debug') {
+    if (s.play.kind === 'debug' || s.play.kind === 'custom') {
       endings.hideFlood();
       s.play = { kind: 'campaign' };
       loadLevel(s.li);
@@ -712,8 +719,8 @@ function customUrlOf(def: LevelDef): string | null {
   try { return buildShareUrl(def); } catch { return null; }
 }
 function playBuilderLevel(def: LevelDef): void {
-  s.play = { kind: 'debug', di: -1 };
-  debugPlaySeq++; /* unique oracle key for THIS custom level */
+  s.play = { kind: 'custom', source: 'builder' };
+  customPlaySeq++; /* unique oracle key for THIS custom level */
   customShareUrl = customUrlOf(def);
   builderReturnDef = def; // a Play test returns to the editor when finished
   customSeq = null;
@@ -751,8 +758,8 @@ function playCustomSequence(id: string): void {
 function playCustomAt(): void {
   const cr = customSeq && getCreation(localStorage, customSeq.ids[customSeq.i] ?? '');
   if (!cr) { customSeq = null; loadLevel(s.li); return; }
-  s.play = { kind: 'debug', di: -1 };
-  debugPlaySeq++; /* unique oracle key for THIS custom level */
+  s.play = { kind: 'custom', source: 'saved' };
+  customPlaySeq++; /* unique oracle key for THIS custom level */
   customShareUrl = customUrlOf(cr.def);
   builderReturnDef = null;
   fadeSwap(reduced, async () => applyLevel(cr.def));
@@ -762,8 +769,8 @@ function playShared(id: string): void {
   const cr = getShared(localStorage, id);
   if (!cr) return;
   customSeq = null;
-  s.play = { kind: 'debug', di: -1 };
-  debugPlaySeq++; /* unique oracle key for THIS custom level */
+  s.play = { kind: 'custom', source: 'shared' };
+  customPlaySeq++; /* unique oracle key for THIS custom level */
   customShareUrl = customUrlOf(cr.def);
   builderReturnDef = null;
   fadeSwap(reduced, async () => applyLevel(cr.def));
@@ -845,8 +852,8 @@ function startShared(code: string): void {
   try {
     const def = importShareCode(code, (d) => solve(makeLevel(d)));
     rememberSharedLevel(def); // keep it in "Shared with you" (deduped)
-    s.play = { kind: 'debug', di: -1 };
-  debugPlaySeq++; /* unique oracle key for THIS custom level */
+    s.play = { kind: 'custom', source: 'shared' };
+    customPlaySeq++; /* unique oracle key for THIS custom level */
     customShareUrl = customUrlOf(def);
     builderReturnDef = null;
     history.replaceState(null, '', location.pathname + location.search);

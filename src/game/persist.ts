@@ -62,9 +62,9 @@ const FRESH: SavedGame = {
 };
 
 /** The snapshot that survives a reload (pure — no storage). ONLY a campaign play
-    is a resume target: debug and daily plays coerce to the campaign pointer with
-    no stored def, so a reload (or "Continue") always returns to the real campaign
-    level, never the daily that was last opened. */
+    is a resume target: debug, custom, and daily plays coerce to the campaign
+    pointer with no stored def, so a reload (or "Continue") always returns to the
+    real campaign level, never a one-off that was last opened. */
 export function resumeSnapshot(s: Session): SavedGame {
   const campaign = s.play.kind === 'campaign';
   return {

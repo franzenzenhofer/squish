@@ -53,4 +53,13 @@ describe('resumeSnapshot', () => {
     expect(snap.li).toBe(5);
     expect(snap.def).toBe(s.def);
   });
+  it('never makes a custom level a resume target', () => {
+    const s = blankSession();
+    s.li = 9;
+    s.play = { kind: 'custom', source: 'saved' };
+    const snap = resumeSnapshot(s);
+    expect(snap.play).toEqual({ kind: 'campaign' });
+    expect(snap.li).toBe(9);
+    expect(snap.def).toBeNull();
+  });
 });
