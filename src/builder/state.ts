@@ -45,6 +45,22 @@ export function eraseAt(s: BuilderState, x: number, y: number): void {
   clearCell(s, x, y);
 }
 
+/** The tool id occupying a cell (heart/squishy/paint id), or null if empty. */
+export function pieceAt(s: BuilderState, x: number, y: number): string | null {
+  if (s.target && s.target[0] === x && s.target[1] === y) return 'heart';
+  if (s.dots.some((d) => d[0] === x && d[1] === y)) return 'squishy';
+  return s.cells.get(key(x, y)) ?? null;
+}
+
+/** Place a SPECIFIC tool at a cell without changing the active tool (used when
+    dragging an existing piece to a new cell). */
+export function applyToolAt(s: BuilderState, toolId: string, x: number, y: number): void {
+  const prev = s.active;
+  s.active = toolId;
+  placeAt(s, x, y);
+  s.active = prev;
+}
+
 /** Apply the active tool at a cell. */
 export function placeAt(s: BuilderState, x: number, y: number): void {
   if (!inBounds(s, x, y)) return;

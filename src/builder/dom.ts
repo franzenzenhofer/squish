@@ -1,8 +1,7 @@
-/* Builder DOM builders — the size chips, the paged tool palette, and the board
-   cell grid. The grid is a CSS grid of real buttons (one per cell) carrying
-   data-x / data-y / data-fill: it is both the touch surface AND the assertion
-   surface, so an AI or Playwright drives and reads the board without any canvas
-   pixel guessing. Pointer drag is tracked here; off-board release deletes. */
+/* Builder DOM builders — size chips, the empty-cell tile backdrop (a CSS grid
+   behind the game-rendered canvas), and the paged tool palette with a real
+   scroll-driven page indicator and drag-to-board start. No board renderer lives
+   here: the board is the game's own canvas (see render.ts). */
 
 import { TOOLS, PAGES, type ToolDef } from './tools';
 import { toolIcon } from './icons';
@@ -13,7 +12,7 @@ const el = (tag: string, cls?: string): HTMLElement => {
   return e;
 };
 
-export const SIZES = [4, 5, 6, 7, 8];
+export const SIZES = [3, 4, 5, 6, 7];
 
 export function buildChips(host: HTMLElement, onPick: (n: number) => void): void {
   host.textContent = '';
@@ -27,7 +26,21 @@ export function buildChips(host: HTMLElement, onPick: (n: number) => void): void
   }
 }
 
-function paletteButton(tool: ToolDef, onPick: (id: string) => void): HTMLButtonElement {
+/** Empty-cell tiles behind the canvas (pure CSS grid, w*h cells). */
+export function buildTiles(host: HTMLElement, w: number, h: number): void {
+  host.style.setProperty('--bw', String(w));
+  host.style.setProperty('--bh', String(h));
+  host.textContent = '';
+  for (let i = 0; i < w * h; i++) host.appendChild(el('div', 'btile'));
+}
+
+export interface PaletteHandlers {
+  onPick: (id: string) => void;
+  onPage: (page: number) => void;
+  onDragStart: (id: string, e: PointerEvent) => void;
+}
+
+function paletteButton(tool: ToolDef, h: PaletteHandlers): HTMLButtonElement {
   const b = el('button', 'btool') as HTMLButtonElement;
   b.dataset.testid = 'tool';
   b.dataset.tool = tool.id;
@@ -39,87 +52,33 @@ function paletteButton(tool: ToolDef, onPick: (id: string) => void): HTMLButtonE
     const img = el('img') as HTMLImageElement;
     img.src = toolIcon(tool.id);
     img.alt = tool.label;
+    img.draggable = false;
     b.appendChild(img);
   }
-  b.addEventListener('click', () => onPick(tool.id));
+  b.addEventListener('click', () => h.onPick(tool.id));
+  b.addEventListener('pointerdown', (e) => h.onDragStart(tool.id, e));
   return b;
 }
 
-export function buildPalette(host: HTMLElement, dots: HTMLElement, onPick: (id: string) => void): void {
+export function buildPalette(host: HTMLElement, dots: HTMLElement, h: PaletteHandlers): void {
   host.textContent = '';
   dots.textContent = '';
   for (let p = 0; p < PAGES; p++) {
     const page = el('div', 'bpage');
     page.dataset.page = String(p);
-    for (const tool of TOOLS.filter((t) => t.page === p)) page.appendChild(paletteButton(tool, onPick));
+    for (const tool of TOOLS.filter((t) => t.page === p)) page.appendChild(paletteButton(tool, h));
     host.appendChild(page);
     const dot = el('span', 'bdot');
     dot.dataset.testid = 'palette-page';
     dot.dataset.page = String(p);
+    if (p === 0) dot.dataset.active = 'true';
     dots.appendChild(dot);
   }
-}
-
-export interface GridHandlers {
-  onDown: (x: number, y: number) => void;
-  onEnter: (x: number, y: number) => void;
-  onOutside: (x: number, y: number) => void;
-}
-
-function cellAtPoint(grid: HTMLElement, cx: number, cy: number): [number, number] | null {
-  const t = document.elementFromPoint(cx, cy) as HTMLElement | null;
-  const cell = t?.closest('.bcell') as HTMLElement | null;
-  if (!cell || !grid.contains(cell)) return null;
-  return [Number(cell.dataset.x), Number(cell.dataset.y)];
-}
-
-export function buildGrid(grid: HTMLElement, w: number, h: number, hx: GridHandlers): void {
-  grid.textContent = '';
-  grid.style.setProperty('--bw', String(w));
-  grid.style.setProperty('--bh', String(h));
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const c = el('button', 'bcell') as HTMLButtonElement;
-      c.dataset.testid = 'cell';
-      c.dataset.x = String(x);
-      c.dataset.y = String(y);
-      c.dataset.fill = 'empty';
-      grid.appendChild(c);
+  host.addEventListener('scroll', () => {
+    const page = Math.round(host.scrollLeft / Math.max(1, host.clientWidth));
+    for (const d of dots.children) {
+      (d as HTMLElement).dataset.active = String(Number((d as HTMLElement).dataset.page) === page);
     }
-  }
-  let down: [number, number] | null = null;
-  let last = '';
-  grid.onpointerdown = (e): void => {
-    const hit = cellAtPoint(grid, e.clientX, e.clientY);
-    if (!hit) return;
-    grid.setPointerCapture(e.pointerId);
-    down = hit;
-    last = hit.join(',');
-    hx.onDown(hit[0], hit[1]);
-  };
-  grid.onpointermove = (e): void => {
-    if (!down) return;
-    const hit = cellAtPoint(grid, e.clientX, e.clientY);
-    if (!hit || hit.join(',') === last) return;
-    last = hit.join(',');
-    hx.onEnter(hit[0], hit[1]);
-  };
-  grid.onpointerup = (e): void => {
-    if (down && !cellAtPoint(grid, e.clientX, e.clientY)) hx.onOutside(down[0], down[1]);
-    down = null;
-  };
-}
-
-/** Reflect a cell's content: data-fill + the piece icon (empty clears it). */
-export function setCellFill(grid: HTMLElement, x: number, y: number, toolId: string | null): void {
-  const c = grid.querySelector(`.bcell[data-x="${x}"][data-y="${y}"]`) as HTMLElement | null;
-  if (!c) return;
-  c.dataset.fill = toolId ?? 'empty';
-  c.textContent = '';
-  if (!toolId) return;
-  const url = toolIcon(toolId);
-  if (!url) return;
-  const img = el('img') as HTMLImageElement;
-  img.src = url;
-  c.appendChild(img);
+    h.onPage(page);
+  });
 }
