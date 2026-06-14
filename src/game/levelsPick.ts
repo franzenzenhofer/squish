@@ -7,7 +7,7 @@
    and extra sections appear: the generated ladder, marathon milestones,
    hand-authored test levels and the hardness baker. */
 import type { LevelDef } from '../engine/types';
-import { SPR } from '../sprites';
+import { spriteIcon } from './spriteIcon';
 import { DEBUG_GEN_COUNT, isDebug } from './debugMode';
 import { DEBUG_LEVELS } from './debugLevels';
 import { CURATED, cachedGenLevel, type Session } from './session';
@@ -56,28 +56,7 @@ function castOf(def: LevelDef): string[] {
   return out;
 }
 
-/* mini icons: each kind painted ONCE by the gameplay sprite painter (SSOT)
-   into a small offscreen canvas, reused as an <img> on every card */
-const ICON_CSS = 18;
-const ICON_SCALE = 2;
-const iconCache = new Map<string, string>();
-
-function iconUrl(kind: string): string {
-  const hit = iconCache.get(kind);
-  if (hit) return hit;
-  const c = document.createElement('canvas');
-  c.width = c.height = ICON_CSS * ICON_SCALE;
-  const ctx = c.getContext('2d');
-  if (!ctx) return '';
-  ctx.scale(ICON_SCALE, ICON_SCALE);
-  SPR[kind]?.(ctx, {
-    x: ICON_CSS / 2, y: ICON_CSS * 0.62, cell: ICON_CSS * 0.92,
-    now: 0, idle: true, mood: 'happy', seed: 3
-  });
-  const url = c.toDataURL();
-  iconCache.set(kind, url);
-  return url;
-}
+/* mini cast icons reuse the ONE shared sprite-icon painter (SSOT, src/game/spriteIcon) */
 
 /* Marketing showcase: the picker displays cards all the way to 200 so players
    see the journey does not stop at the 50 curated levels. Cards 51-200 are the
@@ -162,7 +141,7 @@ export function createLevelsPick(d: LevelsDeps): LevelsPick {
          cast of friends (and hearts/par work too) */
       for (const kind of castOf(def)) {
         const img = document.createElement('img');
-        img.src = iconUrl(kind);
+        img.src = spriteIcon(kind);
         img.alt = kind;
         cast.appendChild(img);
       }
