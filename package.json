@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src scripts tests",
-    "test": "vitest run --exclude 'tests/e2e/**'",
+    "test": "vitest run",
     "levels": "tsx scripts/build-levels.ts",
     "gates": "npm run typecheck && npm run lint && npm run test && npm run build",
     "gates:ios": "npm run typecheck && npm run lint && npm run test && npm run build:ios",
@@ -18,7 +18,8 @@
     "levels:audit": "tsx scripts/audit-levels.ts",
     "daily:verify": "tsx scripts/verify-daily.ts",
     "e2e": "playwright test",
-    "levels:ladder": "tsx scripts/audit-ladder.ts"
+    "levels:ladder": "tsx scripts/audit-ladder.ts",
+    "shots": "npm run build && (vite preview --port 4378 --strictPort & SRV=$!; sleep 2; tsx scripts/appstore-shots.ts; kill $SRV)"
   },
   "devDependencies": {
     "@eslint/js": "^9.28.0",
@@ -33,6 +34,7 @@
     "wrangler": "^4.18.0"
   },
   "dependencies": {
-    "gifenc": "^1.0.3"
+    "gifenc": "^1.0.3",
+    "qrcode-generator": "^2.0.4"
   }
 }

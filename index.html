@@ -336,6 +336,18 @@
     display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px;
     width: 100%; max-width: 380px; padding: 4px 0 6px;
   }
+  /* Your Levels — the player's own saved creations */
+  .lvmineWrap { width: 100%; max-width: 380px; display: flex; flex-direction: column; align-items: stretch; }
+  .lvmine { display: flex; flex-direction: column; gap: 8px; width: 100%; padding-bottom: 6px; }
+  .lvmrow { display: flex; gap: 8px; align-items: stretch; }
+  .lvmplay { flex: 1; min-width: 0; text-align: left; border: 2px solid var(--border); background: #fff;
+    border-radius: 16px; padding: 11px 14px; cursor: pointer; display: flex; flex-direction: column; gap: 2px;
+    box-shadow: 0 4px 0 var(--shadow); }
+  .lvmplay b { color: var(--heart); font-size: 15px; }
+  .lvmplay span { color: var(--dim2); font-size: 12px; }
+  .lvmbtn { flex: none; width: 46px; border: 2px solid var(--border); background: #fff; border-radius: 16px;
+    cursor: pointer; font-size: 17px; box-shadow: 0 4px 0 var(--shadow); }
+  .lvmplay:active, .lvmbtn:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--shadow); }
   .lvcard {
     position: relative; border-radius: 18px; cursor: pointer;
     background: #fff; border: 2px solid var(--border);
@@ -517,6 +529,77 @@
   }
   /* No prefers-reduced-motion overrides: the game always animates (the gentle
      animations ARE the product - frozen countdowns/replays read as broken). */
+
+  /* ---- Level builder: one mobile screen, board high, tools in the thumb zone ---- */
+  #builder {
+    position: fixed; inset: 0; z-index: 11; display: none;
+    flex-direction: column; align-items: center;
+    background: radial-gradient(130% 90% at 50% -15%, #FFFAFC 0%, #FFEFF6 42%, #FFE2EE 100%);
+    padding: max(8px, env(safe-area-inset-top)) 12px max(10px, env(safe-area-inset-bottom));
+    gap: 10px; overflow: hidden;
+  }
+  #builder.show { display: flex; }
+  .bhead { width: min(440px,100%); display: flex; align-items: center; gap: 8px; padding: 4px 2px 0; }
+  .btitle { font-weight: 800; color: var(--heart); font-size: 17px; flex: 1; min-width: 0; white-space: nowrap; }
+  .btitle em { display: none; }
+  @media (min-width: 380px) { .btitle em { display: inline; } }
+  .btitle .bheart { color: var(--pink); }
+  .btitle em { font-style: normal; font-size: 12px; letter-spacing: .12em; color: var(--dim2);
+    border: 2px solid var(--border); border-radius: 999px; padding: 2px 8px; margin-left: 4px; vertical-align: middle; }
+  #bStatus { font-weight: 800; font-size: 13px; letter-spacing: .06em; padding: 8px 14px; border-radius: 999px;
+    border: 2px solid var(--border); background: #fff; color: var(--dim2); white-space: nowrap; }
+  #bStatus[data-status="solvable"] { background: #DCF6E3; border-color: #AEE6C0; color: #2F9D5B; }
+  #bStatus[data-status="unsolvable"] { background: #FFE2EA; border-color: #FFC2D2; color: var(--heart-edge); }
+  #bStatus[data-status="checking"] { color: var(--dim); }
+  #bStatus::before { content: "✓ "; }
+  #bStatus[data-status="unsolvable"]::before { content: "✗ "; }
+  #bStatus[data-status="idle"]::before, #bStatus[data-status="checking"]::before, #bStatus[data-status="unknown"]::before { content: ""; }
+  #bBubble { width: min(440px,100%); min-height: 0; display: flex; }
+  #bBubble[data-shown="false"] { visibility: hidden; }
+  #bBubble #bBubbleText { background: #fff; border: 2px solid var(--bubble-bd); border-radius: 18px;
+    padding: 10px 14px; color: var(--ink); font-weight: 600; font-size: 15px; box-shadow: 0 4px 0 var(--shadow); }
+  .bsizes { display: flex; gap: 6px; }
+  .bchip { font-weight: 800; font-size: 14px; color: var(--dim2); background: #FFEAF2; border: none;
+    border-radius: 999px; padding: 7px 12px; cursor: pointer; }
+  .bchip[data-active="true"] { background: var(--heart); color: #fff; }
+  #bBoardWrap { width: min(440px, 92vw); max-width: 70vh; aspect-ratio: 1; background: #fff;
+    border-radius: 26px; padding: 12px; box-shadow: 0 8px 0 var(--shadow); }
+  .bgrid { width: 100%; height: 100%; display: grid; gap: 5px; touch-action: none;
+    grid-template-columns: repeat(var(--bw), 1fr); grid-template-rows: repeat(var(--bh), 1fr); }
+  .bcell { border: none; border-radius: 12px; background: #FBEFF4; padding: 0; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; }
+  .bcell[data-fill]:not([data-fill="empty"]) { background: #FFF6FA; }
+  .bcell img { width: 86%; height: 86%; object-fit: contain; pointer-events: none; }
+  .bpalwrap { width: min(440px,100%); background: #fff; border-radius: 22px; padding: 10px;
+    box-shadow: 0 6px 0 var(--shadow); }
+  .bpalette { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; scroll-snap-type: x mandatory; }
+  .bpalette::-webkit-scrollbar { display: none; }
+  .bpage { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; min-width: 100%; scroll-snap-align: start; }
+  .btool { aspect-ratio: 1; border: 2px solid #FCE3EE; border-radius: 16px; background: #FFF6FA; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; padding: 4px; }
+  .btool[data-active="true"] { border-color: var(--heart); background: #FFEAF2; }
+  .btool img { width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
+  .btool-eraser { font-size: 22px; color: var(--dim2); }
+  .bdots { display: flex; gap: 5px; justify-content: center; padding-top: 8px; }
+  .bdot { width: 6px; height: 6px; border-radius: 999px; background: var(--border); }
+  .bactions { width: min(440px,100%); display: flex; gap: 8px; }
+  .bact { flex: 1; font-weight: 800; font-size: 16px; padding: 14px 8px; border-radius: 18px; cursor: pointer;
+    border: 2px solid var(--border); background: #fff; color: var(--ink); box-shadow: 0 5px 0 var(--shadow); }
+  .bact:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--shadow); }
+  .bact-play { flex: 1.3; background: var(--heart); color: #fff; border-color: var(--heart-edge); }
+  .bact[data-locked="true"] { opacity: .45; }
+  .bexit { flex: none; width: 40px; height: 40px; border-radius: 999px; border: 2px solid var(--border); background: #fff;
+    color: var(--heart); display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; }
+  .bexit svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 3.2; stroke-linecap: round; }
+  #bShareSheet { position: fixed; inset: 0; z-index: 12; display: none; align-items: center; justify-content: center;
+    background: rgba(60,38,48,.4); }
+  #bShareSheet[data-shown="true"] { display: flex; }
+  .bsheetcard { background: #fff; border-radius: 26px; padding: 22px; width: min(340px,90vw);
+    display: flex; flex-direction: column; align-items: center; gap: 14px; }
+  .bsheettitle { font-weight: 800; color: var(--heart); font-size: 20px; }
+  #bShareQr { width: 240px; height: 240px; image-rendering: pixelated; border-radius: 12px; }
+  #bShareUrl { font-size: 11px; color: var(--dim2); word-break: break-all; text-align: center; }
+  .bsheetbtns { display: flex; gap: 8px; width: 100%; }
 </style>
 </head>
 <body>
@@ -600,9 +683,45 @@
     <div id="startBtns">
       <button id="bplay"><span class="bp-main">Play</span><span class="bp-sub" id="bplaySub">LEVEL 1</span></button>
       <button id="blevels">Levels</button>
+      <button id="bcreate" data-testid="home-create">Create your own adventure</button>
       <button id="bdaily">Daily <span id="bdailyDate"></span></button>
     </div>
     <button id="bsettings">Settings</button>
+  </div>
+</div>
+<div id="builder" data-testid="builder">
+  <div class="bhead">
+    <button id="bExit" class="bexit" data-testid="builder-exit" aria-label="close builder">
+      <svg viewBox="0 0 24 24"><path d="M6 6 L18 18 M18 6 L6 18"/></svg>
+    </button>
+    <span class="btitle">Squishy <span class="bheart">♥</span> <em>BUILDER</em></span>
+    <span id="bStatus" data-testid="builder-status" data-status="idle"><span id="bStatusText">KEEP GOING</span></span>
+  </div>
+  <div id="bBubble" data-testid="builder-bubble" data-shown="false">
+    <span id="bBubbleText"></span>
+  </div>
+  <div id="bSizes" class="bsizes"></div>
+  <div id="bBoardWrap"><div id="bGrid" class="bgrid"></div></div>
+  <div class="bpalwrap">
+    <div id="bPalette" class="bpalette"></div>
+    <div id="bDots" class="bdots"></div>
+  </div>
+  <div class="bactions">
+    <button id="bPlay" data-testid="action-play" class="bact bact-play">▶ Play</button>
+    <button id="bSave" data-testid="action-save" class="bact" data-locked="true">▣ Save</button>
+    <button id="bShare" data-testid="action-share" class="bact" data-locked="true">⇪ Share</button>
+  </div>
+  <div id="bShareSheet" data-testid="builder-share-sheet" data-shown="false">
+    <div class="bsheetcard">
+      <div class="bsheettitle">Share your level</div>
+      <canvas id="bShareQr" width="280" height="280"></canvas>
+      <div id="bShareUrl" data-testid="share-url"></div>
+      <div class="bsheetbtns">
+        <button id="bShareNative" class="bact bact-play">Share</button>
+        <button id="bShareCopy" class="bact">Copy link</button>
+      </div>
+      <button id="bShareClose" class="bact">Done</button>
+    </div>
   </div>
 </div>
 <div id="levels">

@@ -12,7 +12,7 @@ import { silentAudio } from './audio';
 import { buildSprites, handleFx, onEnd } from './fx';
 import { drawFrame, type RenderHooks } from './render';
 import {
-  BOARD_PX, CARD_H, CARD_W, cardSession, drawCard, drawCardChrome
+  BOARD_PX, CARD_H, CARD_W, cardSession, drawCard, drawCardChrome, shareCanvas
 } from './share';
 
 const FPS = 12;
@@ -23,9 +23,13 @@ const SETTLE_FRAMES = 4;
 const FADE_FRAMES = 8;
 const CLAIM_HOLD_FRAMES = 12;
 const MAX_FRAMES = 90; /* hard ceiling — a stuck animation must not loop forever */
-/* GIF output scale: 0.65 of the postcard keeps shares ~1-2MB */
-const GIF_W = 416;
-const GIF_H = 507;
+/* GIF output: 1.2x the logical card (768x936), downscaled once from a
+   SHARE_DPR-supersampled card, so the board art stays crisp. The cosy flat
+   pastel palette compresses well, keeping shares roughly ~1.5-2.5MB. */
+const GIF_W = 768;
+const GIF_H = 936;
+
+export { GIF_W, GIF_H };
 
 /** The closing claim card: wordmark + a big invitation. */
 function drawClaimCard(ctx: CanvasRenderingContext2D, label: string): void {
@@ -57,14 +61,10 @@ function drawClaimCard(ctx: CanvasRenderingContext2D, label: string): void {
 /** Render the share GIF for a level + the player's line. Pure CPU work on a
     virtual clock; resolves to a GIF blob (or throws if encoding fails). */
 export function buildShareGif(def: LevelDef, label: string, line: string): Blob {
-  const card = document.createElement('canvas');
-  card.width = CARD_W;
-  card.height = CARD_H;
-  const cctx = card.getContext('2d') as CanvasRenderingContext2D;
-  const board = document.createElement('canvas');
-  board.width = BOARD_PX;
-  board.height = BOARD_PX;
-  const bctx = board.getContext('2d') as CanvasRenderingContext2D;
+  const card = shareCanvas(CARD_W, CARD_H);
+  const cctx = card.ctx;
+  const board = shareCanvas(BOARD_PX, BOARD_PX);
+  const bctx = board.ctx;
   const out = document.createElement('canvas');
   out.width = GIF_W;
   out.height = GIF_H;
@@ -108,7 +108,7 @@ export function buildShareGif(def: LevelDef, label: string, line: string): Blob 
   /* phase 1: play the first moves on the virtual clock, capturing frames */
   const frames: ImageData[] = [];
   const capture = (): void => {
-    octx.drawImage(card, 0, 0, GIF_W, GIF_H);
+    octx.drawImage(card.el, 0, 0, GIF_W, GIF_H);
     frames.push(octx.getImageData(0, 0, GIF_W, GIF_H));
   };
 
@@ -120,7 +120,7 @@ export function buildShareGif(def: LevelDef, label: string, line: string): Blob 
       nextAt = t + STEP_GAP_MS;
     }
     drawFrame(bctx, rs, t, hooks);
-    drawCard(cctx, board, label, 0);
+    drawCard(cctx, board.el, label, 0);
     capture();
     t += DT;
     if (movesSettled >= codes.length && rs.mode === 'idle') {
@@ -128,25 +128,22 @@ export function buildShareGif(def: LevelDef, label: string, line: string): Blob 
     }
   }
 
-  /* phase 2: crossfade to the claim card, then hold */
-  const lastPlay = document.createElement('canvas');
-  lastPlay.width = CARD_W;
-  lastPlay.height = CARD_H;
-  (lastPlay.getContext('2d') as CanvasRenderingContext2D).drawImage(card, 0, 0);
-  const claim = document.createElement('canvas');
-  claim.width = CARD_W;
-  claim.height = CARD_H;
-  drawClaimCard(claim.getContext('2d') as CanvasRenderingContext2D, label);
+  /* phase 2: crossfade to the claim card, then hold (supersampled, drawn at
+     explicit logical size so the scaled contexts compose correctly) */
+  const lastPlay = shareCanvas(CARD_W, CARD_H);
+  lastPlay.ctx.drawImage(card.el, 0, 0, CARD_W, CARD_H);
+  const claim = shareCanvas(CARD_W, CARD_H);
+  drawClaimCard(claim.ctx, label);
   for (let i = 1; i <= FADE_FRAMES; i++) {
     cctx.globalAlpha = 1;
-    cctx.drawImage(lastPlay, 0, 0);
+    cctx.drawImage(lastPlay.el, 0, 0, CARD_W, CARD_H);
     cctx.globalAlpha = i / FADE_FRAMES;
-    cctx.drawImage(claim, 0, 0);
+    cctx.drawImage(claim.el, 0, 0, CARD_W, CARD_H);
     cctx.globalAlpha = 1;
     capture();
   }
   for (let i = 0; i < CLAIM_HOLD_FRAMES; i++) {
-    cctx.drawImage(claim, 0, 0);
+    cctx.drawImage(claim.el, 0, 0, CARD_W, CARD_H);
     capture();
   }
 

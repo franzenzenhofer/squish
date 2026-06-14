@@ -29,6 +29,10 @@ import { CURATED, blankSession, type Session } from './session';
 import { installTestApi } from './testapi';
 import { createTracker } from '../lib/track';
 import type { PlayKind, Platform } from '../lib/trackSchema';
+import { solve } from '../engine/solve';
+import { createBuilder, type SolveInfo } from '../builder/view';
+import { installBuilderTestApi } from '../builder/testApi';
+import { importShareCode } from '../share/shareUrl';
 
 const audio = createAudio();
 const assist = createAssist();
@@ -664,7 +668,28 @@ const levelsPick = createLevelsPick({
     startMenu.close();
     return bakeAndPlay(hardness);
   },
+  onPlayCustom: (def) => playBuilderLevel(def),
+  onEditCustom: (id) => void builder.editCreation(id),
   unlockAudio: () => audio.unlock()
+});
+/* the level editor — plays a built level through the SAME applyLevel path, and
+   judges solvability with the SAME worker solver (par = the optimal solution
+   length). It returns to the start menu on exit. */
+function playBuilderLevel(def: LevelDef): void {
+  s.play = { kind: 'debug', di: -1 };
+  fadeSwap(reduced, async () => applyLevel(def));
+}
+const builderSolve = async (def: LevelDef): Promise<SolveInfo> => {
+  const r = await assist.deepSolve(def, cloneState(makeLevel(def).initState));
+  if (r.status === 'solved') return { status: 'solvable', par: r.solution.length };
+  return { status: r.status === 'unsolvable' ? 'unsolvable' : 'unknown', par: 0 };
+};
+const builder = createBuilder({
+  s,
+  playDef: playBuilderLevel,
+  solveDef: builderSolve,
+  onExit: () => startMenu.open(),
+  closeMenu: () => startMenu.close()
 });
 const startMenu = createStart({
   s,
@@ -678,6 +703,7 @@ const startMenu = createStart({
   },
   onDaily: () => startDaily(),
   onLevels: () => levelsPick.open(),
+  onCreate: () => void builder.open(),
   onSettings: () => settingsView.open(),
   unlockAudio: () => audio.unlock()
 });
@@ -698,6 +724,24 @@ installTestApi({
   solution: () => hints.solution(),
   applySettings
 });
+installBuilderTestApi(builder);
+
+/* a shared #level-<code> link: decode (CRC-checked), prove it solves, stamp the
+   optimal par, then play it. An untrusted/broken link never crashes — it falls
+   back to the menu with a friendly toast. */
+function startShared(code: string): void {
+  try {
+    const def = importShareCode(code, (d) => solve(makeLevel(d)));
+    s.play = { kind: 'debug', di: -1 };
+    history.replaceState(null, '', location.pathname + location.search);
+    fadeSwap(reduced, async () => applyLevel(def));
+  } catch (e) {
+    console.error('[shared] import failed:', e);
+    toast('That puzzle link looks broken');
+    startMenu.open();
+    loadLevel(s.li);
+  }
+}
 
 const saved = loadGame();
 s.results = saved.results;
@@ -715,6 +759,11 @@ if (plan.daily) {
   /* strip the hash so a later reload resumes campaign, not the daily again */
   history.replaceState(null, '', location.pathname + location.search);
   startDaily();
+} else if (plan.builder) {
+  history.replaceState(null, '', location.pathname + location.search);
+  void builder.open();
+} else if (plan.shared) {
+  startShared(plan.shared);
 } else {
   /* the menu owns the screen on boot — open it first so the campaign level we
      load underneath does not fire its intro cards behind the menu. Boot and the

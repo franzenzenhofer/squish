@@ -15,6 +15,7 @@ export interface StartDeps {
   onPlay: () => void;
   onDaily: () => void;
   onLevels: () => void;
+  onCreate: () => void;
   onSettings: () => void;
   unlockAudio: () => void;
 }
@@ -114,6 +115,10 @@ export function createStart(d: StartDeps): Start {
     d.onDaily();
   });
   bind('blevels', () => d.onLevels());
+  bind('bcreate', () => {
+    close();
+    d.onCreate();
+  });
   /* Reset progress lives in here now — the start screen stays pure play */
   bind('bsettings', () => d.onSettings());
   /* tapping the "Squishy & Friends" wordmark (the only thing in #brand now)
