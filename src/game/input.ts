@@ -25,12 +25,21 @@ export function bindInput(main: HTMLElement, a: InputActions): void {
   let pStart: { x: number; y: number } | null = null;
   let pFired = false;
 
+  const resetPointer = (e?: PointerEvent): void => {
+    if (e) {
+      try { main.releasePointerCapture(e.pointerId); } catch { /* not captured */ }
+    }
+    pStart = null;
+    pFired = false;
+  };
+
   const fireSwipe = (dx: number, dy: number): void => {
     a.doMove(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : dy > 0 ? 'down' : 'up');
   };
 
   main.addEventListener('pointerdown', (e) => {
     a.unlockAudio();
+    try { main.setPointerCapture(e.pointerId); } catch { /* unsupported/synthetic */ }
     pStart = { x: e.clientX, y: e.clientY };
     pFired = false;
   });
@@ -45,7 +54,7 @@ export function bindInput(main: HTMLElement, a: InputActions): void {
   main.addEventListener('pointerup', (e) => {
     if (a.inWin()) {
       if (!pFired) a.advance();
-      pStart = null;
+      resetPointer(e);
       return;
     }
     if (pStart && !pFired) {
@@ -54,8 +63,10 @@ export function bindInput(main: HTMLElement, a: InputActions): void {
       if (Math.max(Math.abs(dx), Math.abs(dy)) >= 16) fireSwipe(dx, dy);
       else a.onTap(e.clientX, e.clientY);
     }
-    pStart = null;
+    resetPointer(e);
   });
+  main.addEventListener('pointercancel', resetPointer);
+  main.addEventListener('lostpointercapture', () => resetPointer());
   /* swallow page panning/bounce for game input, but anything that must scroll
      natively on iOS (the overlays AND the builder's tool palette) is excluded —
      otherwise this preventDefault kills their touch scrolling entirely */
