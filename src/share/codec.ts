@@ -34,20 +34,23 @@ function cellMap(def: LevelDef): Map<string, string> {
     if (m.has(key)) throw new CodecError('two elements on cell ' + key);
     m.set(key, token);
   };
-  set(def.target[0], def.target[1], CELL_GLYPH.target);
+  set(def.target[0], def.target[1], CELL_GLYPH.target as string);
   for (const field of ARRAY_FIELDS) {
     const cells = def[field] as XY[] | undefined;
     if (!cells) continue;
-    for (const [x, y] of cells) set(x, y, CELL_GLYPH[field]);
+    const g = CELL_GLYPH[field] as string;
+    for (const [x, y] of cells) set(x, y, g);
   }
   if (def.portals) {
-    set(def.portals[0][0], def.portals[0][1], CELL_GLYPH.portalA);
-    set(def.portals[1][0], def.portals[1][1], CELL_GLYPH.portalB);
+    const [pa, pb] = def.portals;
+    set(pa[0], pa[1], CELL_GLYPH.portalA as string);
+    set(pb[0], pb[1], CELL_GLYPH.portalB as string);
   }
   for (const field of ['oneway', 'breeze'] as const) {
     const cells = def[field] as XYDir[] | undefined;
     if (!cells) continue;
-    for (const [x, y, dir] of cells) set(x, y, DIR_BASE[field] + DIR_SUFFIX[dir]);
+    const base = DIR_BASE[field] as string;
+    for (const [x, y, dir] of cells) set(x, y, base + (DIR_SUFFIX[dir] as string));
   }
   return m;
 }
@@ -72,8 +75,8 @@ export function decode(code: string): LevelDef {
   if (v !== VERSION) throw new CodecError('unsupported version ' + v);
   const w = Number(mraw[2]);
   const h = Number(mraw[3]);
-  const glyphs = mraw[4];
-  const crc = mraw[5];
+  const glyphs = mraw[4] as string;
+  const crc = mraw[5] as string;
   if (crc32Base36(v + '-' + w + 'x' + h + '|' + glyphs) !== crc) {
     throw new CodecError('checksum mismatch — link corrupted');
   }
@@ -85,7 +88,7 @@ function buildDef(glyphs: string, w: number, h: number): LevelDef {
   const push = (field: string, v: XY | XYDir): void => {
     const arr = (def[field as keyof LevelDef] as unknown[]) ?? [];
     arr.push(v);
-    (def as Record<string, unknown>)[field] = arr;
+    (def as unknown as Record<string, unknown>)[field] = arr;
   };
   let portalA: XY | null = null;
   let portalB: XY | null = null;
@@ -96,11 +99,12 @@ function buildDef(glyphs: string, w: number, h: number): LevelDef {
     const g = glyphs[cur++];
     if (g === undefined) throw new CodecError('glyph stream too short');
     if (g === EMPTY) continue;
-    if (BASE_DIR[g]) {
+    const dirField = BASE_DIR[g];
+    if (dirField) {
       const suf = glyphs[cur++];
-      const dir = SUFFIX_DIR[suf];
+      const dir = suf === undefined ? undefined : SUFFIX_DIR[suf];
       if (!dir) throw new CodecError('bad direction suffix at cell ' + cell);
-      push(BASE_DIR[g], [x, y, dir as DirCode]);
+      push(dirField, [x, y, dir as DirCode]);
       continue;
     }
     const field = GLYPH_CELL[g];

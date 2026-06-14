@@ -4,7 +4,7 @@ import levels from '../../src/levels.json';
 import type { LevelDef } from '../../src/engine/types';
 import { encode, decode, CodecError } from '../../src/share/codec';
 
-const def = (levels as unknown as LevelDef[])[3];
+const def = (levels as unknown as LevelDef[])[3] as LevelDef;
 
 describe('codec integrity', () => {
   it('throws on a corrupted glyph', () => {

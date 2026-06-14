@@ -16,7 +16,7 @@ const TABLE: number[] = (() => {
 export function crc32(str: string): number {
   let crc = 0xffffffff;
   for (let i = 0; i < str.length; i++) {
-    crc = TABLE[(crc ^ str.charCodeAt(i)) & 0xff] ^ (crc >>> 8);
+    crc = (TABLE[(crc ^ str.charCodeAt(i)) & 0xff] as number) ^ (crc >>> 8);
   }
   return (crc ^ 0xffffffff) >>> 0;
 }

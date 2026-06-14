@@ -25,10 +25,12 @@ function randomDef(rnd: () => number): LevelDef {
   // shuffle
   for (let i = cells.length - 1; i > 0; i--) {
     const j = Math.floor(rnd() * (i + 1));
-    [cells[i], cells[j]] = [cells[j], cells[i]];
+    const tmp = cells[i] as XY;
+    cells[i] = cells[j] as XY;
+    cells[j] = tmp;
   }
   let k = 0;
-  const take = (): XY => cells[k++];
+  const take = (): XY => cells[k++] as XY;
   const def: LevelDef = { w, h, target: take(), dots: [take()], par: 0 };
   const nDots = Math.floor(rnd() * 2);
   for (let i = 0; i < nDots && k < cells.length; i++) def.dots.push(take());
@@ -38,7 +40,7 @@ function randomDef(rnd: () => number): LevelDef {
     const n = 1 + Math.floor(rnd() * 2);
     const arr: XY[] = [];
     for (let i = 0; i < n && k < cells.length; i++) arr.push(take());
-    (def as Record<string, unknown>)[f] = arr;
+    (def as unknown as Record<string, unknown>)[f] = arr;
   }
   if (rnd() < 0.5 && k < cells.length) {
     def.oneway = [[...take(), DIRS[Math.floor(rnd() * 4)]] as [number, number, DirCode]];

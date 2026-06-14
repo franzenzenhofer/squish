@@ -12,16 +12,20 @@ describe('codec round-trip over curated levels', () => {
     expect(defs.length).toBeGreaterThanOrEqual(50);
   });
   for (let i = 0; i < defs.length; i++) {
+    const d = defs[i];
     it(`level ${i} round-trips losslessly`, () => {
-      const code = encode(defs[i]);
+      if (!d) throw new Error('missing level ' + i);
+      const code = encode(d);
       const back = decode(code);
-      expect(geometryEqual(back, defs[i])).toBe(true);
-      expect(back.w).toBe(defs[i].w);
-      expect(back.h).toBe(defs[i].h);
+      expect(geometryEqual(back, d)).toBe(true);
+      expect(back.w).toBe(d.w);
+      expect(back.h).toBe(d.h);
     });
   }
   it('emits the readable #level scheme shape', () => {
-    const code = encode(defs[0]);
+    const first = defs[0];
+    if (!first) throw new Error('no levels');
+    const code = encode(first);
     expect(code).toMatch(/^level-\d+-\d+x\d+-[A-Za-z0-9]*\.[0-9a-z]+$/);
   });
 });
