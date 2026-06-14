@@ -517,12 +517,12 @@ const endings = createEndings({
       endings.hideFlood();
       customSeq.i++;
       if (customSeq.i < customSeq.ids.length) { playCustomAt(); return; }
-      /* all saved levels cleared -> resume the campaign where they left off */
+      /* the saved levels are done -> go STRAIGHT on with the normal campaign
+         progress (no detour through the picker) */
       customSeq = null;
       customShareUrl = null;
       s.play = { kind: 'campaign' };
-      loadLevel(s.li);
-      levelsPick.open();
+      loadLevel(s.li, true);
       return;
     }
     if (s.play.kind === 'debug') {
@@ -692,7 +692,7 @@ const levelsPick = createLevelsPick({
     startMenu.close();
     return bakeAndPlay(hardness);
   },
-  onPlayCustom: (id) => playCustomSequence(id),
+  onPlayCustom: (id) => { startMenu.close(); playCustomSequence(id); },
   onEditCustom: (id) => void builder.editCreation(id),
   unlockAudio: () => audio.unlock()
 });

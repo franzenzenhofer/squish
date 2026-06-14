@@ -62,6 +62,42 @@ test('drag-off deletes a piece and the pill reflects the DOM', async ({ page }) 
   expect(await page.evaluate(() => window.__squishBuilder!.getState().cells)).not.toHaveProperty('1,1');
 });
 
+test('tapping a saved level in Your Levels PLAYS it (not back to the start screen)', async ({ page }) => {
+  await page.evaluate(() => {
+    const b = window.__squishBuilder!;
+    b.resize(3, 3); b.selectTool('heart'); b.place(2, 0); b.selectTool('squishy'); b.place(0, 0);
+  });
+  await expect(page.locator('[data-testid="builder-status"]')).toHaveAttribute('data-status', 'solvable', { timeout: 10000 });
+  await page.evaluate(() => window.__squishBuilder!.save());
+  await page.evaluate(() => window.__squishBuilder!.close());
+  await page.click('#blevels');
+  await page.click('[data-testid="creation-play"]');
+  // the GAME plays - the start menu is NOT showing
+  await page.waitForFunction(() => window.__squishy?.state().mode === 'idle', undefined, { timeout: 10000 });
+  await expect(page.locator('#start')).not.toHaveClass(/show/);
+  await expect(page.locator('#levels')).not.toHaveClass(/show/);
+  expect(await page.evaluate(() => window.__squishy?.state().play)).toContain('debug');
+});
+
+test('after the last saved level, Next continues the normal campaign (no picker)', async ({ page }) => {
+  await page.evaluate(() => {
+    const b = window.__squishBuilder!;
+    b.resize(3, 3); b.selectTool('heart'); b.place(2, 0); b.selectTool('squishy'); b.place(0, 0);
+  });
+  await expect(page.locator('[data-testid="builder-status"]')).toHaveAttribute('data-status', 'solvable', { timeout: 10000 });
+  await page.evaluate(() => window.__squishBuilder!.save());
+  await page.evaluate(() => window.__squishBuilder!.close());
+  await page.click('#blevels');
+  await page.evaluate(() => window.__squishy?.setInstantAnims(true));
+  await page.click('[data-testid="creation-play"]');
+  await page.waitForFunction(() => window.__squishy?.state().mode === 'idle', undefined, { timeout: 10000 });
+  await page.evaluate(async () => { const g = window.__squishy!; for (const d of g.solution() ?? []) await g.move(d as never); });
+  await expect(page.locator('#win')).toHaveClass(/show/, { timeout: 10000 });
+  await page.click('#winNext');
+  await page.waitForFunction(() => window.__squishy?.state().play === 'campaign', undefined, { timeout: 10000 });
+  await expect(page.locator('#levels')).not.toHaveClass(/show/);
+});
+
 test('a saved level shows in Your Levels and deletes from there', async ({ page }) => {
   await page.evaluate(() => {
     const b = window.__squishBuilder!;
