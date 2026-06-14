@@ -75,6 +75,13 @@ export function createBuilder(d: BuilderDeps): BuilderApi {
 
   mountWordmark($('bLogo'));
 
+  /* the browser Back button steps out: share sheet -> editor -> previous view.
+     open()/openShare() push a history entry; the X buttons just call back(). */
+  window.addEventListener('popstate', () => {
+    if ($('bShareSheet').dataset.shown === 'true') { $('bShareSheet').dataset.shown = 'false'; return; }
+    if (root.classList.contains('show')) api.close();
+  });
+
   /** The speech bubble is the builder's ONLY notification, and it always fades —
       it shows a message once when it CHANGES (no re-spam on every edit) and
       auto-dismisses after a few seconds, exactly like the in-game bubble. */
@@ -298,10 +305,11 @@ export function createBuilder(d: BuilderDeps): BuilderApi {
   $('bPlay').addEventListener('click', () => void api.play());
   $('bSave').addEventListener('click', () => { try { api.save(); notify('Saved to Your Levels!'); } catch { notify('Make it solvable first!'); } });
   $('bShare').addEventListener('click', () => { try { openShare(api.share()); } catch { notify('Make it solvable first!'); } });
-  $('bExit').addEventListener('click', () => api.close());
+  $('bExit').addEventListener('click', () => history.back());
 
   function openShare(url: string): void {
     const sheet = $('bShareSheet');
+    history.pushState({ sqShareSheet: true }, '');
     sheet.dataset.shown = 'true';
     drawQr($('bShareQr') as HTMLCanvasElement, url);
     const link = $('bShareUrl') as HTMLAnchorElement;
@@ -315,11 +323,13 @@ export function createBuilder(d: BuilderDeps): BuilderApi {
     sb.onclick = (): void => { void navigator.share?.({ url }); };
     cb.onclick = (): void => { void navigator.clipboard?.writeText(url).then(() => notify('Link copied!')); };
   }
-  $('bShareClose').addEventListener('click', () => { $('bShareSheet').dataset.shown = 'false'; });
+  $('bShareClose').addEventListener('click', () => history.back());
 
   const api: BuilderApi = {
     open: (def): Promise<void> => {
-      d.closeMenu(); root.classList.add('show'); d.s.mode = 'menu';
+      d.closeMenu();
+      if (!history.state?.sqBuilder) history.pushState({ sqBuilder: true }, '');
+      root.classList.add('show'); d.s.mode = 'menu';
       init(def); cancelAnimationFrame(raf); raf = requestAnimationFrame(loop);
       return Promise.resolve();
     },
