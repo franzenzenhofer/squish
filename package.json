@@ -16,7 +16,8 @@
     "levels:audit": "tsx scripts/audit-levels.ts",
     "daily:verify": "tsx scripts/verify-daily.ts",
     "e2e": "playwright test",
-    "levels:ladder": "tsx scripts/audit-ladder.ts"
+    "levels:ladder": "tsx scripts/audit-ladder.ts",
+    "shots": "npm run build && (vite preview --port 4378 --strictPort & SRV=$!; sleep 2; tsx scripts/appstore-shots.ts; kill $SRV)"
   },
   "devDependencies": {
     "@eslint/js": "^9.28.0",
