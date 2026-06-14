@@ -104,6 +104,13 @@ export function createBuilder(d: BuilderDeps): BuilderApi {
   /** An explicit notification (Saved, Link copied) — always shown, then fades. */
   function notify(msg: string): void { lastMsg = ''; showBubble(msg); }
 
+  /** Dismiss the bubble now (the X), like the in-game caption's close button. */
+  function hideBubble(): void {
+    window.clearTimeout(bubbleTimer);
+    $('bBubble').classList.remove('show');
+    lastMsg = '';
+  }
+
   /** True when the heart sits on one of the four board corners. */
   function heartInCorner(): boolean {
     const t = st.target;
@@ -257,19 +264,32 @@ export function createBuilder(d: BuilderDeps): BuilderApi {
     if (!url) return; // eraser has no ghost
     const ghost = document.createElement('img');
     ghost.src = url; ghost.className = 'bghost';
-    const at = (x: number, y: number): void => { ghost.style.left = x + 'px'; ghost.style.top = y + 'px'; };
+    let lx = e.clientX, ly = e.clientY;
+    const at = (x: number, y: number): void => { lx = x; ly = y; ghost.style.left = x + 'px'; ghost.style.top = y + 'px'; };
     at(e.clientX, e.clientY);
     document.body.appendChild(ghost);
+    /* Lock the touch to THIS drag: capture the pointer (reliable delivery even
+       over the board/header) and block ALL native scroll/bounce for the drag's
+       lifetime, so the palette's pan-x scroll can never hijack and freeze it. */
+    try { bc.setPointerCapture(e.pointerId); } catch { /* mouse / unsupported */ }
+    const blockScroll = (ev: TouchEvent): void => ev.preventDefault();
+    document.addEventListener('touchmove', blockScroll, { passive: false });
     const move = (ev: PointerEvent): void => at(ev.clientX, ev.clientY);
-    const up = (ev: PointerEvent): void => {
+    const end = (place: boolean): void => {
       document.removeEventListener('pointermove', move);
-      document.removeEventListener('pointerup', up);
+      document.removeEventListener('pointerup', onUp);
+      document.removeEventListener('pointercancel', onCancel);
+      document.removeEventListener('touchmove', blockScroll);
+      try { bc.releasePointerCapture(e.pointerId); } catch { /* already released */ }
       ghost.remove();
-      const c = cellFromPoint(bc, ev.clientX, ev.clientY, st.w, st.h);
+      const c = place ? cellFromPoint(bc, lx, ly, st.w, st.h) : null;
       if (c) edit(() => applyToolAt(st, tool, c[0], c[1]));
     };
+    const onUp = (ev: PointerEvent): void => { at(ev.clientX, ev.clientY); end(true); };
+    const onCancel = (): void => end(true); // cancel still drops at the last spot
     document.addEventListener('pointermove', move);
-    document.addEventListener('pointerup', up);
+    document.addEventListener('pointerup', onUp);
+    document.addEventListener('pointercancel', onCancel);
   }
 
   // --- board: tap empty to place; pick up an existing piece and drag it around
@@ -351,6 +371,7 @@ export function createBuilder(d: BuilderDeps): BuilderApi {
   /* New = a fresh blank board (Play and Share already auto-save, so no Save button) */
   $('bNew').addEventListener('click', () => { editingId = null; init(); });
   $('bExit').addEventListener('click', () => history.back());
+  $('bBubbleX').addEventListener('click', hideBubble);
 
   function openShare(url: string): void {
     const sheet = $('bShareSheet');

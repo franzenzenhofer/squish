@@ -656,6 +656,30 @@ test.describe('mobile touch', () => {
     expect(after, 'the palette must scroll horizontally under a touch gesture').toBeGreaterThan(before + 40);
   });
 
+  test('a palette tool drags out onto the board with a real touch gesture', async ({ page }) => {
+    await boot(page);
+    await page.evaluate(() => localStorage.clear());
+    await page.evaluate(() => window.__squishBuilder?.open());
+    await page.waitForSelector('[data-testid="builder"].show', { timeout: 5000 });
+    // the heart is the enabled tool on a fresh board (guided build)
+    const tool = await page.locator('[data-tool="heart"]').boundingBox();
+    const board = await page.locator('#bc').boundingBox();
+    const sx = Math.round(tool!.x + tool!.width / 2);
+    const sy = Math.round(tool!.y + tool!.height / 2);
+    const ey = Math.round(board!.y + board!.height * 0.5);
+    /* a real finger press-drag-release straight UP from the tool into the board -
+       if native pan-x scroll hijacks it (the stuck-drag bug), no piece lands */
+    const cdp = await page.context().newCDPSession(page);
+    const touch = (type: 'touchStart' | 'touchMove' | 'touchEnd', y: number): Promise<unknown> =>
+      cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x: sx, y }] });
+    await touch('touchStart', sy);
+    for (let i = 1; i <= 10; i++) await touch('touchMove', Math.round(sy + (ey - sy) * (i / 10)));
+    await touch('touchEnd', ey);
+    await page.waitForTimeout(300);
+    const target = await page.evaluate(() => window.__squishBuilder!.getState().target);
+    expect(target, 'the dragged heart must land on the board').not.toBeNull();
+  });
+
   test('board swipes still work after the scroll fix', async ({ page }) => {
     await boot(page);
     await page.evaluate(() => localStorage.clear());

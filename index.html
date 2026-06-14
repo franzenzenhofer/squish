@@ -15,10 +15,6 @@
 <meta property="og:image:width" content="2298">
 <meta property="og:image:height" content="2298">
 <meta property="og:image:alt" content="A late Squishy &amp; Friends puzzle board">
-<meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Squishy &amp; Friends ♥">
-<meta name="twitter:description" content="A tiny cute swipe puzzle - merge your squishies onto the heart. Can you solve it?">
-<meta name="twitter:image" content="https://squishy.franzai.com/og.png?v=2">
 <title>Squishy &amp; Friends ♥</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 28 C3 18 2 9 8.5 6.5 C13 4.5 16 8.5 16 12 C16 8.5 19 4.5 23.5 6.5 C30 9 29 18 16 28 Z' fill='%23FF6D9E'/%3E%3C/svg%3E">
 <style>
@@ -127,8 +123,8 @@
     display: flex; align-items: center; justify-content: center;
     min-height: 60px;
   }
-  /* the caption carries an X, so it needs room on the right; the toast doesn't */
-  #cap { padding-right: 34px; }
+  /* the caption + builder bubble carry an X, so they need room on the right */
+  #cap, #bBubble { padding-right: 34px; }
   #cap.show, #toast.show, #bBubble.show { opacity: 1; animation: sf-talk 2.6s ease-in-out infinite; }
   #cap b, #toast b, #bBubble b { color: var(--heart); font-weight: 700; }
   #cap.bad, #toast.bad { color: var(--heart); border-color: #FFB7CE; }
@@ -136,13 +132,13 @@
   #cap.mute { opacity: 0; animation: none; }
   /* tiny dismiss control: only the X catches taps; the bubble body stays
      non-blocking so the board beneath it keeps receiving input */
-  #capX {
+  #capX, #bBubbleX {
     position: absolute; top: 50%; right: 8px; transform: translateY(-50%);
     width: 20px; height: 20px; padding: 0; border: none; border-radius: 999px;
     display: flex; align-items: center; justify-content: center; cursor: pointer;
     background: var(--bubble-bd); color: #fff; pointer-events: auto;
   }
-  #capX svg { width: 11px; height: 11px; fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; }
+  #capX svg, #bBubbleX svg { width: 11px; height: 11px; fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; }
   #cap::before, #toast::before, #cap::after, #toast::after,
   #bBubble::before, #bBubble::after {
     content: ''; position: absolute; left: 50%; transform: translateX(-50%); width: 0; height: 0;
@@ -745,7 +741,8 @@
     <span id="bLogo" class="blogo"></span>
     <span id="bStatus" data-testid="builder-status" data-status="idle"><span id="bStatusText">KEEP GOING</span></span>
   </div>
-  <div id="bBubble" data-testid="builder-bubble"><span id="bBubbleText"></span></div>
+  <div id="bBubble" data-testid="builder-bubble"><span id="bBubbleText"></span><button id="bBubbleX" aria-label="dismiss">
+    <svg viewBox="0 0 24 24"><path d="M6 6 L18 18 M18 6 L6 18"/></svg></button></div>
   <div id="bSizes" class="bsizes"></div>
   <div id="bBoardWrap">
     <div id="bBoard">
