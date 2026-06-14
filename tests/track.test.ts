@@ -135,7 +135,7 @@ describe('worker /t endpoint', () => {
     expect(points).toHaveLength(1);
     /* GOLDEN: identical to before except the added platform blob (blobs[2]) */
     expect(points[0]).toEqual({
-      blobs: ['win', 'c', 'web'],
+      blobs: ['win', 'c', 'web', ''],
       doubles: [9, 8, 7, 1, 1],
       indexes: ['win']
     });
@@ -145,13 +145,13 @@ describe('worker /t endpoint', () => {
     const { env, points } = makeEnv();
     const res = await worker.fetch(post({ e: 'win', k: 'c', li: 9, mv: 8, par: 7, hr: 1, hd: 1 }), env);
     expect(res.status).toBe(204);
-    expect(points[0]?.blobs).toEqual(['win', 'c', 'web']);
+    expect(points[0]?.blobs).toEqual(['win', 'c', 'web', '']);
   });
 
   it('tags an ios event with the ios platform blob', async () => {
     const { env, points } = makeEnv();
     await worker.fetch(post({ e: 'start', k: 'c', p: 'ios' }), env);
-    expect(points[0]?.blobs).toEqual(['start', 'c', 'ios']);
+    expect(points[0]?.blobs).toEqual(['start', 'c', 'ios', '']);
   });
 
   it('drops a tampered platform value whole (still 204, nothing stored)', async () => {

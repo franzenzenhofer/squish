@@ -549,14 +549,18 @@
     position: fixed; inset: 0; z-index: 11; display: none;
     flex-direction: column; align-items: center;
     background: radial-gradient(130% 90% at 50% -15%, #FFFAFC 0%, #FFEFF6 42%, #FFE2EE 100%);
-    padding: max(6px, env(safe-area-inset-top)) 10px max(8px, env(safe-area-inset-bottom));
+    /* padding-top is set in JS to clear the SHARED header (which sits above) */
+    padding: 6px 10px max(8px, env(safe-area-inset-bottom));
     gap: clamp(3px, 1vh, 9px); overflow: hidden;
   }
   #builder.show { display: flex; }
-  .bhead { flex: none; width: min(460px,100%); display: flex; align-items: center; gap: 10px; padding: 2px 2px 0; }
-  /* the wordmark sits LEFT, right next to the X (natural width from its height) */
-  .blogo { flex: 0 0 auto; height: clamp(20px, 3vh, 28px); display: flex; align-items: center; }
-  .blogo svg { display: block; width: auto; height: 100%; }
+  /* DRY header: the editor reuses the real game <header>; while building it lifts
+     above the builder layer and swaps the level/moves HUD for the X + status pill */
+  #bExit, #bStatus { display: none; }
+  body.building header { z-index: 12; }
+  body.building #hud { display: none; }
+  body.building #bExit { display: flex; }
+  body.building #bStatus { display: inline-flex; align-items: center; }
   #bStatus { flex: none; margin-left: auto; font-weight: 800; font-size: 12px; letter-spacing: .04em; padding: 7px 11px; border-radius: 999px;
     border: 2px solid var(--border); background: #fff; color: var(--dim2); white-space: nowrap; }
   #bStatus[data-status="solvable"] { background: #DCF6E3; border-color: #AEE6C0; color: #2F9D5B; }
@@ -645,6 +649,11 @@
 </head>
 <body>
 <header>
+  <!-- builder-only: the SAME header is reused in the editor, just with an X and
+       the solvable/keep-going status pill instead of the level/moves HUD -->
+  <button id="bExit" class="bexit" data-testid="builder-exit" aria-label="close builder">
+    <svg viewBox="0 0 24 24"><path d="M6 6 L18 18 M18 6 L6 18"/></svg>
+  </button>
   <div id="brand">
     <span id="logo"></span>
   </div>
@@ -653,6 +662,7 @@
     <div id="lvl">01</div>
     <div id="moves"><b>0</b><span class="dim">/1</span></div>
   </div>
+  <span id="bStatus" data-testid="builder-status" data-status="idle"><span id="bStatusText">KEEP GOING</span></span>
 </header>
 <main id="main">
   <canvas id="c"></canvas>
@@ -734,13 +744,6 @@
   </div>
 </div>
 <div id="builder" data-testid="builder">
-  <div class="bhead">
-    <button id="bExit" class="bexit" data-testid="builder-exit" aria-label="close builder">
-      <svg viewBox="0 0 24 24"><path d="M6 6 L18 18 M18 6 L6 18"/></svg>
-    </button>
-    <span id="bLogo" class="blogo"></span>
-    <span id="bStatus" data-testid="builder-status" data-status="idle"><span id="bStatusText">KEEP GOING</span></span>
-  </div>
   <div id="bBubble" data-testid="builder-bubble"><span id="bBubbleText"></span><button id="bBubbleX" aria-label="dismiss">
     <svg viewBox="0 0 24 24"><path d="M6 6 L18 18 M18 6 L6 18"/></svg></button></div>
   <div id="bSizes" class="bsizes"></div>

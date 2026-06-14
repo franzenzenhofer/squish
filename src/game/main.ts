@@ -16,7 +16,7 @@ import { bootPlan, hintHidden } from './flow';
 import { localToday } from '../gen/daily';
 import { createOhNo } from './ohno';
 import { createLevelsPick } from './levelsPick';
-import { loadGame, saveGame } from './persist';
+import { loadGame, saveGame, dailyToken } from './persist';
 import { DEBUG_LEVELS } from './debugLevels';
 import { isDebug } from './debugMode';
 import { getSettings, updateSettings, type Settings } from './settings';
@@ -33,7 +33,7 @@ import { solve } from '../engine/solve';
 import { createBuilder, type SolveInfo } from '../builder/view';
 import { installBuilderTestApi } from '../builder/testApi';
 import { importShareCode, buildShareUrl } from '../share/shareUrl';
-import { listCreations, getCreation } from '../builder/library';
+import { listCreations, getCreation, saveShared, getShared } from '../builder/library';
 
 const audio = createAudio();
 const assist = createAssist();
@@ -52,6 +52,9 @@ const TRACK_URL = PLATFORM === 'ios' ? 'https://squishy.franzai.com/t' : '/t';
 const { track } = createTracker({
   enabled: !isDebug(),
   platform: PLATFORM,
+  /* daily-rotating anonymous token (issue #6) — generated only when an event is
+     actually built, i.e. only when analytics is enabled and a beacon is sent */
+  token: () => dailyToken(),
   /* the opt-out is read per event (live), so toggling it in Settings takes
      effect immediately; the iOS build additionally stays silent when offline */
   send: (body) => {
@@ -694,6 +697,8 @@ const levelsPick = createLevelsPick({
   },
   onPlayCustom: (id) => { startMenu.close(); playCustomSequence(id); },
   onEditCustom: (id) => void builder.editCreation(id),
+  onPlayShared: (id) => { startMenu.close(); playShared(id); },
+  onEditShared: (id) => { const cr = getShared(localStorage, id); if (cr) void builder.open(cr.def); },
   unlockAudio: () => audio.unlock()
 });
 /* the level editor — plays a built level through the SAME applyLevel path, and
@@ -745,6 +750,16 @@ function playCustomSequence(id: string): void {
 function playCustomAt(): void {
   const cr = customSeq && getCreation(localStorage, customSeq.ids[customSeq.i] ?? '');
   if (!cr) { customSeq = null; loadLevel(s.li); return; }
+  s.play = { kind: 'debug', di: -1 };
+  customShareUrl = customUrlOf(cr.def);
+  builderReturnDef = null;
+  fadeSwap(reduced, async () => applyLevel(cr.def));
+}
+/** Play one level from "Shared with you" (a one-off, not the saved-level walk). */
+function playShared(id: string): void {
+  const cr = getShared(localStorage, id);
+  if (!cr) return;
+  customSeq = null;
   s.play = { kind: 'debug', di: -1 };
   customShareUrl = customUrlOf(cr.def);
   builderReturnDef = null;
@@ -808,9 +823,25 @@ installBuilderTestApi(builder);
 /* a shared #level-<code> link: decode (CRC-checked), prove it solves, stamp the
    optimal par, then play it. An untrusted/broken link never crashes — it falls
    back to the menu with a friendly toast. */
+/** Remember a level opened from a share link in "Shared with you" — UNLESS it is
+    one of your OWN creations (sharing a link with yourself must never repopulate
+    the list) and idempotent on the share code (the same link is never added twice). */
+function rememberSharedLevel(def: LevelDef): void {
+  try {
+    const code = buildShareUrl(def); // canonical content key (glyphs + crc)
+    const mine = listCreations(localStorage).some((c) => {
+      const cr = getCreation(localStorage, c.id);
+      return cr ? customUrlOf(cr.def) === code : false;
+    });
+    if (mine) return;
+    saveShared(localStorage, def, code, 'Shared level');
+  } catch { /* never block play on a bookkeeping hiccup */ }
+}
+
 function startShared(code: string): void {
   try {
     const def = importShareCode(code, (d) => solve(makeLevel(d)));
+    rememberSharedLevel(def); // keep it in "Shared with you" (deduped)
     s.play = { kind: 'debug', di: -1 };
     customShareUrl = customUrlOf(def);
     builderReturnDef = null;

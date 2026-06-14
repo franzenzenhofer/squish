@@ -11,7 +11,10 @@ import { spriteIcon } from './spriteIcon';
 import { DEBUG_GEN_COUNT, isDebug } from './debugMode';
 import { DEBUG_LEVELS } from './debugLevels';
 import { CURATED, cachedGenLevel, type Session } from './session';
-import { listCreations, getCreation, deleteCreation } from '../builder/library';
+import {
+  listCreations, getCreation, deleteCreation,
+  listShared, getShared, deleteShared, type CreationMeta
+} from '../builder/library';
 import { renderLevelThumb } from './share';
 import { ICON_EDIT, ICON_TRASH } from './uiIcons';
 
@@ -26,6 +29,10 @@ export interface LevelsDeps {
   onPlayCustom: (id: string) => void;
   /** open a saved creation in the editor */
   onEditCustom: (id: string) => void;
+  /** play a level from "Shared with you" (by id) */
+  onPlayShared: (id: string) => void;
+  /** open a shared level in the editor (remix) */
+  onEditShared: (id: string) => void;
   unlockAudio: () => void;
 }
 
@@ -265,28 +272,37 @@ export function createLevelsPick(d: LevelsDeps): LevelsPick {
     inner.appendChild(bake);
   };
 
-  /* "Your Levels" — the player's own saved creations, pinned above the campaign
-     grid. Each row plays on tap, with edit + delete. Empty when none saved. */
-  const buildMine = (): void => {
-    const mine = listCreations(localStorage);
-    if (mine.length === 0) return;
+  /* A library shelf ("Your Levels" / "Shared with you") — one DRY builder for
+     both. Each row plays on tap, with edit (remix) + delete. Hidden when empty. */
+  interface ShelfOpts {
+    title: string;
+    metas: CreationMeta[];
+    getDef: (id: string) => LevelDef | null;
+    onPlay: (id: string) => void;
+    onEdit: (id: string) => void;
+    onDelete: (id: string) => void;
+    testid: string;
+  }
+  const buildShelf = (o: ShelfOpts): void => {
+    if (o.metas.length === 0) return;
     const wrap = document.createElement('div');
     wrap.className = 'lvmineWrap';
+    wrap.dataset.shelf = o.testid;
     const h = document.createElement('div');
     h.className = 'lvsec';
-    h.textContent = 'YOUR LEVELS';
+    h.textContent = o.title;
     wrap.appendChild(h);
     const list = document.createElement('div');
     list.className = 'lvmine';
-    for (const c of mine) {
+    for (const c of o.metas) {
       const row = document.createElement('div');
       row.className = 'lvmrow';
-      row.dataset.testid = 'creation-card';
+      row.dataset.testid = o.testid + '-card';
       row.dataset.id = c.id;
-      const cr0 = getCreation(localStorage, c.id);
+      const def0 = o.getDef(c.id);
       const play = document.createElement('button');
       play.className = 'lvmplay';
-      play.dataset.testid = 'creation-play';
+      play.dataset.testid = o.testid + '-play';
       const txt = document.createElement('span');
       txt.className = 'lvmtxt';
       const nm = document.createElement('b');
@@ -298,22 +314,22 @@ export function createLevelsPick(d: LevelsDeps): LevelsPick {
       const thumb = document.createElement('img');
       thumb.className = 'lvmthumb';
       thumb.alt = '';
-      if (cr0) thumb.src = renderLevelThumb(cr0.def).toDataURL();
+      if (def0) thumb.src = renderLevelThumb(def0).toDataURL();
       play.append(txt, thumb);
       play.addEventListener('click', () => {
         d.unlockAudio();
-        if (cr0) { close(); d.onPlayCustom(c.id); }
+        if (def0) { close(); o.onPlay(c.id); }
       });
       const edit = document.createElement('button');
       edit.className = 'lvmbtn';
-      edit.dataset.testid = 'creation-edit';
+      edit.dataset.testid = o.testid + '-edit';
       edit.innerHTML = ICON_EDIT;
-      edit.addEventListener('click', () => { d.unlockAudio(); close(); d.onEditCustom(c.id); });
+      edit.addEventListener('click', () => { d.unlockAudio(); close(); o.onEdit(c.id); });
       const del = document.createElement('button');
       del.className = 'lvmbtn';
-      del.dataset.testid = 'creation-delete';
+      del.dataset.testid = o.testid + '-delete';
       del.innerHTML = ICON_TRASH;
-      del.addEventListener('click', () => { deleteCreation(localStorage, c.id); rebuild(); });
+      del.addEventListener('click', () => { o.onDelete(c.id); rebuild(); });
       row.append(play, edit, del);
       list.appendChild(row);
     }
@@ -321,12 +337,33 @@ export function createLevelsPick(d: LevelsDeps): LevelsPick {
     inner.insertBefore(wrap, grid);
   };
 
+  /* "Your Levels" then "Shared with you", pinned above the campaign grid. */
+  const buildLibraries = (): void => {
+    buildShelf({
+      title: 'YOUR LEVELS', metas: listCreations(localStorage), testid: 'creation',
+      getDef: (id) => getCreation(localStorage, id)?.def ?? null,
+      onPlay: (id) => d.onPlayCustom(id), onEdit: (id) => d.onEditCustom(id),
+      onDelete: (id) => deleteCreation(localStorage, id)
+    });
+    buildShelf({
+      title: 'SHARED WITH YOU', metas: listShared(localStorage), testid: 'shared',
+      getDef: (id) => getShared(localStorage, id)?.def ?? null,
+      onPlay: (id) => d.onPlayShared(id), onEdit: (id) => d.onEditShared(id),
+      onDelete: (id) => deleteShared(localStorage, id)
+    });
+  };
+
   const rebuild = (): void => {
     grid.textContent = '';
     for (const stale of inner.querySelectorAll('.lvsec, .lvtest, .lvbake, #levelsGen, .lvmineWrap')) {
       stale.remove();
     }
-    buildMine();
+    buildLibraries();
+    /* the campaign grid's own heading, right above it */
+    const camp = document.createElement('div');
+    camp.className = 'lvsec';
+    camp.textContent = 'SQUISHY & FRIENDS ADVENTURES';
+    inner.insertBefore(camp, grid);
     const reach = furthest(s);
     /* debug keeps the curated grid + its own GENERATED/TEST/BAKE sections; the
        shipping picker shows the full 200-level showcase (50 curated, then the

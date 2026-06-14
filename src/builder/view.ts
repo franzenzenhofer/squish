@@ -19,7 +19,6 @@ import { saveCreation, updateCreation, listCreations, deleteCreation, getCreatio
 import { buildShareUrl } from '../share/shareUrl';
 import { drawQr } from '../share/qr';
 import { shareCapabilities } from '../share/capabilities';
-import { mountWordmark } from '../game/logo';
 import { ICON_SHARE } from '../game/uiIcons';
 
 const HEART_HINT = 'Tip: a heart in a corner stays solvable most of the time!';
@@ -76,8 +75,7 @@ export function createBuilder(d: BuilderDeps): BuilderApi {
   let bubbleTimer = 0;
   let cornerTipShown = false; // the corner tip fires once per level creation
   let lastStage = -1; // last guided-build stage (-1 forces a fresh pre-select on open)
-
-  mountWordmark($('bLogo'));
+  const headerEl = document.querySelector('header') as HTMLElement; // the SHARED game header
 
   /* the browser Back button steps out: share sheet -> editor -> previous view.
      open()/openShare() push a history entry; the X buttons just call back(). */
@@ -121,19 +119,22 @@ export function createBuilder(d: BuilderDeps): BuilderApi {
   /** The corner tip: shown ONCE per level creation, and only when the heart is
       placed somewhere OTHER than a corner (a gentle nudge, never nagging). */
   function maybeCornerTip(): void {
-    if (cornerTipShown) return;
+    if (cornerTipShown || status === 'solvable') return; // a solvable board needs no nudge
     if (st.target && !heartInCorner()) { cornerTipShown = true; showBubble(HEART_HINT); }
   }
 
   const runner = createSolveRunner(
     (def) => d.solveDef(def).then((r) => { lastPar = r.par; return r.status; }),
-    (s) => { status = s; paintStatus(); }
+    (s) => { status = s; paintStatus(); if (s === 'solvable' && lastMsg === HEART_HINT) hideBubble(); }
   );
 
   /** Size the board to the largest square that fits its area — the game's own
       layout() rule (min of available width/height), so the editor board sits and
       scales EXACTLY like the real playing field. */
   function fitBoard(): void {
+    /* clear the SHARED header that floats above the builder (reused, not redrawn) */
+    const ph = headerEl.offsetHeight + 'px';
+    if (root.style.paddingTop !== ph) root.style.paddingTop = ph;
     const wrap = $('bBoardWrap');
     const side = Math.floor(Math.min(wrap.clientWidth, wrap.clientHeight));
     if (side <= 0) return;
@@ -411,6 +412,7 @@ export function createBuilder(d: BuilderDeps): BuilderApi {
     open: (def): Promise<void> => {
       d.closeMenu();
       if (!history.state?.sqBuilder) history.pushState({ sqBuilder: true }, '');
+      document.body.classList.add('building'); // swap the shared header into editor mode
       root.classList.add('show'); d.s.mode = 'menu';
       init(def); cancelAnimationFrame(raf); raf = requestAnimationFrame(loop);
       return Promise.resolve();
@@ -419,6 +421,7 @@ export function createBuilder(d: BuilderDeps): BuilderApi {
       cancelAnimationFrame(raf);
       painting = null; // never carry a half-finished paint/drag into the next open
       hideBubble();
+      document.body.classList.remove('building'); // restore the game header
       root.classList.remove('show'); $('bShareSheet').dataset.shown = 'false';
       d.onExit();
     },
@@ -447,6 +450,7 @@ export function createBuilder(d: BuilderDeps): BuilderApi {
       if (status !== 'solvable') { notify('Make it solvable first!'); return Promise.resolve(); }
       persist(); // a playable level auto-saves to Your Levels
       cancelAnimationFrame(raf);
+      document.body.classList.remove('building'); // the play view uses the normal game header
       root.classList.remove('show'); d.closeMenu(); d.playDef({ ...toDef(st), par: lastPar || 1 });
       return Promise.resolve();
     },

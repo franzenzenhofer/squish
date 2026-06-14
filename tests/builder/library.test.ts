@@ -57,3 +57,26 @@ describe('creations library', () => {
     expect(listCreations(kv)).toEqual([]);
   });
 });
+
+describe('shared-with-you shelf (no self-spam)', () => {
+  it('is idempotent on the share code — same link never duplicates', async () => {
+    const { saveShared, listShared, hasSharedCode } = await import('../../src/builder/library');
+    const kv = fakeKV();
+    const id1 = saveShared(kv, def(4), 'CODE-A', 'Shared');
+    const id2 = saveShared(kv, def(4), 'CODE-A', 'Shared'); // same code again
+    expect(id1).toBe(id2);
+    expect(listShared(kv).length).toBe(1);
+    expect(hasSharedCode(kv, 'CODE-A')).toBe(true);
+    expect(hasSharedCode(kv, 'CODE-B')).toBe(false);
+  });
+  it('keeps distinct codes and deletes in isolation', async () => {
+    const { saveShared, listShared, deleteShared } = await import('../../src/builder/library');
+    const kv = fakeKV();
+    const a = saveShared(kv, def(4), 'CODE-A', 'A');
+    saveShared(kv, def(5), 'CODE-B', 'B');
+    expect(listShared(kv).length).toBe(2);
+    deleteShared(kv, a);
+    expect(listShared(kv).map((c) => c.id)).not.toContain(a);
+    expect(listShared(kv).length).toBe(1);
+  });
+});

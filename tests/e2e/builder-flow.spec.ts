@@ -36,10 +36,12 @@ test('a fresh editor opens at 4x4', async ({ page }) => {
   await expect(page.locator('[data-testid="size-chip"][data-size="4"]')).toHaveAttribute('data-active', 'true');
 });
 
-test('the header has no dead BUILDER chip', async ({ page }) => {
+test('the editor reuses the real game header (X + logo + status, no HUD)', async ({ page }) => {
   await expect(page.locator('.btag')).toHaveCount(0);
-  await expect(page.locator('#bLogo')).toBeVisible();
-  await expect(page.locator('[data-testid="builder-status"]')).toBeVisible();
+  await expect(page.locator('header #logo')).toBeVisible();          // the SHARED wordmark
+  await expect(page.locator('header [data-testid="builder-status"]')).toBeVisible();
+  await expect(page.locator('header [data-testid="builder-exit"]')).toBeVisible();
+  await expect(page.locator('#hud')).toBeHidden();                   // game HUD hidden while building
 });
 
 test('the corner tip fires ONCE when a heart is placed off a corner, over the header', async ({ page }) => {

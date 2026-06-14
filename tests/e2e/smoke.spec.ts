@@ -596,8 +596,9 @@ test('a win fires one anonymous beacon to /t', async ({ page }) => {
   expect(Object.keys(win).sort()).toEqual(
     expect.arrayContaining(['e', 'k', 'p', 'li', 'mv']));
   for (const [k, v] of Object.entries(win)) {
-    expect(['e', 'k', 'p', 'li', 'mv', 'par', 'hr', 'hd']).toContain(k);
-    if (k !== 'e' && k !== 'k' && k !== 'p') expect(typeof v).toBe('number');
+    /* 't' is the daily-rotating anonymous token (issue #6) — a short string */
+    expect(['e', 'k', 'p', 't', 'li', 'mv', 'par', 'hr', 'hd']).toContain(k);
+    if (k !== 'e' && k !== 'k' && k !== 'p' && k !== 't') expect(typeof v).toBe('number');
   }
   expect(win.li).toBe(3);
   expect(win.p).toBe('web');

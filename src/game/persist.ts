@@ -9,6 +9,42 @@ import type { PlayTag, Session } from './session';
 
 const KEY_V2 = 'squish-progress-v2';
 const KEY_V1 = 'squish-progress-v1';
+const KEY_DAYTOKEN = 'squish-daytoken-v1';
+
+/** Today as YYYY-MM-DD in the player's LOCAL timezone (the player's "today"). */
+function localDay(d = new Date()): string {
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+/** A 12-char lowercase-alphanumeric random value (matches the schema token charset). */
+function randomToken(rand: () => number = Math.random): string {
+  let s = '';
+  while (s.length < 12) s += Math.floor(rand() * 36).toString(36);
+  return s.slice(0, 12);
+}
+
+/** The daily-rotating ANONYMOUS token (issue #6). A fresh random value is made
+    once per calendar day and reused within the day; at the day boundary it is
+    discarded and regenerated, so it can NEVER link a player across days. Stored
+    under the squish-* prefix, so resetProgress() wipes it. This is deliberately
+    NOT a persistent identifier — it only lets COUNT(DISTINCT) approximate daily
+    unique players / restart-proof playstarts while staying consent-free. */
+interface MiniStore { getItem(k: string): string | null; setItem(k: string, v: string): void; }
+
+export function dailyToken(
+  today = localDay(), rand: () => number = Math.random, store: MiniStore = localStorage
+): string {
+  try {
+    const raw = store.getItem(KEY_DAYTOKEN);
+    if (raw) {
+      const cur = JSON.parse(raw) as { token?: string; day?: string };
+      if (cur.day === today && cur.token) return cur.token;
+    }
+  } catch { /* unreadable — regenerate below */ }
+  const token = randomToken(rand);
+  try { store.setItem(KEY_DAYTOKEN, JSON.stringify({ token, day: today })); } catch { /* private mode: still return it */ }
+  return token;
+}
 
 export interface SavedGame {
   v: 2;

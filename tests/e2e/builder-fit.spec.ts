@@ -25,7 +25,7 @@ for (const s of SIZES) {
 
     const m = await page.evaluate(() => {
       const r = (id: string): DOMRect => document.getElementById(id)!.getBoundingClientRect();
-      const head = r('bLogo');
+      const head = r('logo'); // the SHARED game header logo, reused in the editor
       const chips = document.querySelector('.bsizes')!.getBoundingClientRect();
       return {
         vh: window.innerHeight,

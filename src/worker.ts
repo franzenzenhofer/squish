@@ -66,7 +66,9 @@ export default {
             /* platform splits web vs ios inside ONE dataset; absent means web
                (old/cached clients predate the flag) */
             env.SQUISH_EVENTS.writeDataPoint({
-              blobs: [ev.e, ev.k ?? '', ev.p ?? 'web'],
+              /* blob4 = the daily-rotating token (issue #6) — a BLOB so queries
+                 can COUNT(DISTINCT) it (indexes are sampled, never use one) */
+              blobs: [ev.e, ev.k ?? '', ev.p ?? 'web', ev.t ?? ''],
               doubles: [ev.li ?? -1, ev.mv ?? -1, ev.par ?? -1, ev.hr ?? -1, ev.hd ?? -1],
               indexes: [ev.e]
             });

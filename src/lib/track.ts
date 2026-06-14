@@ -7,6 +7,8 @@ export interface TrackerOpts {
   enabled: boolean;
   /** build target tag stamped onto every event (web | ios) */
   platform: Platform;
+  /** the daily-rotating anonymous token stamped on every event (issue #6) */
+  token?: () => string;
   /** transport: receives the JSON body; returns whether it was queued */
   send: (body: string) => boolean;
 }
@@ -20,7 +22,7 @@ export function createTracker(o: TrackerOpts): Tracker {
     track: (e, fields): void => {
       if (!o.enabled) return;
       try {
-        const ev = sanitizeEvent({ ...fields, e, p: o.platform });
+        const ev = sanitizeEvent({ ...fields, e, p: o.platform, t: o.token?.() });
         if (!ev) return;
         o.send(JSON.stringify(ev));
       } catch {

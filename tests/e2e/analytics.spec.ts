@@ -18,8 +18,12 @@ test('boot fires an anonymous beacon tagged platform=web', async ({ page }) => {
   const req = await bootBeacon;
   const body = JSON.parse(req.postData() ?? '{}') as Record<string, unknown>;
 
-  /* exact shape: the event name plus the web platform tag, nothing else */
-  expect(body).toEqual({ e: 'boot', p: 'web' });
+  /* the event name + web platform tag + the daily-rotating anonymous token (a
+     short random value, issue #6), and nothing else */
+  expect(body.e).toBe('boot');
+  expect(body.p).toBe('web');
+  expect(body.t).toMatch(/^[a-z0-9]{1,16}$/);
+  expect(Object.keys(body).sort()).toEqual(['e', 'p', 't']);
   /* the anonymity contract holds over the wire too */
   expect(req.postData() ?? '').not.toMatch(/userId|email|cookie|ip|ua/i);
 });
