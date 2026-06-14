@@ -107,7 +107,7 @@ export const INTRO_SPECS: Record<string, IntroSpec> = {
 
   /* ---- other movers ----------------------------------------------------- */
   box: {
-    kind: 'box', name: 'Crate', line: 'Slides along until something stops it',
+    kind: 'box', name: 'Tofu', line: 'Slides along until something stops it',
     actor: 'box', tiles: ['floor', 'floor', 'wall'], chevrons: [200],
     keys: [{ t: 0, x: 0 }, { t: 300, x: 0 }, { t: 1000, x: 1 }]
   },
