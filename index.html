@@ -541,13 +541,14 @@
     position: fixed; inset: 0; z-index: 11; display: none;
     flex-direction: column; align-items: center;
     background: radial-gradient(130% 90% at 50% -15%, #FFFAFC 0%, #FFEFF6 42%, #FFE2EE 100%);
-    padding: max(8px, env(safe-area-inset-top)) 12px max(10px, env(safe-area-inset-bottom));
-    gap: 10px; overflow: hidden;
+    padding: max(6px, env(safe-area-inset-top)) 10px max(8px, env(safe-area-inset-bottom));
+    gap: clamp(3px, 1vh, 9px); overflow: hidden;
   }
   #builder.show { display: flex; }
-  .bhead { width: min(440px,100%); display: flex; align-items: center; gap: 8px; padding: 4px 2px 0; }
-  .blogo { flex: 1; min-width: 0; height: 30px; display: flex; align-items: center; overflow: hidden; }
-  .blogo svg { height: 100%; width: auto; }
+  .bhead { flex: none; width: min(460px,100%); display: flex; align-items: center; gap: 7px; padding: 2px 2px 0; }
+  /* the canonical wordmark scaled to fit its slot (preserveAspectRatio, never clipped) */
+  .blogo { flex: 1; min-width: 0; height: clamp(20px, 3vh, 28px); display: flex; align-items: center; }
+  .blogo svg { display: block; width: 100%; height: 100%; }
   .btag { flex: none; font-size: 11px; font-weight: 800; letter-spacing: .12em; color: var(--dim2);
     border: 2px solid var(--border); border-radius: 999px; padding: 3px 9px; }
   #bStatus { flex: none; font-weight: 800; font-size: 12px; letter-spacing: .04em; padding: 7px 11px; border-radius: 999px;
@@ -558,23 +559,28 @@
   #bStatus::before { content: "✓ "; }
   #bStatus[data-status="unsolvable"]::before { content: "✗ "; }
   #bStatus[data-status="idle"]::before, #bStatus[data-status="checking"]::before, #bStatus[data-status="unknown"]::before { content: ""; }
-  /* the hint reuses the canonical #cap bubble look; only its placement differs */
-  #bBubble { position: relative; top: auto; left: auto; right: auto; margin: 2px auto 0; z-index: 1; }
+  /* the hint reuses the canonical #cap bubble (fixed OVERLAY, like in the game) so
+     it never reserves layout height — only its top + stacking differ for the builder */
+  #bBubble { top: clamp(90px, 13vh, 116px); z-index: 13; }
   #bBubble #bBubbleText { pointer-events: none; }
-  .bsizes { display: flex; gap: 6px; }
+  .bsizes { flex: none; display: flex; gap: 6px; }
   .bchip { font-weight: 800; font-size: 14px; color: var(--dim2); background: #FFEAF2; border: none;
     border-radius: 999px; padding: 7px 12px; cursor: pointer; }
   .bchip[data-active="true"] { background: var(--heart); color: #fff; }
-  #bBoardWrap { position: relative; width: min(440px, 92vw); max-width: 64vh; aspect-ratio: 1; background: #fff;
-    border-radius: 26px; padding: 12px; box-shadow: 0 8px 0 var(--shadow); }
-  .btiles { position: absolute; inset: 12px; display: grid; gap: 5px;
+  /* board area takes the remaining height and centres the largest square that
+     fits (the game's "flex:1 + min(w,h)" rule, in pure CSS) — guarantees fit */
+  #bBoardWrap { flex: 1 1 0; min-height: 0; width: min(460px, 96vw);
+    display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  #bBoard { position: relative; aspect-ratio: 1; height: 100%; max-height: 100%; max-width: 100%;
+    background: #fff; border-radius: 26px; box-shadow: 0 8px 0 var(--shadow); }
+  .btiles { position: absolute; inset: 11px; display: grid; gap: 5px;
     grid-template-columns: repeat(var(--bw), 1fr); grid-template-rows: repeat(var(--bh), 1fr); }
   .btile { border-radius: 12px; background: #FBEFF4; }
-  .bcanvas { position: absolute; inset: 12px; width: calc(100% - 24px); height: calc(100% - 24px);
+  .bcanvas { position: absolute; inset: 11px; width: calc(100% - 22px); height: calc(100% - 22px);
     touch-action: none; }
   .bghost { position: fixed; transform: translate(-50%,-50%); width: 52px; height: 52px;
     object-fit: contain; pointer-events: none; z-index: 30; filter: drop-shadow(0 4px 6px rgba(246,201,220,.7)); }
-  .bpalwrap { width: min(440px,100%); background: #fff; border-radius: 22px; padding: 10px;
+  .bpalwrap { flex: none; width: min(460px,100%); background: #fff; border-radius: 22px; padding: 8px;
     box-shadow: 0 6px 0 var(--shadow); }
   .bpalette { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; scroll-snap-type: x mandatory; }
   .bpalette::-webkit-scrollbar { display: none; }
@@ -589,7 +595,7 @@
   .bdots { display: flex; gap: 5px; justify-content: center; padding-top: 8px; }
   .bdot { width: 6px; height: 6px; border-radius: 999px; background: var(--border); transition: background .15s; }
   .bdot[data-active="true"] { background: var(--heart); }
-  .bactions { width: min(440px,100%); display: flex; gap: 8px; }
+  .bactions { flex: none; width: min(460px,100%); display: flex; gap: 8px; }
   #bActions button { flex: 1; }
   #bActions #bPlay { flex: 1.3; }
   #bActions button[data-locked="true"] { opacity: .45; }
@@ -713,8 +719,10 @@
   <div id="bBubble" data-testid="builder-bubble"><span id="bBubbleText"></span></div>
   <div id="bSizes" class="bsizes"></div>
   <div id="bBoardWrap">
-    <div id="bTiles" class="btiles"></div>
-    <canvas id="bc" class="bcanvas" data-testid="builder-board"></canvas>
+    <div id="bBoard">
+      <div id="bTiles" class="btiles"></div>
+      <canvas id="bc" class="bcanvas" data-testid="builder-board"></canvas>
+    </div>
   </div>
   <div class="bpalwrap">
     <div id="bPalette" class="bpalette"></div>
