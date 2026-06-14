@@ -35,12 +35,14 @@ export function paintPiece(
 export interface IconOpts {
   /** 'sprite' uses SPR[name] (movers/friends/star); 'field' uses FLD[name] */
   kind?: 'sprite' | 'field';
+  /** direction for directional fields (oneway / breeze) so the icon points right */
+  dir?: 'up' | 'down' | 'left' | 'right';
 }
 
 /** Cached high-res data URL for a sprite/field icon (empty for unknown names). */
 export function spriteIcon(name: string, opts: IconOpts = {}): string {
   const kind = opts.kind ?? 'sprite';
-  const key = kind + ':' + name;
+  const key = kind + ':' + name + ':' + (opts.dir ?? '');
   const hit = cache.get(key);
   if (hit !== undefined) return hit;
 
@@ -55,7 +57,7 @@ export function spriteIcon(name: string, opts: IconOpts = {}): string {
   const cx = BOX / 2;
   const cy = BOX / 2;
   if (kind === 'field') {
-    const o = { px: cx, py: cy, cell, now: 0, gx: 0, gy: 0 };
+    const o = { px: cx, py: cy, cell, now: 0, gx: 0, gy: 0, dir: opts.dir };
     if (name === 'heart') FLD.heart?.(ctx, { ...o, won: false, locked: false });
     else FLD[name]?.(ctx, o);
   } else {

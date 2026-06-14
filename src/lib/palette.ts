@@ -31,7 +31,7 @@ export const C = {
   curl: '#C4A9F8', curlHi: '#E5D8FC', curlLn: '#9676E6',
   ice: '#E7F4FC', iceHi: '#FFFFFF', iceLn: '#A8D6EF', frost: '#9CCEEC',
   shard: '#D2ECFB', shardHi: '#F0FAFF', shardLn: '#9CCEEC',
-  spring: '#FF8C9B', springHi: '#FFB3BC', springLo: '#F06678', springLn: '#E25366', springStem: '#FFF4E8',
+  spring: '#A6DBFF', springHi: '#E8F6FF', springLo: '#6FBFF2', springLn: '#4FAAEC', springStem: '#BCE0FF',
   jelly: '#FFAAD6', jellyHi: '#FFD3E8', jellyLn: '#F377B3',
   mint: '#A0E7CF', mintHi: '#D2F4E8', mintLn: '#54C09E',
   wall: '#D9CBF6', wallHi: '#F0E9FC', wallLo: '#C2B1EC', wallLn: '#AE94E3', wallBtn: '#C9B8F0',

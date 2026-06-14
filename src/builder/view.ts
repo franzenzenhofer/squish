@@ -8,8 +8,9 @@ import type { LevelDef } from '../engine/types';
 import type { Session } from '../game/session';
 import {
   type BuilderState, createBuilderState, selectTool, placeAt, eraseAt, resize, toDef, fromDef,
-  pieceAt, applyToolAt
+  pieceAt, applyToolAt, countTool
 } from './state';
+import { toolById } from './tools';
 import { structuralErrors, canSolveCheck } from './validate';
 import { createSolveRunner, type SolveOutcome, type SolveStatus } from './solveDebounce';
 import { buildChips, buildPalette } from './dom';
@@ -186,10 +187,14 @@ export function createBuilder(d: BuilderDeps): BuilderApi {
       pre-selected so a first-timer can't get lost. */
   function applyStage(): void {
     const stage = !st.target ? 0 : st.dots.length === 0 ? 1 : 2;
-    const ok = (id: string): boolean =>
-      stage === 2 ? true
+    const ok = (id: string): boolean => {
+      const tool = toolById(id);
+      /* a capped tool greys out once its limit is reached (portals = 2) */
+      if (tool?.cap && countTool(st, id) >= tool.cap) return false;
+      return stage === 2 ? true
         : stage === 1 ? id === 'squishy' || id === 'heart' || id === 'eraser'
           : id === 'heart';
+    };
     for (const b of root.querySelectorAll('[data-testid="tool"]')) {
       (b as HTMLElement).dataset.disabled = String(!ok((b as HTMLElement).dataset.tool ?? ''));
     }

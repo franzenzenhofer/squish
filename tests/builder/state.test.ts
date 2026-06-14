@@ -82,3 +82,32 @@ describe('builder state machine', () => {
     expect(back.cells.get('1,1')).toBe('star');
   });
 });
+
+import { countTool } from '../../src/builder/state';
+
+describe('directional winds/arrows + capped portals', () => {
+  it('encodes winds + arrows WITH direction and round-trips', () => {
+    const s = createBuilderState(5, 5);
+    selectTool(s, 'windR'); placeAt(s, 1, 1);
+    selectTool(s, 'arrowU'); placeAt(s, 2, 2);
+    const def = toDef(s);
+    expect(def.breeze).toEqual([[1, 1, 'R']]);
+    expect(def.oneway).toEqual([[2, 2, 'U']]);
+    const s2 = fromDef(def);
+    expect(s2.cells.get('1,1')).toBe('windR');
+    expect(s2.cells.get('2,2')).toBe('arrowU');
+  });
+  it('caps portals at exactly two (a linked pair), refusing a third', () => {
+    const s = createBuilderState(5, 5);
+    selectTool(s, 'portal');
+    placeAt(s, 0, 0); placeAt(s, 4, 4); placeAt(s, 2, 2); // 3rd refused by the cap
+    expect(countTool(s, 'portal')).toBe(2);
+    expect(toDef(s).portals).toEqual([[0, 0], [4, 4]]);
+    expect(countTool(fromDef(toDef(s)), 'portal')).toBe(2);
+  });
+  it('omits portals until exactly two exist', () => {
+    const s = createBuilderState(5, 5);
+    selectTool(s, 'portal'); placeAt(s, 0, 0);
+    expect(toDef(s).portals).toBeUndefined();
+  });
+});

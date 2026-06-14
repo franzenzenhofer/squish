@@ -3,8 +3,8 @@
    relocates; squishies (dots) may be many; at most ONE element occupies a cell
    (so the share codec stays lossless). toDef/fromDef bridge to LevelDef. */
 
-import type { LevelDef, XY } from '../engine/types';
-import { toolById, toolByField, TOOLS } from './tools';
+import type { LevelDef, XY, XYDir, DirCode } from '../engine/types';
+import { toolById, toolByField, toolByFieldDir, TOOL_FIELDS } from './tools';
 
 export interface BuilderState {
   w: number;
@@ -61,6 +61,13 @@ export function applyToolAt(s: BuilderState, toolId: string, x: number, y: numbe
   s.active = prev;
 }
 
+/** How many cells currently hold a given paint-tool id (for capped tools). */
+export function countTool(s: BuilderState, id: string): number {
+  let n = 0;
+  for (const v of s.cells.values()) if (v === id) n++;
+  return n;
+}
+
 /** Apply the active tool at a cell. */
 export function placeAt(s: BuilderState, x: number, y: number): void {
   if (!inBounds(s, x, y)) return;
@@ -70,6 +77,8 @@ export function placeAt(s: BuilderState, x: number, y: number): void {
     clearCell(s, x, y);
     return;
   }
+  /* capped tools (portals = 2): refuse a NEW cell once the cap is reached */
+  if (tool.cap && pieceAt(s, x, y) !== tool.id && countTool(s, tool.id) >= tool.cap) return;
   clearCell(s, x, y); // one element per cell
   if (tool.kind === 'target') {
     s.target = [x, y]; // unique: any prior heart is dropped below
@@ -107,13 +116,18 @@ export function toDef(s: BuilderState): LevelDef {
     dots: s.dots.map((d) => [d[0], d[1]]),
     par: 0
   };
+  const portalCells: XY[] = [];
   for (const [k, toolId] of s.cells) {
     const tool = toolById(toolId);
     if (!tool?.field) continue;
     const [x, y] = k.split(',').map(Number) as [number, number];
-    const arr = ((def as unknown as Record<string, XY[]>)[tool.field] ??= []);
-    arr.push([x, y]);
+    if (tool.field === 'portals') { portalCells.push([x, y]); continue; }
+    const d = def as unknown as Record<string, (XY | XYDir)[]>;
+    (d[tool.field] ??= []).push(tool.dir ? [x, y, tool.dir] : [x, y]);
   }
+  /* portals are a LINKED PAIR — emitted only when exactly two are placed */
+  const [pa, pb] = portalCells;
+  if (pa && pb) def.portals = [pa, pb];
   return def;
 }
 
@@ -122,13 +136,17 @@ export function fromDef(def: LevelDef): BuilderState {
   const s = createBuilderState(def.w, def.h);
   s.target = [def.target[0], def.target[1]];
   s.dots = def.dots.map((d) => [d[0], d[1]]);
-  for (const tool of TOOLS) {
-    if (!tool.field) continue;
-    const cells = (def as unknown as Record<string, XY[] | undefined>)[tool.field];
+  for (const field of TOOL_FIELDS) {
+    const cells = (def as unknown as Record<string, (XY | XYDir)[] | undefined>)[field];
     if (!Array.isArray(cells)) continue;
-    for (const [x, y] of cells) {
-      const owner = toolByField(tool.field);
-      if (owner) s.cells.set(key(x, y), owner.id);
+    if (field === 'portals') { // a linked pair -> two portal cells
+      for (const c of cells) s.cells.set(key(c[0], c[1]), 'portal');
+      continue;
+    }
+    for (const c of cells) {
+      const dir = c.length >= 3 ? (c[2] as DirCode) : undefined;
+      const owner = dir ? toolByFieldDir(field, dir) : toolByField(field);
+      if (owner) s.cells.set(key(c[0], c[1]), owner.id);
     }
   }
   return s;

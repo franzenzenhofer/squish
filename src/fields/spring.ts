@@ -12,9 +12,9 @@ export const spring: FieldFn = (ctx, o) => {
   ctx.save(); ctx.translate(px, py);
 
   const comp = 0.5 + 0.5 * Math.sin(now * 0.005 + gx * 1.3 + gy); // 0 squashed .. 1 stretched up
-  const r = cell * 0.25;                          // plush head radius
-  const baseY = cell * 0.36;
-  const headY = -cell * 0.06 - comp * cell * 0.13; // bobs up with the bounce
+  const r = cell * 0.21;                          // plush head radius (a touch smaller)
+  const baseY = cell * 0.34;
+  const headY = -cell * 0.02 - comp * cell * 0.12; // bobs up with the bounce
 
   U.ground(ctx, 0, baseY + cell * 0.02, cell * 0.4);
 
@@ -52,12 +52,14 @@ export const spring: FieldFn = (ctx, o) => {
   U.eyes(ctx, r, { mood: nem, seed: gx * 3 + gy, now, eyeY: -0.14, size: 0.17, spacing: 0.34 });
   U.blush(ctx, r, { y: 0.22, spread: 0.62, w: 0.16, h: 0.11 });
 
-  /* a little "boing!" mouth that opens on the way up */
-  const open = 0.28 + 0.72 * comp;
-  ctx.fillStyle = C.springLn;
-  ctx.beginPath(); ctx.ellipse(0, r * 0.34, r * 0.12, r * 0.16 * open, 0, 0, 7); ctx.fill();
-  ctx.fillStyle = '#FFD9DF';
-  ctx.beginPath(); ctx.ellipse(0, r * 0.34 + r * 0.06 * open, r * 0.06, r * 0.06 * open, 0, 0, 7); ctx.fill();
+  /* a happy little smile (widens a touch at the top of the bounce) */
+  ctx.strokeStyle = C.springLn; ctx.lineCap = 'round';
+  ctx.lineWidth = Math.max(2, r * 0.1);
+  const mw = r * (0.16 + 0.06 * comp);
+  ctx.beginPath();
+  ctx.moveTo(-mw, r * 0.3);
+  ctx.quadraticCurveTo(0, r * 0.46, mw, r * 0.3);
+  ctx.stroke();
 
   ctx.restore();
   ctx.restore();
