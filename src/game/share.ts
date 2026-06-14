@@ -18,8 +18,26 @@ const BOARD_PX = 520;
 const BOARD_TOP = 180; /* board square's top edge inside the card */
 const FROZEN = 1234; /* frozen moment — deterministic static image */
 const SITE = 'https://squishy.franzai.com';
+/* shares are supersampled: every card/board canvas is drawn at SHARE_DPR the
+   logical size, so sprites/fields stay crisp after the single downscale into
+   the final PNG/GIF. Without this the board was painted at 1x then shrunk,
+   which is why the old GIF looked soft/broken. */
+const SHARE_DPR = 3;
 
-export { BOARD_PX, BOARD_TOP, CARD_H, CARD_W };
+export { BOARD_PX, BOARD_TOP, CARD_H, CARD_W, SHARE_DPR };
+
+/** A canvas whose backing store is SHARE_DPR the logical size, with its context
+    pre-scaled so all drawing code keeps using logical coordinates. */
+export function shareCanvas(w: number, h: number): {
+  el: HTMLCanvasElement; ctx: CanvasRenderingContext2D;
+} {
+  const el = document.createElement('canvas');
+  el.width = Math.round(w * SHARE_DPR);
+  el.height = Math.round(h * SHARE_DPR);
+  const ctx = el.getContext('2d', { willReadFrequently: true }) as CanvasRenderingContext2D;
+  ctx.scale(SHARE_DPR, SHARE_DPR);
+  return { el, ctx };
+}
 
 /** A Session laid out for the postcard's board square — the same structure the
     live game renders, so drawFrame is the single board renderer everywhere. */
@@ -91,7 +109,8 @@ export function drawCard(
   ctx.clearRect(0, 0, CARD_W, CARD_H);
   ctx.save();
   drawCardChrome(ctx, label, corner);
-  ctx.drawImage(board, Math.floor((CARD_W - BOARD_PX) / 2), BOARD_TOP);
+  /* explicit logical size so a supersampled board canvas downscales here */
+  ctx.drawImage(board, Math.floor((CARD_W - BOARD_PX) / 2), BOARD_TOP, BOARD_PX, BOARD_PX);
   drawCardFooter(ctx);
   ctx.restore();
 }
@@ -99,18 +118,12 @@ export function drawCard(
 /** The level's initial state as a postcard — board painted by drawFrame at a
     frozen moment, so the static share image IS the gameplay look. */
 export function renderBoardCard(def: LevelDef, label: string): HTMLCanvasElement {
-  const cv = document.createElement('canvas');
-  cv.width = CARD_W;
-  cv.height = CARD_H;
-  const ctx = cv.getContext('2d') as CanvasRenderingContext2D;
-  const board = document.createElement('canvas');
-  board.width = BOARD_PX;
-  board.height = BOARD_PX;
-  const bctx = board.getContext('2d') as CanvasRenderingContext2D;
-  drawFrame(bctx, cardSession(def), FROZEN, CARD_HOOKS);
+  const card = shareCanvas(CARD_W, CARD_H);
+  const board = shareCanvas(BOARD_PX, BOARD_PX);
+  drawFrame(board.ctx, cardSession(def), FROZEN, CARD_HOOKS);
   /* exported image: square corners, fully opaque */
-  drawCard(ctx, board, label, 0);
-  return cv;
+  drawCard(card.ctx, board.el, label, 0);
+  return card.el;
 }
 
 /** The landing URL for a share. Daily shares deep-link to #daily so the tap
