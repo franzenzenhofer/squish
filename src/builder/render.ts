@@ -4,7 +4,7 @@
    pixel (SSOT, no second renderer). Empty-cell tiles are a CSS backdrop behind
    the transparent canvas, so no tile drawing is duplicated here either. */
 
-import { drawFrame, drawBoardBackdrop, applyBoardScale } from '../game/render';
+import { drawFrame } from '../game/render';
 import { cardSession, CARD_HOOKS, BOARD_PX } from '../game/share';
 import { toDef, type BuilderState } from './state';
 import type { Session } from '../game/session';
@@ -20,26 +20,24 @@ export function boardMetrics(w: number, h: number): BoardMetrics {
 
 /** A render-only game Session for the current board — ALWAYS built, so the
     editor board IS the gameplay board (same cardSession layout as the live game
-    and the share card). An empty board (no heart) renders only the backdrop. */
+    and the share card). When there is NO heart yet (fresh board, or while the
+    heart is lifted for a re-drag) the target is parked far OFF-BOARD so every
+    OTHER piece still renders and the board never vanishes - only the heart is
+    hidden until it is actually placed. */
 export function builderSession(st: BuilderState): Session {
-  return cardSession(toDef(st));
+  const def = toDef(st);
+  if (st.target === null) def.target = [-10, -10]; // off-board: no visible phantom heart
+  return cardSession(def);
 }
 
-/** Paint the board with the ONE gameplay renderer at BOARD_PX (CSS downscales).
-    With a heart it is the full drawFrame (panel + tiles + pieces); empty it is
-    just the shared board backdrop — never a duplicate CSS card/tile grid. */
-export function drawBuilder(
-  canvas: HTMLCanvasElement, session: Session, now: number, hasHeart: boolean
-): void {
+/** Paint the board with the ONE gameplay renderer at BOARD_PX (CSS downscales) —
+    the full drawFrame always, so panel + tiles + every placed piece show exactly
+    as in play. No duplicate CSS card/tile grid; no vanishing on a heart re-drag. */
+export function drawBuilder(canvas: HTMLCanvasElement, session: Session, now: number): void {
   if (canvas.width !== BOARD_PX) { canvas.width = BOARD_PX; canvas.height = BOARD_PX; }
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
-  if (hasHeart) { drawFrame(ctx, session, now, CARD_HOOKS); return; }
-  ctx.clearRect(0, 0, BOARD_PX, BOARD_PX);
-  ctx.save();
-  applyBoardScale(ctx, session);
-  drawBoardBackdrop(ctx, session, now);
-  ctx.restore();
+  drawFrame(ctx, session, now, CARD_HOOKS);
 }
 
 /** Map a pointer position over the canvas to a board cell (or null if outside). */

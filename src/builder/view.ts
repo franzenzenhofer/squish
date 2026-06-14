@@ -15,7 +15,7 @@ import { createSolveRunner, type SolveOutcome, type SolveStatus } from './solveD
 import { buildChips, buildPalette } from './dom';
 import { builderSession, drawBuilder, cellFromPoint } from './render';
 import { toolIcon } from './icons';
-import { saveCreation, listCreations, deleteCreation, getCreation, type KV, type CreationMeta } from './library';
+import { saveCreation, updateCreation, listCreations, deleteCreation, getCreation, type KV, type CreationMeta } from './library';
 import { buildShareUrl } from '../share/shareUrl';
 import { drawQr } from '../share/qr';
 import { shareCapabilities } from '../share/capabilities';
@@ -155,7 +155,7 @@ export function createBuilder(d: BuilderDeps): BuilderApi {
     if (!root.classList.contains('show')) return;
     fitBoard();
     reflectPaletteEdges();
-    if (session) drawBuilder(bc, session, now, st.target !== null);
+    if (session) drawBuilder(bc, session, now);
     raf = requestAnimationFrame(loop);
   }
 
@@ -215,7 +215,7 @@ export function createBuilder(d: BuilderDeps): BuilderApi {
   function persist(): { id: string } {
     const def = { ...toDef(st), par: lastPar };
     if (editingId && getCreation(kv, editingId)) {
-      saveCreation(kv, def, 'Level ' + listCreations(kv).length);
+      updateCreation(kv, editingId, def); // update IN PLACE — never duplicate
       return { id: editingId };
     }
     const id = saveCreation(kv, def, 'Level ' + (listCreations(kv).length + 1));
@@ -256,12 +256,15 @@ export function createBuilder(d: BuilderDeps): BuilderApi {
     refresh(); // applyStage pre-selects the heart on a fresh board
   }
 
-  /** A happy floating piece that follows the finger while dragging (the icon is
-      the gameplay sprite with mood 'happy'). dropToBoard places `tool` at the
-      cell under release (off-board = nothing, so a lifted piece stays removed). */
-  function dragPiece(tool: string, e: PointerEvent): void {
+  /** A happy floating piece that follows the finger while dragging. On RELEASE it
+      is placed at the cell under the finger (off-board release = a deliberate
+      throw-away, so a lifted piece stays removed). On CANCEL (the OS steals the
+      touch: notification, home gesture) the gesture is aborted and a piece that
+      was lifted off the board (`origin`) is restored where it came from, never
+      lost. `origin` is null for a fresh piece dragged out of the palette. */
+  function dragPiece(tool: string, e: PointerEvent, origin: [number, number] | null = null): void {
     const url = toolIcon(tool);
-    if (!url) return; // eraser has no ghost
+    if (!url) { if (origin) edit(() => applyToolAt(st, tool, origin[0], origin[1])); return; } // eraser: nothing to carry
     const ghost = document.createElement('img');
     ghost.src = url; ghost.className = 'bghost';
     let lx = e.clientX, ly = e.clientY;
@@ -283,10 +286,11 @@ export function createBuilder(d: BuilderDeps): BuilderApi {
       try { bc.releasePointerCapture(e.pointerId); } catch { /* already released */ }
       ghost.remove();
       const c = place ? cellFromPoint(bc, lx, ly, st.w, st.h) : null;
-      if (c) edit(() => applyToolAt(st, tool, c[0], c[1]));
+      if (c) edit(() => applyToolAt(st, tool, c[0], c[1]));        // dropped on the board
+      else if (!place && origin) edit(() => applyToolAt(st, tool, origin[0], origin[1])); // cancelled -> restore
     };
     const onUp = (ev: PointerEvent): void => { at(ev.clientX, ev.clientY); end(true); };
-    const onCancel = (): void => end(true); // cancel still drops at the last spot
+    const onCancel = (): void => end(false); // the OS stole the touch: abort, restore
     document.addEventListener('pointermove', move);
     document.addEventListener('pointerup', onUp);
     document.addEventListener('pointercancel', onCancel);
@@ -301,9 +305,10 @@ export function createBuilder(d: BuilderDeps): BuilderApi {
     if (!c) return;
     const here = pieceAt(st, c[0], c[1]);
     if (here) {
-      /* lift this piece and drag it (move on the board, or away to delete) */
+      /* lift this piece and drag it (move on the board, or away to delete); if the
+         OS cancels the drag the piece is restored to `c` (its origin) */
       edit(() => eraseAt(st, c[0], c[1]));
-      dragPiece(here, e);
+      dragPiece(here, e, c);
       return;
     }
     bc.setPointerCapture(e.pointerId);
@@ -323,6 +328,7 @@ export function createBuilder(d: BuilderDeps): BuilderApi {
     }
     painting = null;
   });
+  bc.addEventListener('pointercancel', () => { painting = null; }); // never stay stuck in paint mode
 
   /* The palette is a plain, fast, NATIVE left-right scroller (touch-action:pan-x
      gives momentum, no snap, no pages). The ONLY thing JS adds is the drag-out:
@@ -333,7 +339,7 @@ export function createBuilder(d: BuilderDeps): BuilderApi {
   const DEAD = 8;
   function setupPaletteGestures(): void {
     const pal = $('bPalette');
-    let sx = 0, sy = 0, decided = false, tool = '';
+    let sx = 0, sy = 0, decided = false, tool = '', listening = false;
     const onMove = (e: PointerEvent): void => {
       if (decided) return;
       const dx = e.clientX - sx, dy = e.clientY - sy;
@@ -345,15 +351,20 @@ export function createBuilder(d: BuilderDeps): BuilderApi {
       } // otherwise it was a horizontal swipe: leave it to the native scroll
     };
     const onUp = (): void => { if (!decided && tool) setActive(tool); end(); }; // tap selects
+    /* guard against listener accumulation: a 2nd finger landing before the 1st
+       gesture resolves must NOT stack a permanent extra onMove on document */
     const end = (): void => {
+      if (!listening) return;
+      listening = false;
       document.removeEventListener('pointermove', onMove);
       document.removeEventListener('pointerup', onUp);
       document.removeEventListener('pointercancel', endOnly);
     };
     const endOnly = (): void => end(); // a cancel (native scroll took over) never selects
     pal.addEventListener('pointerdown', (e) => {
+      if (listening) return; // a gesture is already in flight (multi-touch)
       tool = ((e.target as HTMLElement).closest('[data-tool]') as HTMLElement | null)?.dataset.tool ?? '';
-      sx = e.clientX; sy = e.clientY; decided = false;
+      sx = e.clientX; sy = e.clientY; decided = false; listening = true;
       document.addEventListener('pointermove', onMove);
       document.addEventListener('pointerup', onUp);
       document.addEventListener('pointercancel', endOnly);
@@ -364,7 +375,9 @@ export function createBuilder(d: BuilderDeps): BuilderApi {
   buildPalette($('bPalette'));
   setupPaletteGestures();
   /* canonical share glyph beside the label (DRY, from uiIcons) */
-  $('bShare').innerHTML = ICON_SHARE + 'Share';
+  /* the editor's action Share is text-only (no icon); the share SHEET's native
+     button keeps the canonical share glyph */
+  $('bShare').textContent = 'Share';
   $('bShareNative').innerHTML = ICON_SHARE + 'Share';
   $('bPlay').addEventListener('click', () => void api.play());
   $('bShare').addEventListener('click', () => { try { openShare(api.share()); } catch { notify('Make it solvable first!'); } });
@@ -404,6 +417,8 @@ export function createBuilder(d: BuilderDeps): BuilderApi {
     },
     close: (): void => {
       cancelAnimationFrame(raf);
+      painting = null; // never carry a half-finished paint/drag into the next open
+      hideBubble();
       root.classList.remove('show'); $('bShareSheet').dataset.shown = 'false';
       d.onExit();
     },

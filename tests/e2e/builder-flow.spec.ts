@@ -172,6 +172,22 @@ test('there is no Save button (Play and Share auto-save)', async ({ page }) => {
   await expect(page.locator('[data-testid="action-new"]')).toBeVisible();
 });
 
+test('the editor Share button is text-only (no icon)', async ({ page }) => {
+  await expect(page.locator('[data-testid="action-share"]')).toHaveText('Share');
+  await expect(page.locator('[data-testid="action-share"] svg')).toHaveCount(0);
+});
+
+test('auto-save updates the SAME creation in place - no duplicates', async ({ page }) => {
+  await buildSolvable(page);
+  await expect(page.locator('[data-testid="builder-status"]')).toHaveAttribute('data-status', 'solvable', { timeout: 10000 });
+  const id1 = await page.evaluate(() => window.__squishBuilder!.save().id);
+  const id2 = await page.evaluate(() => window.__squishBuilder!.save().id);
+  await page.evaluate(() => window.__squishBuilder!.share()); // also persists
+  const list = await page.evaluate(() => window.__squishBuilder!.listCreations());
+  expect(id1).toBe(id2);
+  expect(list.length).toBe(1);
+});
+
 test('the "Back to editor" button is hidden in a normal campaign level', async ({ page }) => {
   await page.evaluate(() => window.__squishBuilder!.close());
   await page.evaluate(() => window.__squishy?.loadLevel(0));
