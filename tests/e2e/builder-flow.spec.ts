@@ -21,6 +21,10 @@ const buildSolvable = (page: import('@playwright/test').Page): Promise<void> =>
     b.selectTool('squishy'); b.place(0, 0);
   });
 
+const waitForOracle = async (page: import('@playwright/test').Page): Promise<void> => {
+  await page.waitForFunction(() => window.__squishy?.state().oracleReady === true, undefined, { timeout: 10000 });
+};
+
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => localStorage.clear());
   await page.goto('/?test=1');
@@ -98,6 +102,7 @@ test('Play a built level -> win shows an "Editor" button that returns to the edi
 
   await page.evaluate(() => { window.__squishy?.setInstantAnims(true); window.__squishBuilder!.play(); });
   await page.waitForFunction(() => window.__squishy?.state().mode === 'idle');
+  await waitForOracle(page);
 
   // solve it through the real game
   await page.evaluate(async () => {
@@ -196,7 +201,7 @@ test('each custom level gets a FRESH oracle - the hint solves the CURRENT level'
     await expect(page.locator('[data-testid="builder-status"]')).toHaveAttribute('data-status', 'solvable', { timeout: 10000 });
     await page.evaluate(() => { window.__squishy!.setInstantAnims(true); window.__squishBuilder!.play(); });
     await page.waitForFunction(() => window.__squishy?.state().mode === 'idle', undefined, { timeout: 10000 });
-    await page.waitForFunction(() => window.__squishy?.state().oracleReady === true, undefined, { timeout: 10000 });
+    await waitForOracle(page);
     const sol = await page.evaluate(() => window.__squishy!.solution());
     expect(sol, 'the hint must return a solution for THIS level').not.toBeNull();
     expect((sol ?? []).length).toBeGreaterThan(0);

@@ -18,6 +18,10 @@ test.beforeEach(async ({ page }) => {
   await page.evaluate(() => window.__squishBuilder?.open());
 });
 
+const waitForOracle = async (page: import('@playwright/test').Page): Promise<void> => {
+  await page.waitForFunction(() => window.__squishy?.state().oracleReady === true, undefined, { timeout: 10000 });
+};
+
 test('build a solvable level, save, see it, play it, delete it', async ({ page }) => {
   await expect(page.locator('[data-testid="builder"]')).toHaveClass(/show/);
 
@@ -91,6 +95,7 @@ test('after the last saved level, Next continues the normal campaign (no picker)
   await page.evaluate(() => window.__squishy?.setInstantAnims(true));
   await page.click('[data-testid="creation-play"]');
   await page.waitForFunction(() => window.__squishy?.state().mode === 'idle', undefined, { timeout: 10000 });
+  await waitForOracle(page);
   await page.evaluate(async () => { const g = window.__squishy!; for (const d of g.solution() ?? []) await g.move(d as never); });
   await expect(page.locator('#win')).toHaveClass(/show/, { timeout: 10000 });
   await page.click('#winNext');
