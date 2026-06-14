@@ -3,9 +3,9 @@
 import { describe, expect, it } from 'vitest';
 import { CODEDIR, cloneState, isWin, makeLevel } from '../src/engine/core';
 import { move } from '../src/engine/move';
-import { solve } from '../src/engine/solve';
 import type { DirCode, LevelDef } from '../src/engine/types';
 import levelsV3 from './fixtures/levels-v3.json';
+import { cachedSolve } from './_solverCache';
 
 const LEVELS = levelsV3 as LevelDef[];
 
@@ -33,7 +33,7 @@ describe('v3 level parity', () => {
   it('BFS par matches recorded par on a sample', () => {
     for (const i of [0, 5, 11, 21, 33, 41, 50, 59]) {
       const def = LEVELS[i] as LevelDef;
-      const res = solve(makeLevel(def), { maxDepth: def.par + 1 });
+      const res = cachedSolve(def, { maxDepth: def.par + 1 });
       expect(res.status, `level ${i + 1}`).toBe('solved');
       if (res.status === 'solved') expect(res.par, `level ${i + 1}`).toBe(def.par);
     }

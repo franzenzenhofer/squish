@@ -7,6 +7,7 @@ import { cloneState, isWin, makeLevel, ser } from '../src/engine/core';
 import { move } from '../src/engine/move';
 import type { LevelDef } from '../src/engine/types';
 import curated from '../src/levels.json';
+import { oncePerLevel } from './_solverCache';
 
 const LEVELS = curated as LevelDef[];
 
@@ -14,16 +15,20 @@ describe('level oracle', () => {
   for (let i = 0; i < LEVELS.length; i++) {
     const def = LEVELS[i] as LevelDef;
     it(`level ${i + 1}: exhausted, dist(init)=${def.par}, policy walk wins`, () => {
-      const level = makeLevel(def);
-      const o = analyzeLevel(level);
-      expect(o.exhausted).toBe(true);
-      expect(o.dist.get(ser(level.initState))).toBe(def.par);
-      const sol = solutionFrom(level, level.initState, o);
-      expect(sol).not.toBeNull();
-      expect(sol?.length).toBe(def.par);
-      let st = cloneState(level.initState);
-      for (const d of sol ?? []) st = move(level, st, d).state;
-      expect(isWin(level, st)).toBe(true);
+      /* verified once per (engine, level), then cached — the oracle is not
+         rebuilt over all levels on every run (see tests/_solverCache.ts) */
+      oncePerLevel(def, 'oracle-init', () => {
+        const level = makeLevel(def);
+        const o = analyzeLevel(level);
+        expect(o.exhausted).toBe(true);
+        expect(o.dist.get(ser(level.initState))).toBe(def.par);
+        const sol = solutionFrom(level, level.initState, o);
+        expect(sol).not.toBeNull();
+        expect(sol?.length).toBe(def.par);
+        let st = cloneState(level.initState);
+        for (const d of sol ?? []) st = move(level, st, d).state;
+        expect(isWin(level, st)).toBe(true);
+      });
     });
   }
 
@@ -118,22 +123,24 @@ describe('level oracle', () => {
 describe('oh-no fires exactly on proven-dead states', () => {
   for (const li of [3, 9, 17, 25, 33]) {
     it(`level ${li + 1}: truncated oracles never call winnable states dead`, () => {
-      const level = makeLevel(LEVELS[li] as LevelDef);
-      const full = analyzeLevel(level);
-      expect(full.exhausted).toBe(true);
-      for (const cap of [10, 50, 200, 1000]) {
-        const cut = analyzeLevel(level, { maxStates: cap });
-        if (cut.exhausted) continue; // graph fit the cap - nothing was truncated
-        let checked = 0;
-        for (const k of cut.policy.keys()) {
-          if (full.dist.has(k)) {
-            /* winnable by full proof: truncated may answer true or null, never false */
-            expect(winnableState(cut, k)).not.toBe(false);
-            checked++;
+      oncePerLevel(LEVELS[li] as LevelDef, 'ohno-truncated', () => {
+        const level = makeLevel(LEVELS[li] as LevelDef);
+        const full = analyzeLevel(level);
+        expect(full.exhausted).toBe(true);
+        for (const cap of [10, 50, 200, 1000]) {
+          const cut = analyzeLevel(level, { maxStates: cap });
+          if (cut.exhausted) continue; // graph fit the cap - nothing was truncated
+          let checked = 0;
+          for (const k of cut.policy.keys()) {
+            if (full.dist.has(k)) {
+              /* winnable by full proof: truncated may answer true or null, never false */
+              expect(winnableState(cut, k)).not.toBe(false);
+              checked++;
+            }
           }
+          expect(checked).toBeGreaterThan(0);
         }
-        expect(checked).toBeGreaterThan(0);
-      }
+      });
     });
   }
 

@@ -13,51 +13,55 @@ import { move } from '../src/engine/move';
 import type { Dir, GameState, LevelDef } from '../src/engine/types';
 import { isReversibleEscape, serEquivalent } from '../src/game/hints';
 import levels from '../src/levels.json';
+import { oncePerLevel } from './_solverCache';
 
 describe('reversibility invariant (every exhausted oracle honors it)', () => {
   const CURATED = (levels as LevelDef[]).slice(0, 25);
 
   it('winnable(S) and exact reverse T->S imply winnable(T), on every curated edge', () => {
     for (let li = 0; li < CURATED.length; li++) {
-      const level = makeLevel(CURATED[li] as LevelDef);
-      const oracle = analyzeLevel(level);
-      expect(oracle.exhausted, 'L' + (li + 1) + ' oracle must exhaust').toBe(true);
-      /* walk the reachable graph with real states in hand. Win states are
-         terminal (the game ends there) — walking past them would invent
-         phantom states the oracle rightly never explores. */
-      const seen = new Set<string>([ser(level.initState)]);
-      let frontier: GameState[] = [cloneState(level.initState)];
-      while (frontier.length > 0) {
-        const next: GameState[] = [];
-        for (const S of frontier) {
-          if (isWin(level, S)) continue;
-          const sk = ser(S);
-          /* the invariant needs a POSITIVELY winnable S (in the oracle's
-             dist map) — null would be a phantom, not a proof */
-          const sWinnable = winnableState(oracle, sk) === true;
-          for (const d of DIRNAMES) {
-            const r = move(level, cloneState(S), d);
-            if (!r.moved || r.state.dots.length === 0) continue;
-            const tk = ser(r.state);
-            if (sWinnable) {
-              const back = move(level, cloneState(r.state), REV[d]);
-              if (back.moved &&
-                  serEquivalent(level, back.state) === serEquivalent(level, S)) {
-                expect(
-                  winnableState(oracle, tk),
-                  'L' + (li + 1) + ': reversible move ' + d + ' from winnable ' +
-                  sk + ' may NEVER be judged dead'
-                ).not.toBe(false);
+      /* each level's invariant is proven once per (engine, level) then cached */
+      oncePerLevel(CURATED[li] as LevelDef, 'reversibility', () => {
+        const level = makeLevel(CURATED[li] as LevelDef);
+        const oracle = analyzeLevel(level);
+        expect(oracle.exhausted, 'L' + (li + 1) + ' oracle must exhaust').toBe(true);
+        /* walk the reachable graph with real states in hand. Win states are
+           terminal (the game ends there) — walking past them would invent
+           phantom states the oracle rightly never explores. */
+        const seen = new Set<string>([ser(level.initState)]);
+        let frontier: GameState[] = [cloneState(level.initState)];
+        while (frontier.length > 0) {
+          const next: GameState[] = [];
+          for (const S of frontier) {
+            if (isWin(level, S)) continue;
+            const sk = ser(S);
+            /* the invariant needs a POSITIVELY winnable S (in the oracle's
+               dist map) — null would be a phantom, not a proof */
+            const sWinnable = winnableState(oracle, sk) === true;
+            for (const d of DIRNAMES) {
+              const r = move(level, cloneState(S), d);
+              if (!r.moved || r.state.dots.length === 0) continue;
+              const tk = ser(r.state);
+              if (sWinnable) {
+                const back = move(level, cloneState(r.state), REV[d]);
+                if (back.moved &&
+                    serEquivalent(level, back.state) === serEquivalent(level, S)) {
+                  expect(
+                    winnableState(oracle, tk),
+                    'L' + (li + 1) + ': reversible move ' + d + ' from winnable ' +
+                    sk + ' may NEVER be judged dead'
+                  ).not.toBe(false);
+                }
+              }
+              if (!seen.has(tk)) {
+                seen.add(tk);
+                next.push(r.state);
               }
             }
-            if (!seen.has(tk)) {
-              seen.add(tk);
-              next.push(r.state);
-            }
           }
+          frontier = next;
         }
-        frontier = next;
-      }
+      });
     }
   }, 240000);
 });

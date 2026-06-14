@@ -5,3 +5,6 @@ levels.progress.json
 sound-audition
 appstore/out
 appstore/raw
+
+# test solver/oracle memo (per-environment, rebuilt on demand)
+tests/.solver-cache.json

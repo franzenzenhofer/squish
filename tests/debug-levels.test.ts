@@ -6,9 +6,9 @@ import { describe, expect, it } from 'vitest';
 import { analyzeLevel, winnableState } from '../src/engine/analyze';
 import { CODEDIR, DIRNAMES, cloneState, isWin, makeLevel, ser } from '../src/engine/core';
 import { move } from '../src/engine/move';
-import { solve } from '../src/engine/solve';
 import type { DirCode } from '../src/engine/types';
 import { DEBUG_LEVELS } from '../src/game/debugLevels';
+import { cachedSolve, cachedExhausts } from './_solverCache';
 
 /** Provably dead (or losing) opening swipes from the initial state. */
 function deadOpenings(def: (typeof DEBUG_LEVELS)[number]['def']): number {
@@ -26,10 +26,11 @@ function deadOpenings(def: (typeof DEBUG_LEVELS)[number]['def']): number {
 describe('debug levels', () => {
   for (const t of DEBUG_LEVELS) {
     it(t.name + ': oracle exhausts, sol wins at par', () => {
-      const level = makeLevel(t.def);
-      const oracle = analyzeLevel(level);
-      expect(oracle.exhausted, 'oracle must exhaust').toBe(true);
+      /* solver + oracle verdicts are memoised to .solver-cache.json — computed
+         once per level, reused on every later run (no BFS over all levels again) */
+      expect(cachedExhausts(t.def), 'oracle must exhaust').toBe(true);
 
+      const level = makeLevel(t.def);
       let st = cloneState(level.initState);
       for (const c of (t.def.sol ?? '').split('') as DirCode[]) {
         const r = move(level, st, CODEDIR[c]);
@@ -38,10 +39,10 @@ describe('debug levels', () => {
       }
       expect(isWin(level, st), 'sol must end on the heart').toBe(true);
 
-      const res = solve(level, { maxStates: 500000, maxDepth: t.def.par + 2 });
+      const res = cachedSolve(t.def, { maxStates: 500000, maxDepth: t.def.par + 2 });
       expect(res.status).toBe('solved');
       if (res.status === 'solved') expect(res.par, 'par must be optimal').toBe(t.def.par);
-    });
+    }, 20000); /* generous cold-run headroom; warm runs read the cache instantly */
   }
 
   it('Oh-no trap: every effective non-winning opening is provably dead', () => {
