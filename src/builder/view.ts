@@ -263,10 +263,31 @@ export function createBuilder(d: BuilderDeps): BuilderApi {
     painting = null;
   });
 
-  // drag a piece UP from the palette onto the board
+  // Palette pointerdown: DON'T grab yet — wait for the first move to tell a
+  // horizontal swipe (let the carousel scroll) from an upward drag (pick the
+  // piece up and carry it to the board). A plain tap still selects via click.
   function onToolDragStart(id: string, e: PointerEvent): void {
-    setActive(id);
-    dragPiece(id, e);
+    const sx = e.clientX, sy = e.clientY;
+    let settled = false;
+    const decide = (ev: PointerEvent): void => {
+      if (settled) return;
+      const dx = ev.clientX - sx, dy = ev.clientY - sy;
+      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+      settled = true;
+      cleanup();
+      if (Math.abs(dy) >= Math.abs(dx)) { // mostly vertical -> drag onto the board
+        setActive(id);
+        dragPiece(id, ev);
+      } // mostly horizontal -> leave it to the native carousel scroll
+    };
+    const cleanup = (): void => {
+      document.removeEventListener('pointermove', decide);
+      document.removeEventListener('pointerup', cleanup);
+      document.removeEventListener('pointercancel', cleanup);
+    };
+    document.addEventListener('pointermove', decide, { passive: true });
+    document.addEventListener('pointerup', cleanup, { once: true });
+    document.addEventListener('pointercancel', cleanup, { once: true });
   }
 
   buildChips($('bSizes'), setSize);
