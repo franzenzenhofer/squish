@@ -19,6 +19,7 @@ import { builderSession, drawBuilder, cellFromPoint } from './render';
 import { toolIcon } from './icons';
 import { saveCreation, updateCreation, listCreations, deleteCreation, getCreation, type KV, type CreationMeta } from './library';
 import { buildShareUrl } from '../share/shareUrl';
+import { setupExternalLink } from '../share/externalLink';
 import { drawQr } from '../share/qr';
 import { shareCapabilities } from '../share/capabilities';
 import { ICON_SHARE } from '../game/uiIcons';
@@ -429,10 +430,10 @@ export function createBuilder(d: BuilderDeps): BuilderApi {
     drawQr($('bShareQr') as HTMLCanvasElement, url);
     const link = $('bShareUrl') as HTMLAnchorElement;
     link.textContent = url;
-    link.href = url;
-    /* open the link reliably even inside the iOS app:// webview (where a plain
-       anchor can be swallowed): one tap opens it in the system browser */
-    link.onclick = (e): void => { e.preventDefault(); window.open(url, '_blank', 'noopener'); };
+    /* a real external anchor: a normal browser opens a new tab; inside the iOS
+       app:// webview window.open is swallowed, so we keep the native http(s)
+       navigation that the app's WKNavigationDelegate hands off to Safari */
+    setupExternalLink(link, url);
     const caps = shareCapabilities();
     const sb = $('bShareNative') as HTMLButtonElement;
     sb.style.display = caps.share ? '' : 'none';
