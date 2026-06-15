@@ -173,6 +173,37 @@ test('the browser back button steps out: share sheet -> editor -> previous view'
   await expect(page.locator('[data-testid="builder"]')).not.toHaveClass(/show/);
 });
 
+test('the visible share link is a real external anchor (opens in another browser)', async ({ page }) => {
+  await expect(page.locator('[data-testid="builder"]')).toHaveClass(/show/);
+  await page.evaluate(() => {
+    const b = window.__squishBuilder!;
+    b.resize(3, 3);
+    b.selectTool('heart'); b.place(2, 0);
+    b.selectTool('squishy'); b.place(0, 0);
+  });
+  await expect(page.locator('[data-testid="builder-status"]')).toHaveAttribute('data-status', 'solvable', { timeout: 10000 });
+  await page.click('[data-testid="action-share"]');
+  await expect(page.locator('#bShareSheet')).toHaveAttribute('data-shown', 'true');
+
+  const link = page.locator('#bShareUrl');
+  // a real navigable anchor: https public url, new top-level context, isolated
+  await expect(link).toHaveAttribute('href', /^https:\/\/squishy\.franzai\.com\/#z-/);
+  await expect(link).toHaveAttribute('target', '_blank');
+  await expect(link).toHaveAttribute('rel', /noopener/);
+  // the click is NOT swallowed: the app installs no onclick/handler that
+  // preventDefaults, so the native navigation reaches the OS (which the iOS
+  // app:// webview hands to Safari). Dispatch a cancelable click and confirm the
+  // app left it un-cancelled.
+  const defaultPrevented = await link.evaluate((a) => {
+    const ev = new MouseEvent('click', { cancelable: true, bubbles: true });
+    a.dispatchEvent(ev);
+    return ev.defaultPrevented;
+  });
+  expect(defaultPrevented).toBe(false);
+  const hasOnclick = await link.evaluate((a) => (a as HTMLAnchorElement).onclick !== null);
+  expect(hasOnclick).toBe(false);
+});
+
 test('an unsolvable level keeps Share locked and share() throws', async ({ page }) => {
   await page.evaluate(() => {
     const b = window.__squishBuilder!;
