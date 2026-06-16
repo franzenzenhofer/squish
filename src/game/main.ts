@@ -13,6 +13,7 @@ import { createHints } from './hints';
 import { bindInput } from './input';
 import { createIntro } from './intro';
 import { bootPlan, hintHidden } from './flow';
+import { bumpNudgeSeen, getNudgeSeen, shouldNudgeHint } from './coach';
 import { localToday } from '../gen/daily';
 import { createOhNo } from './ohno';
 import { createLevelsPick } from './levelsPick';
@@ -194,18 +195,23 @@ function hud(): void {
     : s.play.kind === 'debug' ? 'T' + (s.play.di + 1)
     : s.play.kind === 'custom' ? customHudLabel(s.play.source)
     : String(n).padStart(2, '0');
-  elMoves.innerHTML =
+  /* Zen mode hides the move/par counter entirely — no target, no score, just
+     play. Everything else (level label) stays. */
+  const zen = getSettings().zenMode;
+  elMoves.classList.toggle('hide', zen);
+  elMoves.innerHTML = zen ? '' :
     '<b class="' + (s.moves > s.def.par ? 'over' : '') + '">' + s.moves +
     '</b><span class="dim">/' + s.def.par + '</span>';
   /* the hint bulb hides when the player turned it off OR whenever a daily is in
      play — the daily is solved without help. One place, every level + setting. */
   elFooter?.classList.toggle('nohint', hintHidden(getSettings().hintButton, s.play));
-  /* teach the tools on the first few levels (where Hint matters most), then go
-     icon-only — unless labels are off. Dailies have no Hint, so no Hint label. */
+  /* teach the tools through the first eight levels (where Hint matters most),
+     then go icon-only — unless labels are off. The labels vanish from level 9
+     on (li 8). Dailies have no Hint, so no Hint label. */
   if (elFooter) {
     elFooter.classList.toggle('labels',
       getSettings().buttonLabels &&
-      s.play.kind === 'campaign' && s.li < 3);
+      s.play.kind === 'campaign' && s.li < 8);
   }
   /* debug plays carry the JSON export pill in the header */
   document.getElementById('dbgExport')?.classList.toggle(
@@ -248,7 +254,7 @@ function applyLevel(def: LevelDef): void {
   /* hint mode is per-level: each level starts in normal mode, un-peeked */
   s.hintMode = false;
   s.hintUsed = false;
-  elHintBtn.classList.remove('on');
+  elHintBtn.classList.remove('on', 'nudge');
   s.lastMovers = null;
   s.ohNoShown = false;
   s.ohNoFace = false;
@@ -355,9 +361,31 @@ const hints = createHints(s, assist, {
     track('ohno', { k: playKind(), li: s.li, mv: s.moves });
     ohno.trigger();
   },
-  onHintChange: (on) => elHintBtn.classList.toggle('on', on),
+  onHintChange: (on) => {
+    elHintBtn.classList.toggle('on', on);
+    /* engaging hints retires the nudge glow — the player took the hint */
+    if (on) elHintBtn.classList.remove('nudge');
+  },
   caption: setCap
 });
+
+/* The coach: after a settled move, gently point an over-par player at the Hint
+   bulb — a speech bubble + a pulse on the bulb, capped at three showings ever.
+   It only ever suggests: hint mode is NEVER auto-enabled, and the bulb's
+   visibility is NEVER touched (that stays owned by hud()'s nohint class). The
+   live bulb-hidden gate keeps it quiet in daily or when hints are turned off. */
+function assistAfterMove(): void {
+  if (s.mode !== 'idle') return;
+  if (shouldNudgeHint({
+    li: s.li, moves: s.moves, par: s.def.par, playKind: s.play.kind,
+    hintHidden: hintHidden(getSettings().hintButton, s.play),
+    hintMode: s.hintMode, nudgeSeen: getNudgeSeen()
+  })) {
+    bumpNudgeSeen();
+    setCap('Hints are friends too 💡');
+    elHintBtn.classList.add('nudge');
+  }
+}
 
 /* ------------------------------ move flow -------------------------------- */
 function doMove(dir: Dir): void {
@@ -411,6 +439,7 @@ function finishMove(): void {
     return;
   }
   hints.afterStateChange();
+  assistAfterMove();
   saveGame(s);
   if (s.pending) {
     const d = s.pending;

@@ -58,6 +58,9 @@
     unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  /* the browser's default (black) focus ring must never show — this is a
+     touch-first game with clear pressed/active states; no UA outline, ever */
+  :focus, :focus-visible { outline: none; }
   /* lock the text scale so a bigger iOS system font never inflates the
      layout out of shape — the tuned px sizes hold on every device */
   html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
@@ -105,6 +108,8 @@
     box-shadow: 0 4px 0 var(--shadow); white-space: nowrap;
   }
   #moves { font-size: 17px; flex: none; white-space: nowrap; }
+  /* Zen mode hides the move/par counter entirely — no target, no score */
+  #moves.hide { display: none; }
   #moves b { font-weight: 700; color: var(--ink); }
   #moves b.over { color: var(--heart); }
   .dim { color: var(--dim); font-weight: 700; }
@@ -534,6 +539,43 @@
     box-shadow: 0 6px 0 var(--heart-edge), 0 10px 14px -6px rgba(255,109,158,.5);
   }
   footer button#hint.on:active { transform: translateY(4px); box-shadow: 0 2px 0 var(--heart-edge); }
+  /* the coach's "hints are friends too" nudge: the bulb lights up exactly like
+     the active hint (vibrant heart-pink fill, white bulb), and a lovely little
+     heart blooms out from behind it and fades — an on-brand heartbeat (the same
+     heart shape as the win-card rating). It STAYS lit until hints are engaged or
+     the level changes. .on (active hint) always wins — they never co-occur. */
+  footer button#hint.nudge:not(.on) {
+    background: linear-gradient(180deg, var(--heart-top), var(--heart)); color: #fff;
+    position: relative;
+  }
+  /* two little hearts drift up from the bulb and fade — a lovely, unmistakable
+     heartbeat (the win-card heart shape) with a soft white edge so they read
+     against the pink. Staggered for a gentle continuous stream. */
+  footer button#hint.nudge:not(.on)::before,
+  footer button#hint.nudge:not(.on)::after {
+    content: ''; position: absolute; left: 50%; top: 2px;
+    width: 32px; height: 30px; margin-left: -16px;
+    background: var(--heart); pointer-events: none;
+    clip-path: path('M16 27 C4 18 3 10 8.5 7.5 C12.5 5.7 16 9 16 12 C16 9 19.5 5.7 23.5 7.5 C29 10 28 18 16 27 Z');
+    filter: drop-shadow(0 1px 1.5px rgba(255,255,255,.9));
+    animation: heartFloat 1.8s ease-out infinite;
+  }
+  footer button#hint.nudge:not(.on)::after { animation-delay: .9s; }
+  @keyframes heartFloat {
+    0%   { transform: translate(-2px, 6px)  scale(.18); opacity: 0; }
+    22%  { opacity: 1; }
+    60%  { transform: translate(5px, -26px) scale(.6);  opacity: .85; }
+    100% { transform: translate(-3px, -52px) scale(.5); opacity: 0; }
+  }
+  /* reduced motion: a single heart hovers above the bulb and gently throbs */
+  @keyframes heartFloatSoft {
+    0%, 100% { transform: translate(0, -22px) scale(.46); opacity: .4; }
+    50%      { transform: translate(0, -27px) scale(.62); opacity: .92; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    footer button#hint.nudge:not(.on)::after { display: none; }
+    footer button#hint.nudge:not(.on)::before { animation: heartFloatSoft 1.7s ease-in-out infinite; }
+  }
   footer button#mute.off { color: var(--dim); background: #FBEEF3; }
   footer button#mute .wave { transition: opacity .12s; }
   footer button#mute.off .wave { opacity: 0; }
@@ -813,6 +855,10 @@
     <div class="setrow">
       <div class="setlab">Button labels<span class="sethint">tiny words under the buttons</span></div>
       <button class="tog" id="togLabels" role="switch" aria-label="button labels"></button>
+    </div>
+    <div class="setrow">
+      <div class="setlab">Zen mode<span class="sethint">no stars, no targets - just kind words</span></div>
+      <button class="tog" id="togZen" role="switch" aria-label="zen mode"></button>
     </div>
     <div class="setrow" id="setrowAnalytics" hidden>
       <div class="setlab">Anonymous counts<span class="sethint">help improve the game - no personal data, ever</span></div>

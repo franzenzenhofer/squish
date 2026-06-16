@@ -17,12 +17,16 @@ export interface Settings {
   /** send anonymous play counters. Default on (matches the shipped web
       behavior); the iOS build surfaces a toggle so the app can opt out. */
   analytics: boolean;
+  /** cosy play: no heart rating (kind words only), no move/par counter — for
+      players who want to wander without a target or a score. Default off. */
+  zenMode: boolean;
 }
 
 const KEY = 'squish-settings-v1';
 
 const DEFAULTS: Settings = {
-  v: 1, afterWin: 'auto', hintButton: true, buttonLabels: true, analytics: true
+  v: 1, afterWin: 'auto', hintButton: true, buttonLabels: true,
+  analytics: true, zenMode: false
 };
 
 function load(): Settings {
@@ -36,7 +40,8 @@ function load(): Settings {
           afterWin: p.afterWin === 'wait' || p.afterWin === 'instant' ? p.afterWin : 'auto',
           hintButton: p.hintButton !== false,
           buttonLabels: p.buttonLabels !== false,
-          analytics: p.analytics !== false
+          analytics: p.analytics !== false,
+          zenMode: p.zenMode === true
         };
       }
     }

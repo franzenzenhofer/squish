@@ -1,5 +1,5 @@
 /* Settings view — the full-screen overlay behind the start screen's Settings
-   link. Three preferences (after-win flow, hint button, button labels) plus
+   link. Preferences (after-win flow, hint button, button labels, Zen mode) plus
    the Reset-progress action (two-tap arm, moved here from the start screen). */
 import { resetProgress } from './persist';
 import { getSettings, updateSettings, type AfterWin } from './settings';
@@ -20,6 +20,7 @@ export function createSettingsView(d: SettingsViewDeps): SettingsView {
   const seg = document.getElementById('segAfterWin') as HTMLElement;
   const togHint = document.getElementById('togHint') as HTMLButtonElement;
   const togLabels = document.getElementById('togLabels') as HTMLButtonElement;
+  const togZen = document.getElementById('togZen') as HTMLButtonElement;
   const togAnalytics = document.getElementById('togAnalytics') as HTMLButtonElement;
   const rowAnalytics = document.getElementById('setrowAnalytics') as HTMLElement;
   /* the opt-out toggle is surfaced only in the iOS build; the hosted web keeps
@@ -41,6 +42,8 @@ export function createSettingsView(d: SettingsViewDeps): SettingsView {
     togHint.setAttribute('aria-checked', String(st.hintButton));
     togLabels.classList.toggle('on', st.buttonLabels);
     togLabels.setAttribute('aria-checked', String(st.buttonLabels));
+    togZen.classList.toggle('on', st.zenMode);
+    togZen.setAttribute('aria-checked', String(st.zenMode));
     togAnalytics.classList.toggle('on', st.analytics);
     togAnalytics.setAttribute('aria-checked', String(st.analytics));
   };
@@ -67,6 +70,12 @@ export function createSettingsView(d: SettingsViewDeps): SettingsView {
   togLabels.addEventListener('click', () => {
     d.unlockAudio();
     updateSettings({ buttonLabels: !getSettings().buttonLabels });
+    reflect();
+    d.onChange();
+  });
+  togZen.addEventListener('click', () => {
+    d.unlockAudio();
+    updateSettings({ zenMode: !getSettings().zenMode });
     reflect();
     d.onChange();
   });

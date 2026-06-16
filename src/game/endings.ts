@@ -9,7 +9,7 @@ import { shareCard } from './share';
 import type { CustomSource, Session } from './session';
 import type { Tracker } from '../lib/track';
 import type { PlayKind } from '../lib/trackSchema';
-import { pickHintedLine, pickWinLine, pickWinTitle } from './winLines';
+import { pickHintedLine, pickWinLine, pickWinTitle, pickZenLine } from './winLines';
 import { startWinReplay, type WinReplay } from './winReplay';
 
 /** No-interaction auto-advance window on the Next button. 4s = the Material
@@ -165,8 +165,12 @@ export function createEndings(d: EndingsDeps): Endings {
     elWinTitle.textContent = pickWinTitle();
     const mv = s.moves + (s.moves === 1 ? ' move' : ' moves');
     elWinSub.innerHTML = label + ' · solved in <b>' + mv + '</b>';
-    /* a hinted solve celebrates too, but the hearts stay empty */
-    elWinTag.innerHTML = (hinted ? pickHintedLine() : pickWinLine(hearts)) + ratingHearts(hearts);
+    /* Zen mode celebrates with kind words only — no hearts, no rating, no
+       "you went over". Otherwise: a hinted solve celebrates too (empty hearts),
+       and a clean solve shows its earned hearts. */
+    elWinTag.innerHTML = getSettings().zenMode
+      ? pickZenLine()
+      : (hinted ? pickHintedLine() : pickWinLine(hearts)) + ratingHearts(hearts);
     /* the in-app card REPLAYS the player's recorded solution, looping - always
        animated, painted by the one gameplay renderer */
     const line = s.line.join('');
