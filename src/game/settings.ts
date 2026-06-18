@@ -29,20 +29,28 @@ const DEFAULTS: Settings = {
   analytics: true, zenMode: false
 };
 
+function cleanAfterWin(v: unknown, fallback: AfterWin): AfterWin {
+  return v === 'wait' || v === 'auto' || v === 'instant' ? v : fallback;
+}
+
+function cleanSettings(p: Partial<Settings>, fallback: Settings = DEFAULTS): Settings {
+  return {
+    v: 1,
+    afterWin: cleanAfterWin(p.afterWin, fallback.afterWin),
+    hintButton: p.hintButton !== false,
+    buttonLabels: p.buttonLabels !== false,
+    analytics: p.analytics !== false,
+    zenMode: p.zenMode === true
+  };
+}
+
 function load(): Settings {
   try {
     const raw = localStorage.getItem(KEY);
     if (raw) {
       const p = JSON.parse(raw) as Partial<Settings>;
       if (p.v === 1) {
-        return {
-          v: 1,
-          afterWin: p.afterWin === 'wait' || p.afterWin === 'instant' ? p.afterWin : 'auto',
-          hintButton: p.hintButton !== false,
-          buttonLabels: p.buttonLabels !== false,
-          analytics: p.analytics !== false,
-          zenMode: p.zenMode === true
-        };
+        return cleanSettings(p);
       }
     }
   } catch {
@@ -58,7 +66,7 @@ export function getSettings(): Settings {
 }
 
 export function updateSettings(patch: Partial<Omit<Settings, 'v'>>): Settings {
-  current = { ...current, ...patch };
+  current = cleanSettings({ ...current, ...patch }, current);
   try {
     localStorage.setItem(KEY, JSON.stringify(current));
   } catch {
