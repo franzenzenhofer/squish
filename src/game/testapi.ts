@@ -30,6 +30,9 @@ export interface SquishyTestApi {
   };
   move: (d: Dir) => Promise<{ mode: Mode; moves: number }>;
   solution: () => string[] | null;
+  /** Drive the current level to the win: dismiss intros, then replay the oracle's
+      optimal line move by move. Resolves with the final mode ('win' on success). */
+  solve: () => Promise<Mode>;
   loadLevel: (n: number) => Promise<void>;
   loadTestLevel: (di: number) => Promise<void>;
   startDaily: () => Promise<void>;
@@ -74,6 +77,14 @@ export function installTestApi(d: TestApiDeps): void {
     return s.mode;
   };
 
+  /** Tap through every queued first-meet card until the board is interactive. */
+  const dismissAllIntros = async (): Promise<void> => {
+    for (let i = 0; i < 60 && s.mode === 'intro'; i++) {
+      d.dismissIntro();
+      await new Promise((r) => setTimeout(r, 16));
+    }
+  };
+
   window.__squishy = {
     state: () => ({
       li: s.li,
@@ -95,9 +106,23 @@ export function installTestApi(d: TestApiDeps): void {
       return { mode: s.mode, moves: s.moves };
     },
     solution: () => d.solution()?.map((x) => x as string) ?? null,
+    solve: async (): Promise<Mode> => {
+      await dismissAllIntros();
+      await waitFor(() => s.oracle !== null); /* the oracle backs solution() */
+      for (let i = 0; i < 200 && s.mode !== 'win'; i++) {
+        const sol = d.solution();
+        if (!sol || sol.length === 0) break;
+        d.doMove(sol[0] as Dir);
+        await waitIdle();
+        if (s.mode === 'intro') await dismissAllIntros();
+      }
+      return s.mode;
+    },
     loadLevel: async (n: number) => {
       d.loadLevel(n);
-      await waitIdle();
+      /* resolve only when the requested level is truly active AND solver-ready, so
+         a caller can immediately read state()/solution() — the AI-driveable contract */
+      await waitFor(() => s.li === n && SETTLED.includes(s.mode) && s.oracle !== null);
     },
     loadTestLevel: async (di: number) => {
       d.loadTestLevel(di);
