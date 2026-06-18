@@ -55,12 +55,37 @@ export interface Hints {
 export function createHints(s: Session, assist: Assist, hooks: HintHooks): Hints {
   let currentKey = '';
 
+  /* "Still thinking" bubble: when a hint can't be shown at once (the oracle is
+     still being computed, or the state sits outside a truncated oracle and a
+     deep solve is running), Squishy says so after a short beat instead of
+     leaving the player tapping a dead button. Cleared the moment the arrow or a
+     verdict lands. Applies to EVERY level. */
+  const THINK_DELAY_MS = 3500; // only speak up if the solver has churned this long
+  let thinkTimer: number | null = null;
+  let thinking = false;
+
+  const stopThinking = (): void => {
+    if (thinkTimer !== null) { clearTimeout(thinkTimer); thinkTimer = null; }
+    if (thinking) { thinking = false; hooks.caption('', false); }
+  };
+
+  const startThinking = (): void => {
+    if (!s.hintMode || thinking || thinkTimer !== null) return;
+    thinkTimer = window.setTimeout(() => {
+      thinkTimer = null;
+      if (!s.hintMode || s.mode !== 'idle') return;
+      thinking = true;
+      hooks.caption('Ooh, a tricky one - let me work out the way…', false);
+    }, THINK_DELAY_MS);
+  };
+
   const refreshHint = (): void => {
     if (!s.hintMode || !s.oracle) return;
     const dir = s.oracle.policy.get(ser(s.gs));
     s.hintDir = dir ? dir : null;
     s.hintT0 = performance.now();
     hooks.onHintChange(true, s.hintDir);
+    if (s.hintDir) stopThinking();
   };
 
   /** Learn a deep-solved line into the oracle so follow-up lookups hit:
@@ -82,24 +107,46 @@ export function createHints(s: Session, assist: Assist, hooks: HintHooks): Hints
 
   const deepFallback = (): void => {
     console.warn('[squishy] state outside oracle — deep solve fallback');
+    startThinking(); // a deep solve can take a beat; reassure the player meanwhile
     const frozen = ser(s.gs);
     void assist.deepSolve(s.def, s.gs).then((r) => {
       if (ser(s.gs) !== frozen || s.mode !== 'idle') return;
       if (r.status === 'unsolvable') {
+        stopThinking();
         hooks.onUnwinnable();
       } else if (r.status === 'solved') {
         learnLine(r.solution.map((d) => d as Dir));
         refreshHint();
       } else {
+        stopThinking();
         console.error('[squishy] deep solve exhausted budgets — cannot judge state');
         hooks.caption('This one is beyond me - try undo', true);
       }
     });
   };
 
+  /* The single hint-resolution path, used on toggle, after a move, and when the
+     oracle arrives. Shows the arrow if known, deep-solves if the state is
+     outside a truncated oracle, and keeps the "thinking" bubble up meanwhile. */
+  const requestHint = (): void => {
+    if (!s.hintMode) return;
+    if (!s.oracle || s.oracleKey !== currentKey) { startThinking(); hooks.onHintChange(true, null); return; }
+    const w = winnableState(s.oracle, ser(s.gs));
+    if (w === false) {
+      stopThinking();
+      s.hintDir = null;
+      hooks.onHintChange(true, null);
+      hooks.caption('No path to the heart from here - hop back!', true);
+      return;
+    }
+    if (w === null) { hooks.onHintChange(true, null); deepFallback(); return; }
+    refreshHint();
+    if (!s.hintDir) hooks.onHintChange(true, null);
+  };
+
   const afterStateChange = (): void => {
     if (s.mode !== 'idle') return;
-    if (!s.oracle || s.oracleKey !== currentKey) return; // resolves on arrival
+    if (!s.oracle || s.oracleKey !== currentKey) { if (s.hintMode) startThinking(); return; }
     const w = winnableState(s.oracle, ser(s.gs));
     if (w === false) {
       /* oh-no fires on EVERY level, tutorials included. The first two levels
@@ -119,6 +166,7 @@ export function createHints(s: Session, assist: Assist, hooks: HintHooks): Hints
           'dead — oracle/def pipeline bug, state ' + ser(s.gs));
         return;
       }
+      stopThinking();
       hooks.onUnwinnable();
       return;
     }
@@ -134,11 +182,12 @@ export function createHints(s: Session, assist: Assist, hooks: HintHooks): Hints
       currentKey = cacheKey;
       s.oracle = null;
       s.oracleKey = null;
+      stopThinking();
       void assist.getOracle(cacheKey, s.def).then((o) => {
         if (currentKey !== cacheKey) return; // player moved to another level
         s.oracle = o;
         s.oracleKey = cacheKey;
-        afterStateChange();
+        afterStateChange(); // oracle ready: shows the waiting player's hint / clears thinking
       });
     },
     afterStateChange,
@@ -150,14 +199,11 @@ export function createHints(s: Session, assist: Assist, hooks: HintHooks): Hints
       toast(s.hintMode ? 'Hint mode on' : 'Hint mode off', { ms: 1300 });
       if (!s.hintMode) {
         s.hintDir = null;
+        stopThinking();
         hooks.onHintChange(false, null);
         return;
       }
-      if (s.oracle && winnableState(s.oracle, ser(s.gs)) === false) {
-        hooks.caption('No path to the heart from here - hop back!', true);
-      }
-      refreshHint();
-      if (!s.hintDir) hooks.onHintChange(true, null);
+      requestHint();
     },
     solution: (): Dir[] | null =>
       s.oracle ? solutionFrom(s.level, s.gs, s.oracle) : null
