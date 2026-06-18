@@ -11,6 +11,7 @@ export type SolveStatus = 'idle' | 'checking' | SolveOutcome;
 
 export interface SolveRunner {
   run(def: LevelDef): void;
+  cancel(status?: SolveStatus): void;
 }
 
 export function createSolveRunner(
@@ -19,6 +20,10 @@ export function createSolveRunner(
 ): SolveRunner {
   let token = 0;
   return {
+    cancel(status: SolveStatus = 'idle'): void {
+      token++;
+      onStatus(status);
+    },
     run(def: LevelDef): void {
       const mine = ++token;
       onStatus('checking');

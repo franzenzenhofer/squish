@@ -186,7 +186,11 @@ export function createBuilder(d: BuilderDeps): BuilderApi {
 
 
   function scheduleSolve(): void {
-    if (!canSolveCheck(st)) { status = 'idle'; paintStatus(); return; }
+    if (!canSolveCheck(st)) {
+      window.clearTimeout(solveTimer);
+      runner.cancel('idle');
+      return;
+    }
     status = 'checking'; paintStatus();
     window.clearTimeout(solveTimer);
     solveTimer = window.setTimeout(() => runner.run(toDef(st)), 250);
@@ -454,6 +458,8 @@ export function createBuilder(d: BuilderDeps): BuilderApi {
       return Promise.resolve();
     },
     close: (): void => {
+      window.clearTimeout(solveTimer);
+      runner.cancel('idle');
       cancelAnimationFrame(raf);
       cancelActiveDrag?.();
       cancelActiveDrag = null;
@@ -494,6 +500,8 @@ export function createBuilder(d: BuilderDeps): BuilderApi {
       cancelPaletteGesture?.();
       cancelPaletteGesture = null;
       stopPainting();
+      window.clearTimeout(solveTimer);
+      runner.cancel('idle');
       cancelAnimationFrame(raf);
       document.body.classList.remove('building'); // the play view uses the normal game header
       root.classList.remove('show'); d.closeMenu(); d.playDef({ ...toDef(st), par: lastPar || 1 });

@@ -39,4 +39,18 @@ describe('createSolveRunner', () => {
     expect(statuses).not.toContain('unsolvable');
     expect(statuses.at(-1)).toBe('solvable');
   });
+
+  it('ignores a pending solve after cancellation', async () => {
+    const pending = deferred<SolveOutcome>();
+    const statuses: SolveStatus[] = [];
+    const runner = createSolveRunner(() => pending.promise, (st) => statuses.push(st));
+
+    runner.run(def);
+    runner.cancel('idle');
+    pending.resolve('solvable');
+    await pending.promise;
+    await Promise.resolve();
+
+    expect(statuses).toEqual(['checking', 'idle']);
+  });
 });
