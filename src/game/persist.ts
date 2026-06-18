@@ -61,6 +61,10 @@ const FRESH: SavedGame = {
   v: 2, play: { kind: 'campaign' }, li: 0, def: null, results: {}, hinted: {}, daily: {}
 };
 
+function cleanLevelIndex(v: unknown): number {
+  return Number.isInteger(v) && (v as number) >= 0 ? v as number : 0;
+}
+
 /** The snapshot that survives a reload (pure — no storage). ONLY a campaign play
     is a resume target: debug, custom, and daily plays coerce to the campaign
     pointer with no stored def, so a reload (or "Continue") always returns to the
@@ -124,7 +128,7 @@ function migrateV1(): SavedGame | null {
     if (!raw) return null;
     const p = JSON.parse(raw) as { li?: number; results?: Record<number, number> };
     localStorage.removeItem(KEY_V1);
-    return { ...FRESH, li: p.li ?? 0, results: p.results ?? {} };
+    return { ...FRESH, li: cleanLevelIndex(p.li), results: p.results ?? {} };
   } catch {
     return null;
   }
@@ -135,13 +139,13 @@ export function loadGame(): SavedGame {
     const raw = localStorage.getItem(KEY_V2);
     if (raw) {
       const p = JSON.parse(raw) as Partial<SavedGame>;
-      if (p.v === 2 && typeof p.li === 'number') {
+      if (p.v === 2) {
         return {
           v: 2,
           /* daily is never a resume target — always resume the campaign pointer
              (a daily is reached only via its button or the #daily share link) */
           play: { kind: 'campaign' },
-          li: p.li,
+          li: cleanLevelIndex(p.li),
           def: p.def ?? null,
           results: p.results ?? {},
           hinted: p.hinted ?? {},

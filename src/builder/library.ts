@@ -37,7 +37,7 @@ const SITEM = 'squish-shared:';
 function readList(kv: KV, listKey = LIST): string[] {
   try {
     const raw = kv.getItem(listKey);
-    return raw ? (JSON.parse(raw) as string[]) : [];
+    return raw ? (JSON.parse(raw) as unknown[]).filter((id): id is string => typeof id === 'string') : [];
   } catch {
     return [];
   }

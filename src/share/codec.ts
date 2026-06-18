@@ -16,6 +16,7 @@ import {
 export const VERSION = 1;
 const MIN_SIDE = 3;
 const MAX_SIDE = 7;
+const MAX_TOKEN_CHARS_PER_CELL = 2;
 
 export class CodecError extends Error {}
 
@@ -35,11 +36,19 @@ function validateDimensions(w: number, h: number): void {
   }
 }
 
+function validateCell(w: number, h: number, x: number, y: number): void {
+  if (!Number.isInteger(x) || !Number.isInteger(y) ||
+      x < 0 || y < 0 || x >= w || y >= h) {
+    throw new CodecError('cell out of bounds');
+  }
+}
+
 /** Build the cell -> token map. Throws on two elements sharing a cell. */
 function cellMap(def: LevelDef): Map<string, string> {
   validateDimensions(def.w, def.h);
   const m = new Map<string, string>();
   const set = (x: number, y: number, token: string): void => {
+    validateCell(def.w, def.h, x, y);
     const key = ck(x, y);
     if (m.has(key)) throw new CodecError('two elements on cell ' + key);
     m.set(key, token);
@@ -88,6 +97,9 @@ export function decode(code: string): LevelDef {
   validateDimensions(w, h);
   const glyphs = mraw[4] as string;
   const crc = mraw[5] as string;
+  if (glyphs.length > w * h * MAX_TOKEN_CHARS_PER_CELL) {
+    throw new CodecError('glyph stream too long');
+  }
   if (crc32Base36(v + '-' + w + 'x' + h + '|' + glyphs) !== crc) {
     throw new CodecError('checksum mismatch — link corrupted');
   }

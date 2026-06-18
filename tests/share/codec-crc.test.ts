@@ -26,4 +26,10 @@ describe('codec integrity', () => {
   it('throws on a malformed code', () => {
     expect(() => decode('not-a-level-code')).toThrow(CodecError);
   });
+  it('throws before accepting an impossible glyph stream length', () => {
+    expect(() => decode('level-1-7x7-' + '0'.repeat(99) + '.abc')).toThrow(CodecError);
+  });
+  it('throws instead of silently dropping out-of-bounds cells while encoding', () => {
+    expect(() => encode({ ...def, walls: [[99, 99]] })).toThrow(CodecError);
+  });
 });

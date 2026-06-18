@@ -5,7 +5,7 @@ import type { LevelDef, SolveResult } from '../../src/engine/types';
 import {
   buildShareCode, buildShareUrl, parseShareHash, importShareCode
 } from '../../src/share/shareUrl';
-import { encode } from '../../src/share/codec';
+import { CodecError, encode } from '../../src/share/codec';
 
 const def: LevelDef = { w: 3, h: 3, target: [0, 0], dots: [[2, 2]], walls: [[1, 1]], par: 4 };
 
@@ -50,6 +50,11 @@ describe('importShareCode', () => {
   it('throws on a corrupt code before solving', () => {
     const solveFn = vi.fn((): SolveResult => ({ status: 'solved', par: 1, ways: 1, solution: [] }));
     expect(() => importShareCode('level-1-3x3-M00000002.zzzz', solveFn)).toThrow();
+    expect(solveFn).not.toHaveBeenCalled();
+  });
+  it('rejects oversized compressed payloads before inflating or solving', () => {
+    const solveFn = vi.fn((): SolveResult => ({ status: 'solved', par: 1, ways: 1, solution: [] }));
+    expect(() => importShareCode('z-' + 'A'.repeat(257), solveFn)).toThrow(CodecError);
     expect(solveFn).not.toHaveBeenCalled();
   });
 });

@@ -56,6 +56,15 @@ describe('creations library', () => {
     kv.removeItem('squish-custom:' + a); // item gone, list still references it
     expect(listCreations(kv)).toEqual([]);
   });
+  it('filters corrupted non-string ids instead of crashing on save', () => {
+    const kv = fakeKV();
+    kv.setItem('squish-custom-list', JSON.stringify([1, null, 'c4']));
+
+    const id = saveCreation(kv, def(8), 'Recovered');
+
+    expect(id).toBe('c5');
+    expect(listCreations(kv).map((c) => c.id)).toEqual(['c5']);
+  });
 });
 
 describe('shared-with-you shelf (no self-spam)', () => {

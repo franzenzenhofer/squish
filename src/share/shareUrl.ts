@@ -11,6 +11,7 @@ import { encode, decode, encodeBytes, decodeBytes, geometryEqual, CodecError } f
 import { compress, decompress } from './compress';
 
 export const SHARE_ORIGIN = 'https://squishy.franzai.com';
+const MAX_COMPRESSED_PAYLOAD_CHARS = 256;
 
 /** Encode a level to its readable glyph code, proving the round-trip first. */
 export function buildShareCode(def: LevelDef): string {
@@ -48,7 +49,7 @@ export function importShareCode(
   solveDef: (def: LevelDef) => SolveResult
 ): LevelDef {
   const def = payload.startsWith('z-')
-    ? decodeBytes(decompress(payload.slice(2)))
+    ? importCompressedPayload(payload.slice(2))
     : decode(payload); // throws CodecError on corruption, before solving
   const res = solveDef(def);
   if (res.status !== 'solved') {
@@ -56,4 +57,16 @@ export function importShareCode(
   }
   def.par = res.par;
   return def;
+}
+
+function importCompressedPayload(payload: string): LevelDef {
+  if (payload.length > MAX_COMPRESSED_PAYLOAD_CHARS) {
+    throw new CodecError('compressed share payload too large');
+  }
+  try {
+    return decodeBytes(decompress(payload));
+  } catch (e) {
+    if (e instanceof CodecError) throw e;
+    throw new CodecError('compressed share payload invalid');
+  }
 }
