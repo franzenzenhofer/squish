@@ -3,6 +3,7 @@
    was. The home heart in the header re-opens it. */
 import { SPR } from '../sprites';
 import { localToday } from '../gen/daily';
+import { ensureCanvasSize } from '../lib/canvas';
 import { mountWordmark } from './logo';
 import type { Session } from './session';
 
@@ -58,9 +59,9 @@ export function createStart(d: StartDeps): Start {
     const dpr = Math.min(window.devicePixelRatio || 1, 3);
     const w = sc.clientWidth || 330;
     const h = sc.clientHeight || 120;
-    sc.width = w * dpr;
-    sc.height = h * dpr;
+    ensureCanvasSize(sc, w, h, dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, h);
     cast.forEach((kind, i) => {
       const x = (w / (cast.length + 1)) * (i + 1);
       const hopP = Math.max(0, Math.sin(now * 0.0012 + i * 1.7));

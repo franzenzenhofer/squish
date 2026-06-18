@@ -5,6 +5,7 @@ import { C } from '../lib/palette';
 import * as U from '../lib/draw';
 import { FLD } from '../fields';
 import { SPR } from '../sprites';
+import { ensureCanvasSize } from '../lib/canvas';
 import { easeOC } from './fx';
 import type { Dir4 } from '../lib/types';
 import type { Session } from './session';
@@ -138,9 +139,9 @@ export function createIntro(s: Session, onAllDismissed: () => void): Intro {
     const ctx = pc.getContext('2d');
     if (!ctx || !current) return;
     const dpr = Math.min(window.devicePixelRatio || 1, 3);
-    pc.width = 96 * dpr;
-    pc.height = 96 * dpr;
+    ensureCanvasSize(pc, 96, 96, dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, 96, 96);
     drawIcon(ctx, current, now);
   };
 
@@ -154,11 +155,9 @@ export function createIntro(s: Session, onAllDismissed: () => void): Intro {
     const topPad = Math.round(cell * 0.7);
     const w = cell * 3 + 16;
     const h = cell + 16 + topPad;
-    dc.width = w * dpr;
-    dc.height = h * dpr;
-    dc.style.width = w + 'px';
-    dc.style.height = h + 'px';
+    ensureCanvasSize(dc, w, h, dpr, true);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, h);
     const t = (now - openedAt) % LOOP_MS;
     const cxAt = (gx: number): number => 8 + (gx + 0.5) * cell;
     const cy = 8 + topPad + cell / 2;

@@ -93,10 +93,21 @@ function hearts(s: Session, li: number): string {
 }
 
 /** Furthest level the player has reached (the highest index they may play). */
-function furthest(s: Session): number {
+function progressLevelFromKey(k: string): number | null {
+  const n = Number(k);
+  return Number.isInteger(n) && n >= 0 ? n + 1 : null;
+}
+
+export function furthest(s: Session): number {
   let m = s.play.kind === 'campaign' ? s.li : 0;
-  for (const k of Object.keys(s.results)) m = Math.max(m, Number(k) + 1);
-  for (const k of Object.keys(s.hinted)) m = Math.max(m, Number(k) + 1);
+  for (const k of Object.keys(s.results)) {
+    const n = progressLevelFromKey(k);
+    if (n !== null) m = Math.max(m, n);
+  }
+  for (const k of Object.keys(s.hinted)) {
+    const n = progressLevelFromKey(k);
+    if (n !== null) m = Math.max(m, n);
+  }
   return m;
 }
 
