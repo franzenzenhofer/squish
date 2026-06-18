@@ -17,6 +17,8 @@ export interface StartDeps {
   onLevels: () => void;
   onCreate: () => void;
   onSettings: () => void;
+  /** the wordmark/home affordance - nav decides menu vs history-back */
+  onLogo: () => void;
   unlockAudio: () => void;
 }
 
@@ -124,7 +126,7 @@ export function createStart(d: StartDeps): Start {
   /* tapping the "Squishy & Friends" wordmark (the only thing in #brand now)
      returns to the start screen */
   bind('brand', () => {
-    if (s.mode === 'idle') open();
+    if (s.mode === 'idle') d.onLogo();
   });
 
   return { open, close, isOpen: () => el.classList.contains('show') };

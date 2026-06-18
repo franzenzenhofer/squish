@@ -33,12 +33,15 @@ export interface LevelsDeps {
   onPlayShared: (id: string) => void;
   /** open a shared level in the editor (remix) */
   onEditShared: (id: string) => void;
+  /** the back (X) button steps back one history entry */
+  onBack: () => void;
   unlockAudio: () => void;
 }
 
 export interface LevelsPick {
   open: () => void;
   close: () => void;
+  isOpen: () => boolean;
 }
 
 /** 'free' = debug-unlocked: playable, plain number, no padlock */
@@ -391,8 +394,8 @@ export function createLevelsPick(d: LevelsDeps): LevelsPick {
 
   document.getElementById('blback')?.addEventListener('click', () => {
     d.unlockAudio();
-    close();
+    d.onBack();
   });
 
-  return { open, close };
+  return { open, close, isOpen: () => el.classList.contains('show') };
 }

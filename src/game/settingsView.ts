@@ -8,11 +8,20 @@ export interface SettingsViewDeps {
   /** re-apply settings to the live UI (footer classes, labels) */
   onChange: () => void;
   unlockAudio: () => void;
+  /** the back (X) button steps back one history entry */
+  onBack: () => void;
+  /** open / close the nested Privacy card as history steps */
+  onOpenPrivacy: () => void;
+  onClosePrivacy: () => void;
 }
 
 export interface SettingsView {
   open: () => void;
   close: () => void;
+  isOpen: () => boolean;
+  /** the nested Privacy card - opened/closed by the nav controller */
+  openPrivacy: () => void;
+  closePrivacy: () => void;
 }
 
 export function createSettingsView(d: SettingsViewDeps): SettingsView {
@@ -110,16 +119,18 @@ export function createSettingsView(d: SettingsViewDeps): SettingsView {
     location.reload();
   });
 
-  /* the privacy & data statement — a closeable card over the settings */
+  /* the privacy & data statement — a closeable card over the settings. The nav
+     controller drives its open/close as history entries (DOM toggles below). */
   const elPrivacy = document.getElementById('privacy') as HTMLElement;
+  const openPrivacy = (): void => { elPrivacy.classList.add('show'); elPrivacy.scrollTop = 0; };
+  const closePrivacy = (): void => { elPrivacy.classList.remove('show'); };
   document.getElementById('bprivacy')?.addEventListener('click', () => {
     d.unlockAudio();
-    elPrivacy.classList.add('show');
-    elPrivacy.scrollTop = 0;
+    d.onOpenPrivacy();
   });
   document.getElementById('bpback')?.addEventListener('click', () => {
     d.unlockAudio();
-    elPrivacy.classList.remove('show');
+    d.onClosePrivacy();
   });
 
   const open = (): void => {
@@ -129,11 +140,12 @@ export function createSettingsView(d: SettingsViewDeps): SettingsView {
   };
   const close = (): void => {
     el.classList.remove('show');
+    closePrivacy();
   };
   document.getElementById('bsback')?.addEventListener('click', () => {
     d.unlockAudio();
-    close();
+    d.onBack();
   });
 
-  return { open, close };
+  return { open, close, isOpen: () => el.classList.contains('show'), openPrivacy, closePrivacy };
 }

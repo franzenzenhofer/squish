@@ -23,6 +23,7 @@ import { isDebug } from './debugMode';
 import { getSettings, updateSettings, type Settings } from './settings';
 import { createSettingsView } from './settingsView';
 import { createStart } from './start';
+import { createNav, type Nav } from './nav';
 import { mountWordmark } from './logo';
 import { hideToast, toast } from './toast';
 import { drawFrame, type RenderHooks } from './render';
@@ -712,29 +713,42 @@ document.addEventListener('keydown', () => {
   if (s.mode === 'intro') intro.dismiss();
 });
 
-/* start screen + level picker + settings */
+/* start screen + level picker + settings, all wired through the nav controller
+   (assigned just below, after the start menu + builder exist) so the browser
+   Back/Forward buttons navigate within the app. */
+/* forward reference: the deps below close over `nav`, which is assigned once the
+   start menu + builder exist (a few lines down) — so `let`, not `const`. */
+// eslint-disable-next-line prefer-const
+let nav: Nav;
 const settingsView = createSettingsView({
   onChange: () => applySettings(),
-  unlockAudio: () => audio.unlock()
+  unlockAudio: () => audio.unlock(),
+  onBack: () => nav.back(),
+  onOpenPrivacy: () => nav.go('privacy'),
+  onClosePrivacy: () => nav.back()
 });
 const levelsPick = createLevelsPick({
   s,
   onPick: (li) => {
+    nav.consumePlayEntry();
     startMenu.close();
     loadLevel(li);
   },
   onPickTest: (di) => {
+    nav.consumePlayEntry();
     startMenu.close();
     loadTestLevel(di);
   },
   onBake: async (hardness) => {
+    nav.consumePlayEntry();
     startMenu.close();
     return bakeAndPlay(hardness);
   },
-  onPlayCustom: (id) => { startMenu.close(); playCustomSequence(id); },
+  onPlayCustom: (id) => { nav.consumePlayEntry(); startMenu.close(); playCustomSequence(id); },
   onEditCustom: (id) => void builder.editCreation(id),
-  onPlayShared: (id) => { startMenu.close(); playShared(id); },
+  onPlayShared: (id) => { nav.consumePlayEntry(); startMenu.close(); playShared(id); },
   onEditShared: (id) => { const cr = getShared(localStorage, id); if (cr) void builder.open(cr.def); },
+  onBack: () => nav.back(),
   unlockAudio: () => audio.unlock()
 });
 /* the level editor — plays a built level through the SAME applyLevel path, and
@@ -832,14 +846,30 @@ const startMenu = createStart({
        opened from one) and never resumes a half-played board. loadLevel sets
        play=campaign, rebuilds from the initial state, and fires the intro/goal
        gate itself. The daily is reachable only via its button or #daily. */
+    nav.enterPlay();
     loadLevel(s.li);
   },
-  onDaily: () => startDaily(),
-  onLevels: () => levelsPick.open(),
+  onDaily: () => { nav.enterPlay(); startDaily(); },
+  onLevels: () => nav.go('levels'),
   onCreate: () => void builder.open(),
-  onSettings: () => settingsView.open(),
+  onSettings: () => nav.go('settings'),
+  onLogo: () => nav.home(),
   unlockAudio: () => audio.unlock()
 });
+
+/* The nav controller: it owns the start-screen history (Settings/Levels/Privacy)
+   and the menu<->play boundary. Created AFTER the start menu + builder exist; its
+   popstate handler is registered LAST so the builder's and play's handlers run
+   first and nav stands down while the builder owns the back stack. */
+nav = createNav({
+  levels: { open: levelsPick.open, close: levelsPick.close },
+  settings: { open: settingsView.open, close: settingsView.close },
+  privacy: { open: settingsView.openPrivacy, close: settingsView.closePrivacy },
+  openMenu: () => startMenu.open(),
+  closeMenu: () => startMenu.close(),
+  builderActive: () => builder.isOpen() || builderReturnDef !== null
+});
+window.addEventListener('popstate', () => nav.onPopstate());
 
 /* --------------------------------- boot ---------------------------------- */
 installTestApi({
@@ -923,6 +953,8 @@ if (plan.daily) {
      for "campaign level N, fresh"): there is no second code path to drift. */
   startMenu.open();
   loadLevel(plan.li);
+  /* a reload while an overlay was open restores it (history.state survives) */
+  nav.syncToState();
 }
 /* bake today's daily in its own worker while the player plays */
 window.setTimeout(() => void assist.getDaily(localToday()), 4000);
