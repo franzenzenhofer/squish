@@ -129,9 +129,10 @@ export interface Session {
   instantAnims: boolean;
 }
 
-/* v6: the campaign grew to 50 (trio arc) and the endless ladder re-anchored
-   at 51 — defs cached under older keys belong to the old numbering */
-const GEN_KEY = 'squish-gen-v6:';
+/* v7: the deterministic-movement rework (Squishy moves last; bunny hops 2,
+   else 1, else 0) changes every level's par, so defs cached under older keys
+   replay wrong — bump the key to force a clean regenerate. */
+const GEN_KEY = 'squish-gen-v7:';
 
 export function blankSession(): Session {
   const def = CURATED[0] as LevelDef;

@@ -56,7 +56,7 @@ export const INTRO_SPECS: Record<string, IntroSpec> = {
     keys: [{ t: 0, x: 0 }, { t: 300, x: 0 }, { t: 1100, x: 2 }]
   },
   bunny: {
-    kind: 'bunny', name: 'Bunny', line: 'Hops two squares - right over things',
+    kind: 'bunny', name: 'Bunny', line: 'Hops two squares over things, or one if blocked',
     tiles: ['floor', 'wall', 'floor'], chevrons: [200],
     keys: [{ t: 0, x: 0 }, { t: 300, x: 0 }, { t: 900, x: 2, hop: true }]
   },

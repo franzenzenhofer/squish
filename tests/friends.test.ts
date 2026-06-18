@@ -50,11 +50,11 @@ describe('ghostie', () => {
     const L = lvl({ w: 5, h: 1, target: [0, 0], ghosts: [[0, 0]], walls: [[1, 0], [2, 0]] });
     expect(run(L, ['right']).ghosts).toEqual([{ x: 4, y: 0 }]);
   });
-  it('is stopped by another piece', () => {
+  it('is stopped by another piece (the box has not moved yet, so it is solid)', () => {
     const L = lvl({ w: 5, h: 1, target: [0, 0], ghosts: [[0, 0]], walls: [[1, 0]], boxes: [[3, 0]] });
     const st = run(L, ['right']);
+    expect(st.ghosts).toEqual([{ x: 2, y: 0 }]);
     expect(st.boxes).toEqual([{ x: 4, y: 0 }]);
-    expect(st.ghosts).toEqual([{ x: 3, y: 0 }]);
   });
   it('ignores honey and nomsters', () => {
     const L = lvl({ w: 5, h: 1, target: [0, 0], ghosts: [[0, 0]], sticky: [[1, 0]], noms: [[2, 0]] });
@@ -65,21 +65,27 @@ describe('ghostie', () => {
 });
 
 describe('bunny', () => {
-  it('hops two squares at a time, leaping over a wall', () => {
-    const L = lvl({ w: 6, h: 1, target: [0, 0], bunnies: [[0, 0]], walls: [[3, 0]] });
-    expect(run(L, ['right']).bunnies).toEqual([{ x: 4, y: 0 }]);
-  });
-  it('cannot land on a wall and stops short', () => {
-    const L = lvl({ w: 6, h: 1, target: [0, 0], bunnies: [[0, 0]], walls: [[4, 0]] });
+  it('hops exactly two squares, right over a wall in between', () => {
+    const L = lvl({ w: 6, h: 1, target: [0, 0], bunnies: [[0, 0]], walls: [[1, 0]] });
     expect(run(L, ['right']).bunnies).toEqual([{ x: 2, y: 0 }]);
   });
-  it('is eaten only when landing on a nomster', () => {
-    const over = lvl({ w: 6, h: 1, target: [0, 0], bunnies: [[0, 0]], noms: [[3, 0]], walls: [[5, 0]] });
-    const stOver = run(over, ['right']);
-    expect(stOver.bunnies).toEqual([{ x: 4, y: 0 }]);
+  it('falls back to one square when the far cell is blocked', () => {
+    const L = lvl({ w: 6, h: 1, target: [0, 0], bunnies: [[0, 0]], walls: [[2, 0]] });
+    expect(run(L, ['right']).bunnies).toEqual([{ x: 1, y: 0 }]);
+  });
+  it('stays put when neither two nor one square lands', () => {
+    const L = lvl({ w: 6, h: 1, target: [0, 0], bunnies: [[0, 0]], walls: [[1, 0], [2, 0]] });
+    expect(run(L, ['right']).bunnies).toEqual([{ x: 0, y: 0 }]);
+  });
+  it('hops one square into the last cell at the edge', () => {
+    const L = lvl({ w: 2, h: 1, target: [0, 0], bunnies: [[0, 0]] });
+    expect(run(L, ['right']).bunnies).toEqual([{ x: 1, y: 0 }]);
+  });
+  it('is eaten only when it lands on a nomster, not hopping over one', () => {
+    const over = lvl({ w: 6, h: 1, target: [0, 0], bunnies: [[0, 0]], noms: [[1, 0]] });
+    expect(run(over, ['right']).bunnies).toEqual([{ x: 2, y: 0 }]);
     const land = lvl({ w: 6, h: 1, target: [0, 0], bunnies: [[0, 0]], noms: [[2, 0]] });
-    const stLand = run(land, ['right']);
-    expect(stLand.bunnies).toEqual([]);
+    expect(run(land, ['right']).bunnies).toEqual([]);
   });
 });
 
@@ -145,11 +151,22 @@ describe('chick', () => {
     expect(s2.dots).toEqual([{ x: 4, y: 4, m: 1 }]);
     expect(s2.lastDir).toBe('down');
   });
-  it('is blocked by pass-1 movers that settled first', () => {
+  it('moves before Squishy, so Squishy can be blocked by where the chick lands', () => {
     const L = lvl({ w: 5, h: 5, target: [0, 0], dots: [[3, 4]], chicks: [[0, 0]] });
     const st = run(L, ['right', 'up']);
+    expect(st.chicks).toEqual([{ x: 4, y: 0 }]);
+    expect(st.dots).toEqual([{ x: 4, y: 1, m: 1 }]);
+  });
+});
+
+describe('move order', () => {
+  it('runs slow movers first and Squishy last, treating unmoved pieces as solid', () => {
+    /* the snail moves first but is penned in by a Squishy that has not moved
+       yet; then Squishy slides last, all the way to the edge */
+    const L = lvl({ w: 5, h: 1, target: [4, 0], snails: [[0, 0]], dots: [[1, 0]] });
+    const st = run(L, ['right']);
+    expect(st.snails).toEqual([{ x: 0, y: 0 }]);
     expect(st.dots).toEqual([{ x: 4, y: 0, m: 1 }]);
-    expect(st.chicks).toEqual([{ x: 3, y: 0 }]);
   });
 });
 

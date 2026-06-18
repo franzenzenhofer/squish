@@ -103,18 +103,23 @@ export function createSettingsView(d: SettingsViewDeps): SettingsView {
   const breset = document.getElementById('breset') as HTMLButtonElement;
   let armed = false;
   let armTimer = 0;
+  const disarmReset = (): void => {
+    if (armTimer) clearTimeout(armTimer);
+    armTimer = 0;
+    armed = false;
+    breset.textContent = 'Reset progress';
+  };
   breset.addEventListener('click', () => {
     d.unlockAudio();
     if (!armed) {
       armed = true;
       breset.textContent = 'Tap again to reset everything';
       armTimer = window.setTimeout(() => {
-        armed = false;
-        breset.textContent = 'Reset progress';
+        disarmReset();
       }, 3000);
       return;
     }
-    clearTimeout(armTimer);
+    disarmReset();
     resetProgress();
     location.reload();
   });
@@ -141,6 +146,7 @@ export function createSettingsView(d: SettingsViewDeps): SettingsView {
   const close = (): void => {
     el.classList.remove('show');
     closePrivacy();
+    disarmReset();
   };
   document.getElementById('bsback')?.addEventListener('click', () => {
     d.unlockAudio();

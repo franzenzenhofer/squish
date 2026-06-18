@@ -49,22 +49,22 @@ export const DEBUG_LEVELS: readonly DebugLevel[] = [
   },
   {
     name: 'Combo stress',
-    why: 'friends + nomster + splitters + stars at par 14 - the hard-combo shape (generator-baked)',
+    why: 'friends + nomster + splitters + stars at par 12 - the hard-combo shape (generator-baked)',
     def: {
-      w: 6, h: 6, target: [3, 0], dots: [[5, 1], [5, 2]], par: 14,
+      w: 6, h: 6, target: [3, 0], dots: [[5, 1], [5, 2]], par: 12,
       walls: [[1, 0], [2, 2], [4, 5], [5, 0], [1, 1], [2, 5]],
       noms: [[4, 3]], split: [[0, 1], [2, 4]], stars: [[0, 2], [2, 3]],
-      frogs: [[0, 0]], chicks: [[5, 4]], sol: 'DUDLURLDDRRULU'
+      frogs: [[0, 0]], chicks: [[5, 4]], sol: 'DDLULDDRURLU'
     }
   },
   {
     name: 'Panda & chick',
     why: 'the two state-space-heaviest friends together - oracle budget edge (generator-baked)',
     def: {
-      w: 5, h: 5, target: [3, 0], dots: [[3, 4], [0, 3]], par: 10,
+      w: 5, h: 5, target: [3, 0], dots: [[3, 4], [0, 3]], par: 9,
       walls: [[1, 3], [0, 0], [4, 4], [3, 3]], split: [[4, 1]],
       ice: [[2, 0], [0, 1], [1, 1]], pandas: [[0, 4]], chicks: [[2, 3]],
-      sol: 'LUDLURURUL'
+      sol: 'UDLLURUUL'
     }
   }
 ];

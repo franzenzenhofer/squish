@@ -248,6 +248,34 @@ function rescueParams(p: RampParams): RampParams {
   };
 }
 
+/** Marathon rescue: keep the rung floor, but make the star tour deep enough
+    for sparse high-par boards. Normal/base rounds still run first on lower
+    rungs; pathological high rungs can start here to avoid minutes of misses. */
+function marathonRescueParams(p: RampParams): RampParams {
+  return {
+    ...rescueParams(p),
+    starMax: Math.max(5, p.starMax ?? 2),
+    attempts: Math.max(800, p.attempts),
+    maxStates: Math.max(120000, p.maxStates)
+  };
+}
+
+/** Very deep rungs need a fast escape hatch: chase a long star tour and accept
+    the first proven hard board. The one-notch floor concession is the same
+    tolerance enforced by the ladder audit. */
+function deepMarathonRescueParams(p: RampParams): RampParams {
+  return {
+    ...rescueParams(p),
+    fields: [],
+    featureUseMin: 1,
+    starMax: Math.max(7, p.starMax ?? 2),
+    parMin: p.parMin - 1,
+    attempts: Math.max(600, p.attempts),
+    maxStates: Math.max(120000, p.maxStates),
+    parPrefer: 'max'
+  };
+}
+
 /** Endless levels NEVER step back: rescue rounds keep the par floor (fresh
     seeds, then the proven star-tour cast) and concede at most ONE breathing
     notch — simplify(), which resets floors, is never used here. The trio arc
@@ -255,14 +283,28 @@ function rescueParams(p: RampParams): RampParams {
     deliver Franz's trios at their rungs or fail loud for a cast fix. */
 function generateEndless(n: number, fallbackPool?: LevelDef[]): LevelDef {
   const p = ramp(n);
+  const deepMarathon = p.parTarget >= 28;
+  const marathon = p.parTarget >= 22;
   const rounds: Array<[number, RampParams]> = n <= CAMPAIGN_END ? [
     [n, p],
     [n * 7919 + 101, p],
     [n * 104729 + 7, p],
     [n * 999983 + 13, p]
+  ] : deepMarathon ? [
+    [p.parTarget >= 30 ? n * 7919 + 101 : n, deepMarathonRescueParams(p)],
+    [n, marathonRescueParams(p)],
+    [n * 7919 + 101, p],
+    [n * 104729 + 7, rescueParams(p)],
+    [n * 999983 + 13, { ...rescueParams(p), parMin: p.parMin - 1 }]
+  ] : marathon ? [
+    [n, marathonRescueParams(p)],
+    [n * 7919 + 101, p],
+    [n * 104729 + 7, rescueParams(p)],
+    [n * 999983 + 13, { ...rescueParams(p), parMin: p.parMin - 1 }]
   ] : [
     [n, p],
     [n * 7919 + 101, p],
+    [n, marathonRescueParams(p)],
     [n * 104729 + 7, rescueParams(p)],
     [n * 999983 + 13, { ...rescueParams(p), parMin: p.parMin - 1 }]
   ];

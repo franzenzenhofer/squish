@@ -1,8 +1,12 @@
-/* Move resolution — one swipe moves every movable at once.
-   Pass 1: dots, boxes, snails, penguins, bears, ghosts, bunnies, frogs,
-           cats and awake pandas — front-most-first along the swipe.
-   Pass 1.5: chicks copy the PREVIOUS swipe direction (phantom pre-seeded).
-   Pass 2: balloons drift the opposite way (phantom pre-seeded).
+/* Move resolution — one swipe moves every movable in ONE fixed priority order.
+   Every piece is solid until it is lifted to run, so a mover treats walls and
+   any piece that has NOT yet moved this swipe as a wall. The order, slowest and
+   simplest first, the player last:
+     snail, bear, panda(awake), cat, penguin, ghost, bunny, frog, box,
+     chick, balloon, then the dots (Squishy) — Squishy ALWAYS moves last.
+   Within one kind the piece furthest along its own travel direction goes first
+   (so a line of same-kind movers trains together). Most follow the swipe;
+   chicks copy the PREVIOUS swipe, balloons drift the opposite way.
    Pigs never run: they sit solid and get shoved at most one cell per swipe.
    Direction changes are capped per mover per swipe; a guard counter backs
    every loop so all paths are finite. */
@@ -56,13 +60,22 @@ export function move(level: Level, state: GameState, dir: Dir, opts?: MoveOption
 
   const pandaAwake = state.parity === 1;
 
-  /* ---- pre-seeding: pieces that block before (or instead of) running ---- */
-  for (const b of state.balloons) {
-    settled.set(key(b.x, b.y), { kind: 'balloon', m: 1, x: b.x, y: b.y, phantom: true });
-  }
-  for (const c of state.chicks) {
-    settled.set(key(c.x, c.y), { kind: 'chick', m: 1, x: c.x, y: c.y, phantom: true });
-  }
+  /* ---- pre-seeding: every piece is solid until it is lifted to run -------- */
+  const seed = (kind: MoverKind, list: Pt[]): void => {
+    for (const p of list) settled.set(key(p.x, p.y), { kind, m: 1, x: p.x, y: p.y });
+  };
+  for (const p of state.dots) settled.set(key(p.x, p.y), { kind: 'dot', m: p.m, x: p.x, y: p.y });
+  seed('box', state.boxes);
+  seed('snail', state.snails);
+  seed('penguin', state.penguins);
+  seed('bear', state.bears);
+  seed('ghost', state.ghosts);
+  seed('bunny', state.bunnies);
+  seed('frog', state.frogs);
+  seed('cat', state.cats);
+  seed('panda', state.pandas);
+  seed('chick', state.chicks);
+  seed('balloon', state.balloons);
   for (const p of state.pigs) {
     settled.set(key(p.x, p.y), { kind: 'pig', m: 1, x: p.x, y: p.y });
     if (withReports) {
@@ -71,14 +84,12 @@ export function move(level: Level, state: GameState, dir: Dir, opts?: MoveOption
       });
     }
   }
-  if (!pandaAwake) {
+  /* a sleeping panda stays solid all swipe and just reports a rest in place */
+  if (!pandaAwake && withReports) {
     for (const p of state.pandas) {
-      settled.set(key(p.x, p.y), { kind: 'panda', m: 1, x: p.x, y: p.y });
-      if (withReports) {
-        out.push({
-          kind: 'panda', m0: 1, m: 1, path: [{ x: p.x, y: p.y }], fx: [], end: 'rest', stick: false
-        });
-      }
+      out.push({
+        kind: 'panda', m0: 1, m: 1, path: [{ x: p.x, y: p.y }], fx: [], end: 'rest', stick: false
+      });
     }
   }
 
@@ -308,9 +319,38 @@ export function move(level: Level, state: GameState, dir: Dir, opts?: MoveOption
         break;
       }
 
-      const stepLen = M.kind === 'bunny' ? 2 : 1;
-      const nx = cur.x + stepLen * DIRS[d][0];
-      const ny = cur.y + stepLen * DIRS[d][1];
+      if (M.kind === 'bunny') {
+        /* One hop per swipe, the same in every direction: clear TWO cells
+           (right over whatever sits between), or just ONE if the far cell is
+           blocked, or stay put if neither lands. The landing cell still works
+           its magic (nomster, portal, jelly, honey) but the bunny never chains
+           a second hop. */
+        let landed = false;
+        for (const len of [2, 1]) {
+          const lx = cur.x + len * DIRS[d][0];
+          const ly = cur.y + len * DIRS[d][1];
+          if (!inBounds(lx, ly)) continue;
+          const lk = key(lx, ly);
+          if (isWallLike(lk)) continue;
+          const low = level.oneway.get(lk);
+          if (low !== undefined && low !== d) continue;
+          if (settled.has(lk)) continue;
+          leaveCell(cur);
+          cur = { x: lx, y: ly };
+          pushStep(len === 2 ? { x: lx, y: ly, hop: true } : { x: lx, y: ly });
+          entered.add(lk);
+          steps++;
+          landed = true;
+          break;
+        }
+        if (!landed) { end = 'rest'; break; }
+        const act = enterAt();
+        end = act === 'continue' || act === 'rest' ? 'rest' : act;
+        break;
+      }
+
+      const nx = cur.x + DIRS[d][0];
+      const ny = cur.y + DIRS[d][1];
       if (!inBounds(nx, ny)) {
         if (blockedAhead() === 'turned') continue;
         end = 'rest';
@@ -344,7 +384,7 @@ export function move(level: Level, state: GameState, dir: Dir, opts?: MoveOption
           end = 'merge';
           break;
         }
-        if (occ.kind === 'pig' && M.kind !== 'bunny') {
+        if (occ.kind === 'pig') {
           const res = tryShove(k, occ, d, pathLen - 1);
           if (res !== 'blocked') {
             effect();
@@ -364,7 +404,7 @@ export function move(level: Level, state: GameState, dir: Dir, opts?: MoveOption
       }
       leaveCell(cur);
       cur = { x: nx, y: ny };
-      pushStep(stepLen === 2 ? { x: nx, y: ny, hop: true } : { x: nx, y: ny });
+      pushStep({ x: nx, y: ny });
       entered.add(k);
       steps++;
       if (ghost) continue;
@@ -383,54 +423,51 @@ export function move(level: Level, state: GameState, dir: Dir, opts?: MoveOption
     if (withReports) out.push({ kind: M.kind, m0: M.m0, m: M.m, path, fx, end, stick });
   }
 
-  /* ---- pass 1 ----------------------------------------------------------- */
-  const p1: Runner[] = [];
-  const push = (kind: MoverKind, list: Pt[]): void => {
-    for (const p of list) p1.push({ kind, x: p.x, y: p.y, m: 1, m0: 1 });
+  /* ---- one swipe, one fixed priority order; Squishy moves LAST ----------- */
+  const runKind = (kind: MoverKind, list: Pt[], d: Dir): void => {
+    const runners: Runner[] = list.map((p) => ({ kind, x: p.x, y: p.y, m: 1, m0: 1 }));
+    frontMostFirst(runners, d);
+    for (const M of runners) {
+      settled.delete(key(M.x, M.y));
+      runMover(M, d);
+    }
   };
-  for (const p of state.dots) p1.push({ kind: 'dot', x: p.x, y: p.y, m: p.m, m0: p.m });
-  push('box', state.boxes);
-  push('snail', state.snails);
-  push('penguin', state.penguins);
-  push('bear', state.bears);
-  push('ghost', state.ghosts);
-  push('bunny', state.bunnies);
-  push('frog', state.frogs);
-  push('cat', state.cats);
-  if (pandaAwake) push('panda', state.pandas);
-  frontMostFirst(p1, dir);
-  for (const M of p1) runMover(M, dir);
 
-  /* ---- pass 1.5: chicks copy the previous swipe ------------------------- */
+  runKind('snail', state.snails, dir);
+  runKind('bear', state.bears, dir);
+  if (pandaAwake) runKind('panda', state.pandas, dir);
+  runKind('cat', state.cats, dir);
+  runKind('penguin', state.penguins, dir);
+  runKind('ghost', state.ghosts, dir);
+  runKind('bunny', state.bunnies, dir);
+  runKind('frog', state.frogs, dir);
+  runKind('box', state.boxes, dir);
+
+  /* chicks copy the PREVIOUS swipe (they hold still on the very first swipe) */
   const lastDir = state.lastDir;
   if (state.chicks.length > 0) {
     if (lastDir === null) {
-      for (const c of state.chicks) {
-        settled.delete(key(c.x, c.y));
-        settled.set(key(c.x, c.y), { kind: 'chick', m: 1, x: c.x, y: c.y });
-        if (withReports) {
+      if (withReports) {
+        for (const c of state.chicks) {
           out.push({
             kind: 'chick', m0: 1, m: 1, path: [{ x: c.x, y: c.y }], fx: [], end: 'rest', stick: false
           });
         }
       }
     } else {
-      const pc: Runner[] = state.chicks.map((p) => ({ kind: 'chick', x: p.x, y: p.y, m: 1, m0: 1 }));
-      frontMostFirst(pc, lastDir);
-      for (const M of pc) {
-        settled.delete(key(M.x, M.y));
-        runMover(M, lastDir);
-      }
+      runKind('chick', state.chicks, lastDir);
     }
   }
 
-  /* ---- pass 2: balloons drift the opposite way -------------------------- */
-  const bdir = REV[dir];
-  const p2: Runner[] = state.balloons.map((p) => ({ kind: 'balloon', x: p.x, y: p.y, m: 1, m0: 1 }));
-  frontMostFirst(p2, bdir);
-  for (const M of p2) {
+  /* balloons drift the opposite way */
+  runKind('balloon', state.balloons, REV[dir]);
+
+  /* the player last: every friend has already settled into its place */
+  const dotRunners: Runner[] = state.dots.map((p) => ({ kind: 'dot', x: p.x, y: p.y, m: p.m, m0: p.m }));
+  frontMostFirst(dotRunners, dir);
+  for (const M of dotRunners) {
     settled.delete(key(M.x, M.y));
-    runMover(M, bdir);
+    runMover(M, dir);
   }
 
   /* ---- pig reports ------------------------------------------------------- */
@@ -468,8 +505,12 @@ export function move(level: Level, state: GameState, dir: Dir, opts?: MoveOption
     else next.pigs.push({ x: v.x, y: v.y });
   }
   if (moved) {
-    next.parity = state.parity === 0 ? 1 : 0;
-    next.lastDir = dir;
+    /* parity only matters to pandas, lastDir only to chicks: when the level has
+       neither, keep them at their canonical 0/null so the state graph is not
+       inflated by behaviourally-identical (parity,lastDir) duplicates. This
+       keeps the oracle exhaustible on heavy boards (the hint/oh-no budget). */
+    next.parity = level.initState.pandas.length > 0 ? (state.parity === 0 ? 1 : 0) : 0;
+    next.lastDir = level.initState.chicks.length > 0 ? dir : null;
   }
   return { state: next, movers: out, moved };
 }

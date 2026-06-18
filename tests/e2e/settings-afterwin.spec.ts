@@ -38,3 +38,16 @@ test('the anonymous-counts opt-out stays hidden on the web build (web is always-
   await openSettings(page);
   await expect(page.locator('#setrowAnalytics')).toBeHidden();
 });
+
+test('closing Settings disarms the reset-progress confirmation', async ({ page }) => {
+  await openSettings(page);
+
+  await page.locator('#breset').click();
+  await expect(page.locator('#breset')).toHaveText('Tap again to reset everything');
+
+  await page.locator('#bsback').click();
+  await page.waitForFunction(() => !document.getElementById('settings')?.classList.contains('show'));
+  await page.evaluate(() => document.getElementById('bsettings')?.click());
+
+  await expect(page.locator('#breset')).toHaveText('Reset progress', { timeout: 250 });
+});

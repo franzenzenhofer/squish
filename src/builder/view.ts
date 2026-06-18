@@ -35,6 +35,9 @@ export interface BuilderDeps {
   s: Session;
   playDef: (def: LevelDef) => void;
   solveDef: (def: LevelDef) => Promise<SolveInfo>;
+  /** true when the in-game oracle can fully analyse the board (hints + oh-no
+      always work). A solvable-but-too-complex board returns false. */
+  hintableDef?: (def: LevelDef) => Promise<boolean>;
   onExit: () => void;
   closeMenu: () => void;
   kv?: KV;
@@ -494,6 +497,11 @@ export function createBuilder(d: BuilderDeps): BuilderApi {
     play: async (): Promise<void> => {
       /* Play is gated on a proven-solvable board (heart + squishy + a solution) */
       if (status !== 'solvable') { notify('Make it solvable first!'); return Promise.resolve(); }
+      /* and warn (don't block) when the board is so complex the hint/oh-no
+         oracle can't fully analyse it — same contract the shipped levels meet */
+      if (d.hintableDef && !(await d.hintableDef(toDef(st)))) {
+        notify('Whoa, complex! Hints might not always pop up here.');
+      }
       persist(); // a playable level auto-saves to Your Levels
       cancelActiveDrag?.();
       cancelActiveDrag = null;

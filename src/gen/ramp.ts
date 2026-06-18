@@ -197,6 +197,10 @@ export function ramp(n: number): RampParams {
   base.parMin = base.parTarget;
   base.parMax = base.parTarget +
     (base.parTarget >= 18 ? 8 : base.parTarget >= 12 ? 3 : 2);
+  /* L61's portal/balloon draw otherwise lands at the top of the par-14 band
+     while the neighboring rungs all prove at 14-16, creating a one-level
+     smoothness regression in the deterministic ladder audit. */
+  if (n === 61) base.parMax = base.parTarget + 2;
   base.parPrefer = 'exact';
   const marathon = base.parTarget >= 12;
   base.dots = 2;

@@ -27,8 +27,9 @@ export interface Assist {
   deepSolve: (def: LevelDef, state: GameState) => Promise<DeepSolveResult>;
 }
 
-/* v2: the spring field was renamed in the level schema (was "mush") */
-const DAILY_KEY = 'squish-daily-v2:';
+/* v3: the deterministic-movement rework changes how every level solves, so
+   dailies cached under v2 are stale — bump to force a clean regenerate. */
+const DAILY_KEY = 'squish-daily-v3:';
 
 function cachedDaily(date: string): LevelDef | null {
   try {

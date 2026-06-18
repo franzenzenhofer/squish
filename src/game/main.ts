@@ -823,10 +823,17 @@ const builderSolve = async (def: LevelDef): Promise<SolveInfo> => {
   if (r.status === 'solved') return { status: 'solvable', par: r.solution.length };
   return { status: r.status === 'unsolvable' ? 'unsolvable' : 'unknown', par: 0 };
 };
+/* hint/oh-no contract: a built level is fully supported only if the oracle can
+   exhaust its state graph within the runtime budget (same bar as shipped levels) */
+const builderHintable = async (def: LevelDef): Promise<boolean> => {
+  const o = await assist.getOracle('builder:' + JSON.stringify(def), def);
+  return o.exhausted;
+};
 const builder = createBuilder({
   s,
   playDef: playBuilderLevel,
   solveDef: builderSolve,
+  hintableDef: builderHintable,
   onExit: () => startMenu.open(),
   closeMenu: () => startMenu.close()
 });

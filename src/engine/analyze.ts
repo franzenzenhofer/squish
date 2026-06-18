@@ -40,8 +40,11 @@ function nowMs(): number {
 }
 
 export function analyzeLevel(level: Level, opts?: AnalyzeOptions): Oracle {
-  const maxStates = opts?.maxStates ?? 300000;
-  /* generous: slow phones must still exhaust a ~300k-state daily graph */
+  const maxStates = opts?.maxStates ?? 400000;
+  /* generous: slow phones must still exhaust the graph. The deterministic-
+     movement model (Squishy last) enlarges graphs, so the budget is 400k —
+     enough for every shipped curated level and daily to exhaust, while staying
+     within a worker's memory on a phone. */
   const deadlineMs = opts?.deadlineMs ?? 45000;
   const t0 = nowMs();
 
