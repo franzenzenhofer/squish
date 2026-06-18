@@ -439,16 +439,25 @@
 
   /* ---- settings rows ---- */
   .setrow {
-    display: flex; align-items: center; justify-content: space-between; gap: 12px;
-    width: min(320px, 88vw); background: #fff; border-radius: 22px;
-    padding: 14px 16px; box-shadow: 0 5px 0 var(--shadow6);
+    display: flex; align-items: center; justify-content: space-between; gap: 14px;
+    width: min(360px, 90vw); background: #fff; border-radius: 22px;
+    padding: 15px 18px; box-shadow: 0 5px 0 var(--shadow6);
   }
-  .setlab { display: flex; flex-direction: column; gap: 2px; font-size: 15px; font-weight: 700; color: var(--ink); }
-  .setlab .sethint { font-size: 11px; font-weight: 600; color: var(--dim); }
+  /* a `hidden` row must stay hidden — the author display:flex above otherwise
+     beats the UA [hidden] rule and would leak the iOS-only rows onto web */
+  .setrow[hidden] { display: none; }
+  /* a stacked row: title, then a full-width control, then a one-line explanation
+     — gives multi-option controls room instead of squishing them to the right */
+  .setrow-col { flex-direction: column; align-items: stretch; gap: 10px; }
+  .setlab { display: flex; flex-direction: column; gap: 3px; font-size: 15px; font-weight: 700; color: var(--ink); }
+  .setlab .sethint { font-size: 12px; font-weight: 600; color: var(--dim); line-height: 1.35; }
+  .setexpl { font-size: 12px; font-weight: 600; color: var(--dim); line-height: 1.35; min-height: 16px; }
   .seg { display: flex; gap: 4px; background: #FBEAF1; border-radius: 999px; padding: 3px; }
+  .seg-wide { width: 100%; }
+  .seg-wide button { flex: 1; }
   .seg button {
     font: inherit; font-size: 12px; font-weight: 700; color: var(--dim2);
-    border: none; background: none; border-radius: 999px; padding: 7px 10px; cursor: pointer;
+    border: none; background: none; border-radius: 999px; padding: 8px 10px; cursor: pointer;
     transition: background .12s, color .12s;
   }
   .seg button.on {
@@ -842,11 +851,12 @@
     </button>
   </div>
   <div id="settingsInner">
-    <div class="setrow">
-      <div class="setlab">After a win<span class="sethint">wait · auto-next · zoom right in</span></div>
-      <div class="seg" id="segAfterWin">
-        <button data-v="wait">Wait</button><button data-v="auto">Auto</button><button data-v="instant">Zoom!</button>
+    <div class="setrow setrow-col">
+      <div class="setlab">After a win</div>
+      <div class="seg seg-wide" id="segAfterWin">
+        <button data-v="wait">Wait</button><button data-v="auto">Auto</button><button data-v="instant">Next</button>
       </div>
+      <div class="setexpl" id="afterWinExpl"></div>
     </div>
     <div class="setrow">
       <div class="setlab">Hint button<span class="sethint">the little bulb below the board</span></div>

@@ -18,6 +18,15 @@ export interface SettingsView {
 export function createSettingsView(d: SettingsViewDeps): SettingsView {
   const el = document.getElementById('settings') as HTMLElement;
   const seg = document.getElementById('segAfterWin') as HTMLElement;
+  const afterWinExpl = document.getElementById('afterWinExpl') as HTMLElement;
+  /* one short line per option, matching the real win flow in endings.ts:
+     'wait' keeps the card up until a tap, 'auto' shows the card then advances
+     on its own after a few seconds, 'instant' skips the card entirely. */
+  const AFTER_WIN_EXPL: Record<AfterWin, string> = {
+    wait: 'The win card waits for your tap.',
+    auto: 'The win card auto-advances after a moment.',
+    instant: 'Skip the card - straight to the next level.'
+  };
   const togHint = document.getElementById('togHint') as HTMLButtonElement;
   const togLabels = document.getElementById('togLabels') as HTMLButtonElement;
   const togZen = document.getElementById('togZen') as HTMLButtonElement;
@@ -38,6 +47,7 @@ export function createSettingsView(d: SettingsViewDeps): SettingsView {
     for (const b of seg.querySelectorAll('button')) {
       b.classList.toggle('on', b.dataset.v === st.afterWin);
     }
+    afterWinExpl.textContent = AFTER_WIN_EXPL[st.afterWin];
     togHint.classList.toggle('on', st.hintButton);
     togHint.setAttribute('aria-checked', String(st.hintButton));
     togLabels.classList.toggle('on', st.buttonLabels);
