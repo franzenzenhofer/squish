@@ -7,6 +7,7 @@
    and extra sections appear: the generated ladder, marathon milestones,
    hand-authored test levels and the hardness baker. */
 import type { LevelDef } from '../engine/types';
+import { heartsFor } from './rating';
 import { spriteIcon } from './spriteIcon';
 import { DEBUG_GEN_COUNT, isDebug } from './debugMode';
 import { DEBUG_LEVELS } from './debugLevels';
@@ -87,8 +88,7 @@ function hearts(s: Session, li: number): string {
   const best = s.results[li];
   const def = levelDef(li);
   if (best === undefined || !def) return '';
-  const par = def.par;
-  const n = best <= par ? 3 : best <= par + 1 ? 2 : 1;
+  const n = heartsFor(best, def.par);
   return '♥'.repeat(n);
 }
 

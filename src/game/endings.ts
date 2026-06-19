@@ -4,6 +4,7 @@
 import type { Audio } from './audio';
 import { cx, cy, heartBurst } from './fx';
 import { saveAdvance, saveGame } from './persist';
+import { heartsFor } from './rating';
 import { getSettings } from './settings';
 import { shareCard } from './share';
 import type { CustomSource, Session } from './session';
@@ -166,11 +167,12 @@ export function createEndings(d: EndingsDeps): Endings {
     const mv = s.moves + (s.moves === 1 ? ' move' : ' moves');
     elWinSub.innerHTML = label + ' · solved in <b>' + mv + '</b>';
     /* Zen mode celebrates with kind words only — no hearts, no rating, no
-       "you went over". Otherwise: a hinted solve celebrates too (empty hearts),
-       and a clean solve shows its earned hearts. */
+       "you went over". A hinted solve celebrates too but shows NO hearts (the
+       kind line carries it). Only a clean solve shows its earned hearts. */
     elWinTag.innerHTML = getSettings().zenMode
       ? pickZenLine()
-      : (hinted ? pickHintedLine() : pickWinLine(hearts)) + ratingHearts(hearts);
+      : hinted ? pickHintedLine()
+        : pickWinLine(hearts) + ratingHearts(hearts);
     /* the in-app card REPLAYS the player's recorded solution, looping - always
        animated, painted by the one gameplay renderer */
     const line = s.line.join('');
@@ -249,7 +251,7 @@ export function createEndings(d: EndingsDeps): Endings {
       saveAdvance(s, s.li + 1);
     }
     /* debug test plays write nothing */
-    const hearts = hinted ? 0 : s.moves <= s.def.par ? 3 : s.moves <= s.def.par + 1 ? 2 : 1;
+    const hearts = hinted ? 0 : heartsFor(s.moves, s.def.par);
     d.track('win', {
       k: trackKind(s), li: s.li, mv: s.moves,
       par: s.def.par, hr: hearts, hd: hinted ? 1 : 0

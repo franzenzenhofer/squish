@@ -2,7 +2,7 @@
    at random with an anti-repeat guard so the same line never shows twice in a
    row. Keyed by the hearts value the rating already computes (3 / 2 / 1). */
 
-/* 3 hearts: par-or-better — pure celebration. */
+/* 3 hearts: optimal or one over (moves <= par + 1) — pure celebration. */
 const TIER3: readonly string[] = [
   'Squishy-tastic! ✨',
   'Perfectly squished!',
@@ -16,32 +16,34 @@ const TIER3: readonly string[] = [
   'Cuteness overload 💕'
 ];
 
-/* 2 hearts: one over par — warm encouragement. */
+/* 2 hearts: up to double par (moves <= par * 2) — super positive, but not the
+   "perfect" wording reserved for TIER3. A great solve, just not the tightest. */
 const TIER2: readonly string[] = [
-  'So close - lovely solve!',
-  'Sweetly done!',
-  'Almost perfect, almost!',
-  'Nicely squished 💗',
-  'Great hopping out there!',
-  'A wiggle off perfect!',
-  'Smooth little solve!',
-  'You found the way 💞',
-  'That was a cute one!',
-  'Well hopped, friend!'
+  'Lovely solving! 💗',
+  'Great little hop!',
+  'Sweetly squished!',
+  'You did wonderfully!',
+  'Squishy and proud! ✨',
+  'A happy little solve!',
+  'Nicely hopped, friend!',
+  'That was a good one! 💞',
+  'Smooth squishing!',
+  'Warm and fuzzy win 💕'
 ];
 
-/* 1 heart: more than one over par — gentle, playful "uh-oh". */
+/* 1 heart: more than double par — still super positive, "hey, you did it!" and
+   "what a ride!" energy. You made it home, and that's what counts. */
 const TIER1: readonly string[] = [
-  'Uh-oh, a wobbly one!',
-  'You got there - phew!',
-  'A squishy scramble!',
-  'Messy but lovely 💓',
-  'Whew, what a journey!',
-  'A few extra wiggles!',
-  'Bumpy, but you made it!',
-  'Squished... eventually!',
-  'A scenic little route!',
-  'Got there in the end 💖'
+  'Hey, you did it! 💖',
+  'What a ride!',
+  'You made it home! 💓',
+  'Adventure complete! ✨',
+  'A grand little journey!',
+  'Squishy made it! 💕',
+  'You got there - yay!',
+  'What a fun trip!',
+  'Home at last! 🏡',
+  'That was an adventure!'
 ];
 
 /* The big celebratory headline — dynamic so the win never feels canned. Any of
