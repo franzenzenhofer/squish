@@ -10,7 +10,6 @@ import { generateDaily } from '../gen/daily';
 import { finalize, generateLevel, tryGenerate } from '../gen/generate';
 import { bakeParams } from '../gen/ramp';
 import { mulberry32 } from '../gen/rng';
-import curated from '../levels.json';
 
 export type WorkerRequest =
   | { type: 'gen'; id: number; n: number }
@@ -20,13 +19,11 @@ export type WorkerRequest =
   | { type: 'solve'; id: number; def: LevelDef; state: GameState };
 
 export type WorkerResponse =
-  | { type: 'gen'; id: number; n: number; def: LevelDef }
+  | { type: 'gen'; id: number; n: number; def: LevelDef | null }
   | { type: 'daily'; id: number; date: string; def: LevelDef | null }
   | { type: 'bake'; id: number; def: LevelDef | null }
   | { type: 'analyze'; id: number; oracle: OracleWire }
   | { type: 'solve'; id: number; status: 'solved' | 'unsolvable' | 'unknown'; solution?: string[] };
-
-const FALLBACK = (curated as LevelDef[]).slice(28);
 
 const scope = self as unknown as {
   postMessage: (msg: WorkerResponse) => void;
@@ -36,7 +33,15 @@ const scope = self as unknown as {
 scope.onmessage = (ev: MessageEvent<WorkerRequest>): void => {
   const msg = ev.data;
   if (msg.type === 'gen') {
-    const def = generateLevel(msg.n, FALLBACK);
+    /* ALWAYS answer - a thrown generation must never leave the request
+       unresolved (that was the level-61 permanent "Baking..." hang). null tells
+       the client to use its same-difficulty fallback. */
+    let def: LevelDef | null = null;
+    try {
+      def = generateLevel(msg.n);
+    } catch (e) {
+      console.error('[squishy] gen failed for n=' + msg.n, e);
+    }
     scope.postMessage({ type: 'gen', id: msg.id, n: msg.n, def });
     return;
   }

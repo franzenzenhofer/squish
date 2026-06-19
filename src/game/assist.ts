@@ -4,9 +4,19 @@
    main-thread lookups — no staleness, no races, no 'unknown'. */
 import { unpackOracle, type Oracle } from '../engine/analyze';
 import type { GameState, LevelDef } from '../engine/types';
+import { ramp } from '../gen/ramp';
+import { pickByPar } from '../lib/safeBake';
 import type { WorkerRequest, WorkerResponse } from '../workers/gen.worker';
 import { precomputedDaily } from './dailyManifest';
+import { loadLevelsManifest, precomputedLevel } from './levelsManifest';
 import { CURATED, cacheGenLevel, cachedGenLevel } from './session';
+
+/* A live bake (level 201+, off the prebaked manifest) must NEVER make the
+   player wait more than this. If the worker has not answered in time, the
+   player gets a proven level at the same difficulty and keeps playing; the
+   worker finishes its real bake in the background and caches it for next time.
+   This is the hard guarantee behind "no stuck, no crash, no ages-long bake". */
+const LIVE_BAKE_MS = 10000;
 
 export type DeepSolveResult =
   | { status: 'solved'; solution: string[] }
@@ -57,30 +67,69 @@ function cacheDaily(date: string, def: LevelDef): void {
 const ORACLE_CACHE_MAX = 3;
 
 export function createAssist(): Assist {
+  /* the oracle worker stays free for analyze/solve (fast O(1) lookups the game
+     needs every move) — it is NEVER given the slow, possibly-minutes work */
   const worker = new Worker(new URL('../workers/gen.worker.ts', import.meta.url), {
     type: 'module'
   });
-  /* daily generation can take seconds — it gets its own worker so the main
-     one stays free for oracles and post-move checks */
-  const dailyWorker = new Worker(new URL('../workers/gen.worker.ts', import.meta.url), {
+  /* the heavy worker owns everything slow: endless level generation, daily
+     generation and debug bakes. Isolating it means a slow bake can never block
+     the oracle the fallback level needs. */
+  const heavyWorker = new Worker(new URL('../workers/gen.worker.ts', import.meta.url), {
     type: 'module'
   });
   let nextId = 1;
   const genWaiters = new Map<number, Array<(def: LevelDef) => void>>();
   const genPending = new Set<number>();
+  const genTimers = new Map<number, number>();
   const dailyWaiters = new Map<number, (def: LevelDef) => void>();
   const bakeWaiters = new Map<number, (def: LevelDef | null) => void>();
   const analyzeWaiters = new Map<number, (o: Oracle) => void>();
   const solveWaiters = new Map<number, (r: DeepSolveResult) => void>();
   const oracles = new Map<string, Promise<Oracle>>();
 
+  /* preloaded snapshot of the prebaked endless levels (51..200), used as the
+     proven same-difficulty pool when a live bake (201+) overruns the deadline */
+  let manifestLevels: Record<number, LevelDef> = {};
+  void loadLevelsManifest().then((m) => { manifestLevels = m; });
+
+  /** A proven level at the same difficulty as level n - the closest-par
+      prebaked board, or the hardest curated level if the manifest has not
+      loaded. Never null: this is the guarantee the player always gets a board. */
+  const liveFallback = (n: number): LevelDef => {
+    const target = ramp(n).parTarget;
+    const pool = Object.values(manifestLevels);
+    const pick = (pool.length ? pickByPar(pool, target) : pickByPar(CURATED, target))
+      ?? CURATED[CURATED.length - 1];
+    console.error('[squishy] live bake fallback for n=' + n + ' -> par ' + pick?.par);
+    return pick as LevelDef;
+  };
+
   const dailyFallback = (date: string): LevelDef => {
     console.error('[squishy] daily generation failed for ' + date + ' - using campaign fallback');
     return CURATED[0] as LevelDef;
   };
 
-  dailyWorker.onmessage = (ev: MessageEvent<WorkerResponse>): void => {
+  /** Hand a baked def to every waiter for n and clear its pending state. */
+  const settleGen = (n: number, def: LevelDef): void => {
+    const ws = genWaiters.get(n) ?? [];
+    genWaiters.delete(n);
+    for (const w of ws) w(def);
+  };
+
+  heavyWorker.onmessage = (ev: MessageEvent<WorkerResponse>): void => {
     const msg = ev.data;
+    if (msg.type === 'gen') {
+      const timer = genTimers.get(msg.n);
+      if (timer !== undefined) { clearTimeout(timer); genTimers.delete(msg.n); }
+      genPending.delete(msg.n);
+      /* cache only a REAL bake - never the fallback, so a later visit replays
+         the true deterministic level. If the watchdog already answered, there
+         are no waiters left; this just warms the cache. */
+      if (msg.def) cacheGenLevel(msg.n, msg.def);
+      settleGen(msg.n, msg.def ?? liveFallback(msg.n));
+      return;
+    }
     if (msg.type === 'bake') {
       const w = bakeWaiters.get(msg.id);
       bakeWaiters.delete(msg.id);
@@ -96,14 +145,6 @@ export function createAssist(): Assist {
 
   worker.onmessage = (ev: MessageEvent<WorkerResponse>): void => {
     const msg = ev.data;
-    if (msg.type === 'gen') {
-      cacheGenLevel(msg.n, msg.def);
-      genPending.delete(msg.n);
-      const ws = genWaiters.get(msg.n) ?? [];
-      genWaiters.delete(msg.n);
-      for (const w of ws) w(msg.def);
-      return;
-    }
     if (msg.type === 'analyze') {
       const w = analyzeWaiters.get(msg.id);
       analyzeWaiters.delete(msg.id);
@@ -120,18 +161,34 @@ export function createAssist(): Assist {
     }
   };
 
+  /* Post a live bake to the heavy worker and arm the watchdog (once per n). */
+  const startLiveBake = (n: number): void => {
+    if (genPending.has(n)) return;
+    genPending.add(n);
+    const req: WorkerRequest = { type: 'gen', id: nextId++, n };
+    heavyWorker.postMessage(req);
+    const timer = window.setTimeout(() => {
+      genTimers.delete(n);
+      if (!genPending.has(n)) return; // worker already answered
+      /* keep genPending set so the worker's eventual real bake still caches and
+         does not get re-posted; the player gets the proven fallback now */
+      settleGen(n, liveFallback(n));
+    }, LIVE_BAKE_MS);
+    genTimers.set(n, timer);
+  };
+
   const requestGen = (n: number): Promise<LevelDef> => {
     const cached = cachedGenLevel(n);
     if (cached) return Promise.resolve(cached);
     return new Promise((resolve) => {
-      const ws = genWaiters.get(n) ?? [];
-      ws.push(resolve);
-      genWaiters.set(n, ws);
-      if (!genPending.has(n)) {
-        genPending.add(n);
-        const req: WorkerRequest = { type: 'gen', id: nextId++, n };
-        worker.postMessage(req);
-      }
+      void precomputedLevel(n).then((pre) => {
+        /* prebaked endless level (51..200): instant, deterministic, no worker */
+        if (pre) { cacheGenLevel(n, pre); resolve(pre); return; }
+        const ws = genWaiters.get(n) ?? [];
+        ws.push(resolve);
+        genWaiters.set(n, ws);
+        startLiveBake(n);
+      });
     });
   };
 
@@ -160,13 +217,13 @@ export function createAssist(): Assist {
   return {
     getLevel,
     getOracle,
-    /* bakes ride the daily worker so the main one stays free for oracles */
+    /* bakes ride the heavy worker so the oracle worker stays free */
     bake: (hardness: number, seed: number): Promise<LevelDef | null> =>
       new Promise((resolve) => {
         const id = nextId++;
         bakeWaiters.set(id, resolve);
         const req: WorkerRequest = { type: 'bake', id, hardness, seed };
-        dailyWorker.postMessage(req);
+        heavyWorker.postMessage(req);
       }),
     getDaily: async (date: string): Promise<LevelDef> => {
       const cached = cachedDaily(date);
@@ -181,7 +238,7 @@ export function createAssist(): Assist {
         const id = nextId++;
         dailyWaiters.set(id, resolve);
         const req: WorkerRequest = { type: 'daily', id, date };
-        dailyWorker.postMessage(req);
+        heavyWorker.postMessage(req);
       });
     },
     prefetch: (li: number): void => {

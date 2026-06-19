@@ -11,3 +11,4 @@ appstore/store
 tests/.solver-cache.json
 .daily-verify-cache.json
 .daily-manifest-cache/
+.levels-manifest-cache/
