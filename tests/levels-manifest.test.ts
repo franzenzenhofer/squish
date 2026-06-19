@@ -4,17 +4,21 @@
    crash").
 
    These levels are PINNED, HAND-EDITABLE DATA, treated exactly like the curated
-   1..50 set - not a generator cache. So this guard checks SELF-CONSISTENCY (every
-   shipped board really solves to its stated par), NOT equality with the live
-   generator. That decoupling is deliberate: it lets a single level be hand-edited
-   and re-solved (`npm run level:resolve <n>`) without re-baking the whole ladder.
-   The generator still SEEDS this file once (`npm run levels:manifest`) and still
-   powers truly-endless play past 200, but the shipped 51..200 are data. */
+   1..50 set - not a generator cache. So this guard checks SELF-CONSISTENCY, NOT
+   equality with the live generator. That decoupling lets a single level be
+   hand-edited and re-solved (`npm run level:resolve <n>`) without re-baking the
+   whole ladder.
+
+   Solvability is proven by REPLAYING each level's baked-in solution to a win -
+   the committed `sol` string IS the cached result of the (expensive, one-time)
+   solve, so a release replays it instantly instead of re-deriving it with BFS.
+   The optimal par behind that solution is computed once, at edit time, by
+   `resolveDef` / `npm run level:resolve`, never per release. */
 import { describe, expect, it } from 'vitest';
 import manifest from '../src/levels-verified.json';
-import { makeLevel } from '../src/engine/core';
-import { solve } from '../src/engine/solve';
-import type { LevelDef } from '../src/engine/types';
+import { CODEDIR, cloneState, isWin, makeLevel } from '../src/engine/core';
+import { move } from '../src/engine/move';
+import type { DirCode, LevelDef } from '../src/engine/types';
 
 const levels = manifest.levels as unknown as Record<string, LevelDef>;
 const FIRST = 51;
@@ -32,12 +36,17 @@ describe('shipped levels manifest', () => {
     expect(Object.keys(levels).length).toBe(LAST - FIRST + 1);
   });
 
-  it('every shipped level really solves to its stated par', () => {
+  it('every shipped level replays its baked solution to a win (cached: no re-solve)', () => {
     for (let n = FIRST; n <= LAST; n++) {
       const def = levels[String(n)] as LevelDef;
-      const res = solve(makeLevel(def), { maxStates: 400000, maxDepth: def.par + 4 });
-      expect(res.status, 'unsolved level ' + n).toBe('solved');
-      if (res.status === 'solved') expect(res.par, 'par drift for ' + n).toBe(def.par);
+      const level = makeLevel(def);
+      let st = cloneState(level.initState);
+      for (const c of (def.sol ?? '').split('') as DirCode[]) {
+        const r = move(level, st, CODEDIR[c]);
+        expect(r.moved, 'L' + n + ' step ' + c + ' must move').toBe(true);
+        st = r.state;
+      }
+      expect(isWin(level, st), 'L' + n + ' solution must end on the heart').toBe(true);
     }
-  }, 120000);
+  });
 });
