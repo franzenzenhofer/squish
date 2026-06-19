@@ -19,6 +19,7 @@
     "daily:verify": "tsx scripts/verify-daily.ts",
     "daily:manifest": "tsx scripts/build-daily-manifest.ts",
     "levels:manifest": "tsx scripts/build-levels-manifest.ts",
+    "level:resolve": "tsx scripts/resolve-level.ts",
     "og": "npm run build && (vite preview --port 4379 --strictPort & SRV=$!; sleep 2; OG_URL=http://localhost:4379/?test=1 node scripts/gen-og.mjs; kill $SRV)",
     "e2e": "playwright test",
     "levels:ladder": "tsx scripts/audit-ladder.ts",

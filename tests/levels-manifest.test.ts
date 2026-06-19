@@ -1,15 +1,19 @@
-/* Guards the shipped levels manifest (src/levels-verified.json) - the prebaked
-   endless ladder (51..200) the client loads instantly instead of generating
-   on-device (the slow path that caused the level-61 "stuck then crash"). If the
-   manifest falls out of lock-step with the generator, manifest users would see
-   a different board than the live fallback. The fingerprint check fails the
-   gates the moment engine/gen/levels change without `npm run levels:manifest`. */
+/* Guards the shipped levels manifest (src/levels-verified.json) - the pinned,
+   pre-solved endless ladder (51..200) the client loads instantly instead of
+   generating on-device (the slow path that caused the level-61 "stuck then
+   crash").
+
+   These levels are PINNED, HAND-EDITABLE DATA, treated exactly like the curated
+   1..50 set - not a generator cache. So this guard checks SELF-CONSISTENCY (every
+   shipped board really solves to its stated par), NOT equality with the live
+   generator. That decoupling is deliberate: it lets a single level be hand-edited
+   and re-solved (`npm run level:resolve <n>`) without re-baking the whole ladder.
+   The generator still SEEDS this file once (`npm run levels:manifest`) and still
+   powers truly-endless play past 200, but the shipped 51..200 are data. */
 import { describe, expect, it } from 'vitest';
 import manifest from '../src/levels-verified.json';
 import { makeLevel } from '../src/engine/core';
 import { solve } from '../src/engine/solve';
-import { generateLevel } from '../src/gen/generate';
-import { dailyVerifyFingerprint } from '../scripts/dailyVerifyCache';
 import type { LevelDef } from '../src/engine/types';
 
 const levels = manifest.levels as unknown as Record<string, LevelDef>;
@@ -17,11 +21,7 @@ const FIRST = 51;
 const LAST = 200;
 
 describe('shipped levels manifest', () => {
-  it('fingerprint matches the current engine/generator/levels', () => {
-    expect(manifest.fp).toBe(dailyVerifyFingerprint());
-  });
-
-  it('covers every endless level 51..200 with a proven, pre-solved board', () => {
+  it('covers every endless level 51..200 with a pre-solved board', () => {
     for (let n = FIRST; n <= LAST; n++) {
       const def = levels[String(n)];
       expect(def, 'missing level ' + n).toBeDefined();
@@ -40,12 +40,4 @@ describe('shipped levels manifest', () => {
       if (res.status === 'solved') expect(res.par, 'par drift for ' + n).toBe(def.par);
     }
   }, 120000);
-
-  /* The fp check guarantees lock-step with the generator. This proves the
-     stored CONTENT equals generateLevel for an on-rung level the generator
-     bakes quickly (pathological rungs use the safeBake descent and are not
-     equal to a raw generateLevel call - that is the whole point). */
-  it('an on-rung entry equals what generateLevel produces (spot check)', () => {
-    expect(levels['51']).toEqual(generateLevel(51));
-  }, 60000);
 });
