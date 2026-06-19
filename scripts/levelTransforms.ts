@@ -100,6 +100,41 @@ export function softenByWallRemoval(def: LevelDef, maxDrop: number, wallFloor: n
   return { def: resolveDef(pick.def), shed: base.par - pick.par };
 }
 
+/** Flatten a difficulty SPIKE: greedily remove the wall that most reduces par
+    (keeping the board solvable, spam-proof, trap-free AND oracle-safe at every
+    step) until par drops to <= targetPar or no safe par-reducing wall remains.
+    Returns the re-solved def (or null if the base can't be analyzed safely or no
+    wall helped). Used by the curve-smoothing pass to pull spikes down toward the
+    running difficulty so the ramp stays smooth. */
+export function flattenToTarget(def: LevelDef, targetPar: number, wallFloor: number): LevelDef | null {
+  const base = measure(def);
+  if (!base) return null;                 // can't analyze safely -> leave untouched
+  let cur = def;
+  let curPar = base.par;
+  /* Step GENTLY toward the cap: each round take the wall whose removal lands par
+     CLOSEST to (but not far below) the target - the highest resulting par that
+     still reduces it. Never accept a removal that would dip more than 1 below the
+     target (that just swaps an up-spike for a down-dip, which isn't smooth). If
+     no clean step exists, stop and leave a milder remaining spike. */
+  while (curPar > targetPar) {
+    const walls = cur.walls ?? [];
+    if (walls.length <= wallFloor) break;
+    let pick: { def: LevelDef; par: number } | null = null;
+    for (let i = 0; i < walls.length; i++) {
+      const trial: LevelDef = { ...cur, walls: walls.filter((_, j) => j !== i) };
+      if ((trial.walls ?? []).length === 0) delete (trial as { walls?: XY[] }).walls;
+      const f = measure(trial);
+      if (!f || !trapFreeEnough(f)) continue;
+      if (f.par >= curPar || f.par < targetPar - 3) continue; // must reduce, allow only a gentle breather
+      if (!pick || f.par > pick.par) pick = { def: trial, par: f.par };
+    }
+    if (!pick) break;                     // no gentle step that respects the floor
+    cur = pick.def;
+    curPar = pick.par;
+  }
+  return curPar < base.par ? resolveDef(cur) : null;
+}
+
 const OCC_KEYS = ['walls', 'noms', 'sticky', 'split', 'turn', 'ice', 'jelly', 'spring',
   'oneway', 'breeze', 'penguins', 'bears', 'ghosts', 'bunnies', 'frogs', 'pandas',
   'cats', 'chicks', 'pigs', 'stars', 'boxes', 'balloons', 'snails'] as const;
