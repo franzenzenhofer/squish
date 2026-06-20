@@ -40,16 +40,10 @@ export function createSettingsView(d: SettingsViewDeps): SettingsView {
   const togLabels = document.getElementById('togLabels') as HTMLButtonElement;
   const togZen = document.getElementById('togZen') as HTMLButtonElement;
   const togAnalytics = document.getElementById('togAnalytics') as HTMLButtonElement;
-  const rowAnalytics = document.getElementById('setrowAnalytics') as HTMLElement;
-  /* the opt-out toggle is surfaced only in the iOS build; the hosted web keeps
-     anonymous counts always-on (as shipped, covered by the privacy card). The
-     privacy card itself swaps its host/delivery wording per target so it stays
-     legally accurate: web is served from Cloudflare, iOS runs fully offline. */
-  const isIos = import.meta.env.VITE_PLATFORM === 'ios';
-  if (isIos) rowAnalytics.hidden = false;
-  for (const el of document.querySelectorAll<HTMLElement>('[data-plat]')) {
-    el.hidden = isIos ? el.dataset.plat !== 'ios' : el.dataset.plat !== 'web';
-  }
+  /* The iOS-only opt-out row (data-plat="ios") and the web/iOS privacy wording
+     are gated by applyPlatformChrome (platform.ts), applied once at boot - the
+     hosted web keeps anonymous counts always-on (covered by the privacy card),
+     while the iOS build surfaces the opt-out toggle. */
 
   const reflect = (): void => {
     const st = getSettings();

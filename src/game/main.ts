@@ -22,6 +22,7 @@ import { DEBUG_LEVELS } from './debugLevels';
 import { isDebug } from './debugMode';
 import { getSettings, updateSettings, type Settings } from './settings';
 import { createSettingsView } from './settingsView';
+import { applyPlatformChrome } from './platform';
 import { createStart } from './start';
 import { createNav, type Nav } from './nav';
 import { mountWordmark } from './logo';
@@ -51,6 +52,10 @@ const s: Session = blankSession();
    time (vite.config.ts); it is 'web' everywhere except the iOS build. */
 const PLATFORM: Platform = import.meta.env.VITE_PLATFORM === 'ios' ? 'ios' : 'web';
 const TRACK_URL = PLATFORM === 'ios' ? 'https://squishy.franzai.com/t' : '/t';
+/* Stamp the static DOM with the build target before anything paints: shows the
+   web-only App Store badge / iOS-only opt-out row and namespaces the body so
+   CSS branches the home layout per target (SSOT in platform.ts). */
+applyPlatformChrome(PLATFORM);
 const { track } = createTracker({
   enabled: !isDebug(),
   platform: PLATFORM,

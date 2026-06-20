@@ -332,6 +332,36 @@
   .bp-main { font-size: 24px; font-weight: 700; }
   .bp-sub { font-size: 13px; font-weight: 600; letter-spacing: .08em; opacity: .92; }
   #bdailyDate { font-size: 12px; font-weight: 600; color: var(--dim); }
+  /* WEB ONLY: re-flow the home menu into Play (full width) + a Levels/Create/Daily
+     trio row, freeing vertical space for the App Store badge. Scoped entirely to
+     body.plat-web, so the iOS build's #startBtns stays the original stacked menu. */
+  body.plat-web #startBtns { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; }
+  body.plat-web #startBtns #bplay { grid-column: 1 / -1; }
+  body.plat-web #startBtns #blevels,
+  body.plat-web #startBtns #bcreate,
+  body.plat-web #startBtns #bdaily { font-size: 14px; padding: 13px 0; border-radius: 18px; gap: 4px; }
+  /* ---- official "Download on the App Store" badge (web only, see data-plat) ---- */
+  #asbadge { position: relative; display: inline-flex; margin-top: 4px; text-decoration: none; -webkit-tap-highlight-color: transparent; }
+  /* an inline display must yield to [hidden] so the iOS app never shows it */
+  #asbadge[hidden] { display: none; }
+  #asbadge .asfree {
+    position: absolute; top: -11px; right: -13px; z-index: 2;
+    font-size: 12px; font-weight: 700; letter-spacing: .06em; color: #fff;
+    background: linear-gradient(180deg, var(--heart-top), var(--heart));
+    border: 2px solid #fff; border-radius: 999px; padding: 4px 11px;
+    box-shadow: 0 4px 8px -2px rgba(255,109,158,.55); transform: rotate(7deg);
+  }
+  #asbadge .asbox {
+    display: inline-flex; align-items: center; gap: 12px;
+    background: #000; color: #fff; border-radius: 14px; padding: 12px 24px 12px 18px;
+    box-shadow: 0 8px 18px -7px rgba(0,0,0,.55);
+    transition: transform .08s ease, box-shadow .08s ease;
+  }
+  #asbadge:active .asbox { transform: translateY(2px); box-shadow: 0 4px 10px -6px rgba(0,0,0,.55); }
+  #asbadge .asapple { width: 30px; height: 30px; fill: #fff; flex: none; }
+  #asbadge .astxt { display: flex; flex-direction: column; line-height: 1; text-align: left; font-family: -apple-system, "Helvetica Neue", Arial, sans-serif; }
+  #asbadge .ass { font-size: 11px; font-weight: 500; opacity: .92; }
+  #asbadge .asl { font-size: 24px; font-weight: 600; margin-top: 2px; }
   #bsettings, #breset {
     font: inherit; background: none; border: none; cursor: pointer; margin-top: 2px;
     font-size: 13px; font-weight: 500; color: var(--link); letter-spacing: .04em; padding: 8px 10px;
@@ -791,12 +821,25 @@
   <div id="startInner">
     <span id="startLogo"></span>
     <canvas id="startc"></canvas>
+    <!-- iOS keeps this EXACTLY as-is (original stacked menu). The web build alone
+         re-flows it into Play + a trio row via CSS scoped to body.plat-web below;
+         the DOM is identical for both targets so iOS is byte-for-byte unchanged -->
     <div id="startBtns">
       <button id="bplay"><span class="bp-main">Play</span><span class="bp-sub" id="bplaySub">LEVEL 1</span></button>
       <button id="blevels">Levels</button>
       <button id="bcreate" data-testid="home-create">Create</button>
       <button id="bdaily">Daily <span id="bdailyDate"></span></button>
     </div>
+    <!-- web-only: the official Apple badge. data-plat="web" hides it inside the
+         iOS app (the user already has it); applyPlatformChrome gates it at boot,
+         and it is display:none on iOS so it adds zero layout there -->
+    <a id="asbadge" data-plat="web" href="https://apps.apple.com/app/id6780118831" target="_blank" rel="noopener" aria-label="Download Squishy and Friends free on the App Store">
+      <span class="asfree">FREE</span>
+      <span class="asbox">
+        <svg class="asapple" viewBox="0 0 24 24" aria-hidden="true"><path d="M17.05 12.04c-.03-2.6 2.13-3.85 2.22-3.91-1.21-1.77-3.1-2.01-3.77-2.04-1.6-.16-3.13.94-3.94.94-.81 0-2.07-.92-3.4-.89-1.75.03-3.36 1.02-4.26 2.58-1.82 3.16-.47 7.84 1.3 10.41.86 1.26 1.89 2.67 3.24 2.62 1.3-.05 1.79-.84 3.36-.84 1.57 0 2.01.84 3.39.81 1.4-.03 2.29-1.28 3.15-2.55.99-1.46 1.4-2.88 1.42-2.95-.03-.01-2.72-1.04-2.75-4.13zM14.6 4.5c.72-.87 1.2-2.08 1.07-3.29-1.03.04-2.28.69-3.02 1.56-.66.77-1.24 2-1.08 3.18 1.15.09 2.32-.58 3.03-1.45z"/></svg>
+        <span class="astxt"><span class="ass">Download on the</span><span class="asl">App Store</span></span>
+      </span>
+    </a>
     <button id="bsettings">Settings</button>
   </div>
 </div>
@@ -870,7 +913,7 @@
       <div class="setlab">Zen mode<span class="sethint">no stars, no targets - just kind words</span></div>
       <button class="tog" id="togZen" role="switch" aria-label="zen mode"></button>
     </div>
-    <div class="setrow" id="setrowAnalytics" hidden>
+    <div class="setrow" id="setrowAnalytics" data-plat="ios" hidden>
       <div class="setlab">Anonymous counts<span class="sethint">help improve the game - no personal data, ever</span></div>
       <button class="tog" id="togAnalytics" role="switch" aria-label="anonymous counts"></button>
     </div>
