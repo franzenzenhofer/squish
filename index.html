@@ -335,11 +335,17 @@
   /* WEB ONLY: re-flow the home menu into Play (full width) + a Levels/Create/Daily
      trio row, freeing vertical space for the App Store badge. Scoped entirely to
      body.plat-web, so the iOS build's #startBtns stays the original stacked menu. */
-  body.plat-web #startBtns { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; }
+  body.plat-web #startBtns { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: 9px; row-gap: 13px; }
   body.plat-web #startBtns #bplay { grid-column: 1 / -1; }
   body.plat-web #startBtns #blevels,
   body.plat-web #startBtns #bcreate,
   body.plat-web #startBtns #bdaily { font-size: 14px; padding: 13px 0; border-radius: 18px; gap: 4px; }
+  /* WEB whitespace rhythm: the App Store badge + Settings form a distinct "meta"
+     group below the game buttons. The deliberate top break sets it apart from the
+     trio row AND clears the FREE sticker's -11px overhang so it never crowds Daily.
+     Settings then tucks close under the badge so the meta pair reads as one unit. */
+  body.plat-web #asbadge { margin-top: clamp(2px, 0.8vh, 8px); }
+  body.plat-web #bsettings { margin-top: clamp(4px, 1.2vh, 10px); }
   /* ---- official "Download on the App Store" badge (web only, see data-plat) ---- */
   #asbadge { position: relative; display: inline-flex; margin-top: 4px; text-decoration: none; -webkit-tap-highlight-color: transparent; }
   /* an inline display must yield to [hidden] so the iOS app never shows it */
