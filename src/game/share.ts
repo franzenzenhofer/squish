@@ -9,6 +9,7 @@ import * as U from '../lib/draw';
 import { drawWordmark } from './logo';
 import { drawFrame, type RenderHooks } from './render';
 import { blankSession, type Session } from './session';
+import { chooseShare } from '../share/sharePayload';
 import { hideToast, toast } from './toast';
 
 const CARD_W = 640;
@@ -141,30 +142,29 @@ function shareUrl(daily: boolean): string {
   return daily ? SITE + '/#daily' : SITE;
 }
 
-/** Share payload — the level + the open invitation, nothing competitive. */
-function shareText(label: string, url: string): string {
-  return 'Squishy & Friends ' + label + ' - Can you solve it? ' + url;
+/** Share message — the open invitation. The url is its own share field now (so
+    link previews render), so it is NOT baked into the text; the two are joined
+    only for the plain-text clipboard fallback. */
+function shareText(label: string): string {
+  return 'Squishy & Friends ' + label + ' - Can you solve it?';
 }
 
 function shareName(label: string, ext: string): string {
   return 'squishy-' + label.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '.' + ext;
 }
 
-/** True when the platform can put this file on its share sheet. */
-function canShareFile(file: File): boolean {
-  return navigator.canShare?.({ files: [file] }) === true;
-}
-
-/** Share a solved level. Preferred: an animated GIF of the first three moves
-    fading into the claim card. Fallbacks, in order: the static postcard PNG,
-    a plain link share, the clipboard. Exports are square and opaque. */
+/** Share a solved level. The share sheet gets the image + link + text together
+    (GIF preferred, static PNG next); if the platform will not carry the image
+    alongside the link, the link wins and we share url + text only (chooseShare).
+    With no share sheet at all (desktop), the GIF is downloaded and the link is
+    copied. Exports are square and opaque. */
 export async function shareCard(
   def: LevelDef, label: string, line = '', daily = false, customUrl?: string
 ): Promise<void> {
   /* a custom/shared level shares ITS own #level- link so the recipient gets that
      exact level; campaign/daily share the site (daily deep-links to #daily) */
   const url = customUrl ?? shareUrl(daily);
-  const text = shareText(label, url);
+  const text = shareText(label);
   let gif: File | null = null;
   if (line) {
     try {
@@ -181,24 +181,18 @@ export async function shareCard(
   const cv = renderBoardCard(def, label);
   const blob = await new Promise<Blob | null>((r) => cv.toBlob(r, 'image/png'));
   const png = blob ? new File([blob], shareName(label, 'png'), { type: 'image/png' }) : null;
-  try {
-    if (gif && canShareFile(gif)) {
-      await navigator.share({ text, files: [gif] });
-      return;
+  const files = [gif, png].filter((f): f is File => f !== null);
+  if (navigator.share) {
+    const payload = chooseShare(text, url, files,
+      (d) => navigator.canShare?.(d) ?? false);
+    try {
+      await navigator.share(payload);
+    } catch {
+      /* user cancelled the share sheet — nothing to do */
     }
-    if (png && canShareFile(png)) {
-      await navigator.share({ text, files: [png] });
-      return;
-    }
-    if (navigator.share) {
-      await navigator.share({ text, url });
-      return;
-    }
-  } catch {
-    /* user cancelled the share sheet — nothing to do */
     return;
   }
-  /* no share sheet (desktop): download the GIF so it is not lost, copy text */
+  /* no share sheet (desktop): download the GIF so it is not lost, copy link+text */
   if (gif) {
     const a = document.createElement('a');
     a.href = URL.createObjectURL(gif);
@@ -207,8 +201,8 @@ export async function shareCard(
     URL.revokeObjectURL(a.href);
   }
   try {
-    await navigator.clipboard.writeText(text);
-    toast(gif ? 'GIF saved + text copied!' : 'Copied! Paste it anywhere', { ms: 2200 });
+    await navigator.clipboard.writeText(text + ' ' + url);
+    toast(gif ? 'GIF saved + link copied!' : 'Copied! Paste it anywhere', { ms: 2200 });
   } catch {
     toast(gif ? 'GIF saved!' : 'Sharing is not available here', { ms: 2200 });
   }
