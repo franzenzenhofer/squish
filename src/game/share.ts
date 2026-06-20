@@ -9,7 +9,7 @@ import * as U from '../lib/draw';
 import { drawWordmark } from './logo';
 import { drawFrame, type RenderHooks } from './render';
 import { blankSession, type Session } from './session';
-import { planShare } from '../share/sharePayload';
+import { planShare, shareText } from '../share/sharePayload';
 import { hideToast, toast } from './toast';
 
 const CARD_W = 640;
@@ -142,13 +142,6 @@ function shareUrl(daily: boolean): string {
   return daily ? SITE + '/#daily' : SITE;
 }
 
-/** Share message — the open invitation. The url is its own share field now (so
-    link previews render), so it is NOT baked into the text; the two are joined
-    only for the plain-text clipboard fallback. */
-function shareText(label: string): string {
-  return 'Squishy & Friends ' + label + ' - Can you solve it?';
-}
-
 function shareName(label: string, ext: string): string {
   return 'squishy-' + label.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '.' + ext;
 }
@@ -165,7 +158,7 @@ export async function shareCard(
   /* a custom/shared level shares ITS own #level- link so the recipient gets that
      exact level; campaign/daily share the site (daily deep-links to #daily) */
   const url = customUrl ?? shareUrl(daily);
-  const text = shareText(label);
+  const text = shareText(label, url);
   /* No Web Share API -> the only honest option is a clean url + text on the
      clipboard. No image is built (it would have nowhere to go) and nothing is
      ever downloaded. */

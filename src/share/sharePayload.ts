@@ -6,6 +6,13 @@
    When all three cannot travel together, the LINK wins: we drop the image and
    share url + text, never an image that has no tappable way back to the game. */
 
+/** The share message. The url is ALSO baked into the text (not only the separate
+    url field) so the link rides inside the message body on any target that keeps
+    the text but drops the url field. */
+export function shareText(label: string, url: string): string {
+  return 'Squishy & Friends ' + label + ' - Can you solve it? ' + url;
+}
+
 /** Pick the richest share payload this platform will actually accept. Tries each
     candidate image (best first) bundled with the url + text; if none can ride
     along with the link, returns just the url + text. */
@@ -38,6 +45,8 @@ export function planShare(
   hasShareApi: boolean,
   canShare: (data: ShareData) => boolean
 ): ShareAction {
-  if (!hasShareApi) return { kind: 'copy', text: text + ' ' + url };
+  /* text already carries the url (see shareText), so the copy fallback is just
+     the message - no separate url to append, no duplication. */
+  if (!hasShareApi) return { kind: 'copy', text };
   return { kind: 'share', payload: chooseShare(text, url, files, canShare) };
 }

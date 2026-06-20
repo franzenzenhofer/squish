@@ -4,7 +4,7 @@
    an image with no way back to the game. The decision is pure and capability
    driven (navigator.canShare), so it is unit-testable without a share sheet. */
 import { describe, expect, it } from 'vitest';
-import { chooseShare, planShare } from '../../src/share/sharePayload';
+import { chooseShare, planShare, shareText } from '../../src/share/sharePayload';
 
 const file = (name: string, type = 'image/gif'): File => new File(['x'], name, { type });
 const TEXT = 'Squishy & Friends Level 7 - Can you solve it?';
@@ -61,9 +61,17 @@ describe('planShare', () => {
       .toEqual({ kind: 'share', payload: { text: TEXT, url: URL } });
   });
 
-  it('copies url + text ONLY when there is no share API — never a file download', () => {
+  it('copies the message (which already carries the url) ONLY when there is no share API — never a file download', () => {
     const gif = file('a.gif');
-    expect(planShare(TEXT, URL, [gif], false, () => true))
-      .toEqual({ kind: 'copy', text: TEXT + ' ' + URL });
+    const msg = shareText('Level 7', URL); // a real message, url embedded
+    expect(planShare(msg, URL, [gif], false, () => true))
+      .toEqual({ kind: 'copy', text: msg });
+  });
+});
+
+describe('shareText', () => {
+  it('embeds the url in the message body so the link rides inside the text too', () => {
+    expect(shareText('Level 7', URL))
+      .toBe('Squishy & Friends Level 7 - Can you solve it? ' + URL);
   });
 });
