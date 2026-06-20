@@ -3,7 +3,7 @@
    daily, and "Continue" must always resume the campaign level, never the daily
    that was last played. */
 import { describe, expect, it } from 'vitest';
-import { bootPlan, hintHidden } from '../src/game/flow';
+import { bootPlan, hintHidden, winResumeLi } from '../src/game/flow';
 import { resumeSnapshot } from '../src/game/persist';
 import { blankSession } from '../src/game/session';
 
@@ -28,9 +28,27 @@ describe('bootPlan', () => {
   it('opens the editor on #builder', () => {
     expect(bootPlan(5, '#builder')).toEqual({ daily: false, li: 5, builder: true });
   });
-  it('carries a shared level code on #level-', () => {
+  it('carries an editor glyph code on #level-<v>-<w>x<h>-...', () => {
     expect(bootPlan(5, '#level-1-3x3-M00000002.abc'))
       .toEqual({ daily: false, li: 5, shared: 'level-1-3x3-M00000002.abc' });
+  });
+  it('routes a campaign-share #level-<n>-<key> to campaignShare, not the importer', () => {
+    expect(bootPlan(5, '#level-7-abc123'))
+      .toEqual({ daily: false, li: 5, campaignShare: { li: 6, key: 'abc123' } });
+  });
+});
+
+describe('winResumeLi', () => {
+  it('a campaign win steps forward one level', () => {
+    expect(winResumeLi({ kind: 'campaign' }, 9)).toBe(10);
+  });
+  it('a daily win resumes the next open level, never the daily', () => {
+    expect(winResumeLi({ kind: 'daily', date: '2026-06-20' }, 9)).toBe(9);
+  });
+  it('a shared/custom win drops back into the next open level (never the overview)', () => {
+    /* player whose next open level is index 10 plays a shared level out of order
+       and wins -> back to their own index 10, NOT shared-level+1, NOT a picker */
+    expect(winResumeLi({ kind: 'custom', source: 'shared' }, 10)).toBe(10);
   });
 });
 

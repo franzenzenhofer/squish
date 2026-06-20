@@ -12,7 +12,8 @@ import { drainFlood, fadeSwap } from './transition';
 import { createHints } from './hints';
 import { bindInput } from './input';
 import { createIntro } from './intro';
-import { bootPlan, hintHidden } from './flow';
+import { bootPlan, hintHidden, winResumeLi } from './flow';
+import { buildCampaignShareUrl, campaignKey } from '../share/campaignShare';
 import { bumpNudgeSeen, getNudgeSeen, shouldNudgeHint } from './coach';
 import { localToday } from '../gen/daily';
 import { createOhNo } from './ohno';
@@ -570,17 +571,32 @@ const endings = createEndings({
       loadLevel(s.li, true);
       return;
     }
-    if (s.play.kind === 'debug' || s.play.kind === 'custom') {
+    /* debug test-plays are a dev tool: they return to the test picker. */
+    if (s.play.kind === 'debug') {
       endings.hideFlood();
       s.play = { kind: 'campaign' };
       loadLevel(s.li);
       levelsPick.open();
       return;
     }
-    loadLevel(s.play.kind === 'daily' ? s.li : s.li + 1, true);
+    /* every player-facing win (campaign, daily, custom/shared) resumes the
+       player's OWN next open campaign level - a win NEVER opens the overview.
+       campaign steps forward; daily and shared resume real progress in place. */
+    loadLevel(winResumeLi(s.play, s.li), true);
   },
-  shareUrlOverride: () => customShareUrl
+  /* a custom/shared level shares its own #level- link; a campaign level shares a
+     playable #level-<n>-<key> deep link to THAT curated level (out-of-order
+     play); daily falls through to the #daily site link. */
+  shareUrlOverride: () => customShareUrl ?? campaignShareUrlOf(s)
 });
+
+/** The playable deep link for a campaign win card, or null when this play is not
+    a shareable curated level (daily, debug, or a too-large endless board the
+    codec cannot name). Null lets shareCard fall back to the plain site link. */
+function campaignShareUrlOf(sess: Session): string | null {
+  if (sess.play.kind !== 'campaign' || sess.li >= CURATED.length) return null;
+  try { return buildCampaignShareUrl(sess.li, sess.def); } catch { return null; }
+}
 
 const hooks: RenderHooks = {
   onFx: (_sp, f, now) => handleFx(s, audio, f, now),
@@ -937,6 +953,33 @@ function startShared(code: string): void {
   }
 }
 
+/* a `#level-<n>-<key>` campaign-share link: replay one curated level out of
+   order. The key must match the recipient's OWN copy of that level (proving the
+   link is real and same-version); a wrong/forged key, an out-of-range index, or
+   any decode hiccup is NOT fatal - we simply open the start screen on the
+   player's real progress. Their campaign pointer is never touched, so on win
+   they drop back into their own next open level (see the endings next()). */
+function startCampaignShare(li: number, key: string): void {
+  const fail = (why: string): void => {
+    console.error('[campaign-share] ' + why);
+    toast('That puzzle link looks broken');
+    startMenu.open();
+    loadLevel(s.li);
+  };
+  if (li < 0 || li >= CURATED.length) { fail('index out of range: ' + li); return; }
+  void assist.getLevel(li).then((def) => {
+    if (campaignKey(def) !== key) { fail('key mismatch for level ' + li); return; }
+    s.play = { kind: 'custom', source: 'shared' };
+    customPlaySeq++; /* unique oracle key for THIS out-of-order play */
+    customShareUrl = buildCampaignShareUrl(li, def); // re-share rebuilds the same link
+    builderReturnDef = null;
+    customSeq = null;
+    history.replaceState(null, '', location.pathname + location.search);
+    startMenu.close();
+    fadeSwap(reduced, async () => applyLevel(def));
+  }).catch((e: unknown) => fail('load failed: ' + String(e)));
+}
+
 const saved = loadGame();
 s.results = saved.results;
 s.hinted = saved.hinted;
@@ -956,6 +999,8 @@ if (plan.daily) {
 } else if (plan.builder) {
   history.replaceState(null, '', location.pathname + location.search);
   void builder.open();
+} else if (plan.campaignShare) {
+  startCampaignShare(plan.campaignShare.li, plan.campaignShare.key);
 } else if (plan.shared) {
   startShared(plan.shared);
 } else {
