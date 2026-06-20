@@ -4,7 +4,7 @@
    an image with no way back to the game. The decision is pure and capability
    driven (navigator.canShare), so it is unit-testable without a share sheet. */
 import { describe, expect, it } from 'vitest';
-import { chooseShare } from '../../src/share/sharePayload';
+import { chooseShare, preferShareSheet } from '../../src/share/sharePayload';
 
 const file = (name: string, type = 'image/gif'): File => new File(['x'], name, { type });
 const TEXT = 'Squishy & Friends Level 7 - Can you solve it?';
@@ -45,5 +45,18 @@ describe('chooseShare', () => {
     /* a platform that takes files+text but rejects the url field -> link wins */
     const r = chooseShare(TEXT, URL, [gif], (d) => !d.url);
     expect(r).toEqual({ text: TEXT, url: URL });
+  });
+});
+
+describe('preferShareSheet', () => {
+  it('uses the OS share sheet on a touch device with a share API', () => {
+    expect(preferShareSheet(true, true)).toBe(true);
+  });
+  it('avoids the OS sheet on a desktop (fine pointer) — it mangles the copied link with a file path', () => {
+    expect(preferShareSheet(true, false)).toBe(false);
+  });
+  it('never claims a sheet when the platform has no share API', () => {
+    expect(preferShareSheet(false, true)).toBe(false);
+    expect(preferShareSheet(false, false)).toBe(false);
   });
 });

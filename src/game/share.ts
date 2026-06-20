@@ -9,7 +9,7 @@ import * as U from '../lib/draw';
 import { drawWordmark } from './logo';
 import { drawFrame, type RenderHooks } from './render';
 import { blankSession, type Session } from './session';
-import { chooseShare } from '../share/sharePayload';
+import { chooseShare, preferShareSheet } from '../share/sharePayload';
 import { hideToast, toast } from './toast';
 
 const CARD_W = 640;
@@ -182,7 +182,8 @@ export async function shareCard(
   const blob = await new Promise<Blob | null>((r) => cv.toBlob(r, 'image/png'));
   const png = blob ? new File([blob], shareName(label, 'png'), { type: 'image/png' }) : null;
   const files = [gif, png].filter((f): f is File => f !== null);
-  if (navigator.share) {
+  const coarsePointer = globalThis.matchMedia?.('(pointer: coarse)').matches ?? false;
+  if (preferShareSheet(typeof navigator.share === 'function', coarsePointer)) {
     const payload = chooseShare(text, url, files,
       (d) => navigator.canShare?.(d) ?? false);
     try {
@@ -192,7 +193,8 @@ export async function shareCard(
     }
     return;
   }
-  /* no share sheet (desktop): download the GIF so it is not lost, copy link+text */
+  /* desktop (or no sheet): the OS sheet mangles a shared file into the copied
+     link, so skip it - download the GIF so it is not lost, copy a clean link+text */
   if (gif) {
     const a = document.createElement('a');
     a.href = URL.createObjectURL(gif);
