@@ -6,17 +6,6 @@
    When all three cannot travel together, the LINK wins: we drop the image and
    share url + text, never an image that has no tappable way back to the game. */
 
-/** Whether to hand a share off to the OS share sheet at all. Only when the
-    platform exposes one AND the primary pointer is coarse (a touch device). On a
-    desktop (fine pointer) the OS sheet serialises a shared file into the "Copy"
-    action as a local file path - producing a useless, unsendable link - so there
-    we skip the sheet and copy a clean link instead. The link matters more than
-    the picture; the picture is a bonus only where it travels well (e.g. WhatsApp
-    on a phone). */
-export function preferShareSheet(hasShareApi: boolean, coarsePointer: boolean): boolean {
-  return hasShareApi && coarsePointer;
-}
-
 /** Pick the richest share payload this platform will actually accept. Tries each
     candidate image (best first) bundled with the url + text; if none can ride
     along with the link, returns just the url + text. */
@@ -31,4 +20,24 @@ export function chooseShare(
     if (canShare(withImage)) return withImage;
   }
   return { text, url };
+}
+
+/** What a Share tap should do. The native Web Share API is ALWAYS used when the
+    platform has one - it carries url + text + image (e.g. WhatsApp), or url +
+    text where the image cannot ride along. The ONLY fallback, when there is no
+    share API at all, is copying url + text to the clipboard. We never download a
+    file and never bypass an available share sheet. */
+export type ShareAction =
+  | { kind: 'share'; payload: ShareData }
+  | { kind: 'copy'; text: string };
+
+export function planShare(
+  text: string,
+  url: string,
+  files: File[],
+  hasShareApi: boolean,
+  canShare: (data: ShareData) => boolean
+): ShareAction {
+  if (!hasShareApi) return { kind: 'copy', text: text + ' ' + url };
+  return { kind: 'share', payload: chooseShare(text, url, files, canShare) };
 }

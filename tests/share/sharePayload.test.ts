@@ -4,7 +4,7 @@
    an image with no way back to the game. The decision is pure and capability
    driven (navigator.canShare), so it is unit-testable without a share sheet. */
 import { describe, expect, it } from 'vitest';
-import { chooseShare, preferShareSheet } from '../../src/share/sharePayload';
+import { chooseShare, planShare } from '../../src/share/sharePayload';
 
 const file = (name: string, type = 'image/gif'): File => new File(['x'], name, { type });
 const TEXT = 'Squishy & Friends Level 7 - Can you solve it?';
@@ -48,15 +48,22 @@ describe('chooseShare', () => {
   });
 });
 
-describe('preferShareSheet', () => {
-  it('uses the OS share sheet on a touch device with a share API', () => {
-    expect(preferShareSheet(true, true)).toBe(true);
+describe('planShare', () => {
+  it('shares image + url + text through the share API when it accepts them', () => {
+    const gif = file('a.gif');
+    expect(planShare(TEXT, URL, [gif], true, () => true))
+      .toEqual({ kind: 'share', payload: { text: TEXT, url: URL, files: [gif] } });
   });
-  it('avoids the OS sheet on a desktop (fine pointer) — it mangles the copied link with a file path', () => {
-    expect(preferShareSheet(true, false)).toBe(false);
+
+  it('shares url + text (image dropped) when the share API refuses the image', () => {
+    const gif = file('a.gif');
+    expect(planShare(TEXT, URL, [gif], true, (d) => !d.files))
+      .toEqual({ kind: 'share', payload: { text: TEXT, url: URL } });
   });
-  it('never claims a sheet when the platform has no share API', () => {
-    expect(preferShareSheet(false, true)).toBe(false);
-    expect(preferShareSheet(false, false)).toBe(false);
+
+  it('copies url + text ONLY when there is no share API — never a file download', () => {
+    const gif = file('a.gif');
+    expect(planShare(TEXT, URL, [gif], false, () => true))
+      .toEqual({ kind: 'copy', text: TEXT + ' ' + URL });
   });
 });

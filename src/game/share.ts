@@ -9,7 +9,7 @@ import * as U from '../lib/draw';
 import { drawWordmark } from './logo';
 import { drawFrame, type RenderHooks } from './render';
 import { blankSession, type Session } from './session';
-import { chooseShare, preferShareSheet } from '../share/sharePayload';
+import { planShare } from '../share/sharePayload';
 import { hideToast, toast } from './toast';
 
 const CARD_W = 640;
@@ -156,8 +156,9 @@ function shareName(label: string, ext: string): string {
 /** Share a solved level. The share sheet gets the image + link + text together
     (GIF preferred, static PNG next); if the platform will not carry the image
     alongside the link, the link wins and we share url + text only (chooseShare).
-    With no share sheet at all (desktop), the GIF is downloaded and the link is
-    copied. Exports are square and opaque. */
+    The ONLY fallback, when the platform has no Web Share API at all, is copying
+    url + text to the clipboard - never a file download. Exports are square and
+    opaque. */
 export async function shareCard(
   def: LevelDef, label: string, line = '', daily = false, customUrl?: string
 ): Promise<void> {
@@ -165,6 +166,21 @@ export async function shareCard(
      exact level; campaign/daily share the site (daily deep-links to #daily) */
   const url = customUrl ?? shareUrl(daily);
   const text = shareText(label);
+  /* No Web Share API -> the only honest option is a clean url + text on the
+     clipboard. No image is built (it would have nowhere to go) and nothing is
+     ever downloaded. */
+  if (typeof navigator.share !== 'function') {
+    try {
+      await navigator.clipboard.writeText(text + ' ' + url);
+      toast('Copied! Paste it anywhere', { ms: 2200 });
+    } catch {
+      toast('Sharing is not available here', { ms: 2200 });
+    }
+    return;
+  }
+  /* Share API present -> always hand it the richest payload: url + text + image
+     (animated GIF preferred, static PNG next); where the platform will not carry
+     the image with the link, it shares url + text. */
   let gif: File | null = null;
   if (line) {
     try {
@@ -182,30 +198,13 @@ export async function shareCard(
   const blob = await new Promise<Blob | null>((r) => cv.toBlob(r, 'image/png'));
   const png = blob ? new File([blob], shareName(label, 'png'), { type: 'image/png' }) : null;
   const files = [gif, png].filter((f): f is File => f !== null);
-  const coarsePointer = globalThis.matchMedia?.('(pointer: coarse)').matches ?? false;
-  if (preferShareSheet(typeof navigator.share === 'function', coarsePointer)) {
-    const payload = chooseShare(text, url, files,
-      (d) => navigator.canShare?.(d) ?? false);
+  const action = planShare(text, url, files, true,
+    (d) => navigator.canShare?.(d) ?? false);
+  if (action.kind === 'share') {
     try {
-      await navigator.share(payload);
+      await navigator.share(action.payload);
     } catch {
       /* user cancelled the share sheet — nothing to do */
     }
-    return;
-  }
-  /* desktop (or no sheet): the OS sheet mangles a shared file into the copied
-     link, so skip it - download the GIF so it is not lost, copy a clean link+text */
-  if (gif) {
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(gif);
-    a.download = gif.name;
-    a.click();
-    URL.revokeObjectURL(a.href);
-  }
-  try {
-    await navigator.clipboard.writeText(text + ' ' + url);
-    toast(gif ? 'GIF saved + link copied!' : 'Copied! Paste it anywhere', { ms: 2200 });
-  } catch {
-    toast(gif ? 'GIF saved!' : 'Sharing is not available here', { ms: 2200 });
   }
 }
