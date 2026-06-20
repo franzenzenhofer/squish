@@ -21,9 +21,12 @@ export const TUTORIALS: LevelDef[] = [
     par: 1, sol: 'R', cap: 'Squishies merge - end with one on the heart'
   },
   {
-    /* no caption: pillows (walls) are explained by their overlay, not a bubble */
-    w: 4, h: 4, target: [3, 3], dots: [[0, 1], [0, 3]], walls: [[2, 1]],
-    par: 2, sol: 'DR'
+    /* no caption: pillows (walls) are explained by their overlay, not a bubble.
+       A 3-pillow wall down column 2 plus a corner pillow block the easy slide,
+       so the merged squishy must detour up and over the top: RURD. */
+    w: 4, h: 4, target: [3, 3], dots: [[0, 1], [0, 3]],
+    walls: [[2, 1], [2, 2], [2, 3], [0, 0]],
+    par: 4, sol: 'RURD'
   }
 ];
 
