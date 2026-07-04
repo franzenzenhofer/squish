@@ -30,7 +30,7 @@ import { mountWordmark } from './logo';
 import { hideToast, toast } from './toast';
 import { drawFrame, type RenderHooks } from './render';
 import { CURATED, blankSession, type CustomSource, type Session } from './session';
-import { installTestApi } from './testapi';
+import { installBannerApi, installTestApi } from './testapi';
 import { createTracker } from '../lib/track';
 import type { PlayKind, Platform } from '../lib/trackSchema';
 import { solve } from '../engine/solve';
@@ -916,6 +916,7 @@ installTestApi({
   applySettings
 });
 installBuilderTestApi(builder);
+installBannerApi();
 
 /* a shared #level-<code> link: decode (CRC-checked), prove it solves, stamp the
    optimal par, then play it. An untrusted/broken link never crashes — it falls

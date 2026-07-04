@@ -24,7 +24,8 @@
     "e2e": "playwright test",
     "levels:ladder": "tsx scripts/audit-ladder.ts",
     "shots": "npm run build && (vite preview --port 4378 --strictPort & SRV=$!; sleep 2; tsx scripts/appstore-shots.ts; kill $SRV)",
-    "shots:store": "npm run build && (vite preview --port 4378 --strictPort & SRV=$!; sleep 2; tsx scripts/store-shots.ts; kill $SRV)"
+    "shots:store": "npm run build && (vite preview --port 4378 --strictPort & SRV=$!; sleep 2; tsx scripts/store-shots.ts; kill $SRV)",
+    "banners": "npm run build && (vite preview --port 4378 --strictPort & SRV=$!; sleep 2; tsx scripts/banner-shots.ts; kill $SRV)"
   },
   "devDependencies": {
     "@eslint/js": "^9.28.0",

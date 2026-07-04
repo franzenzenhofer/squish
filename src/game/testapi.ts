@@ -1,11 +1,19 @@
 /* Test API — window.__squishy lets e2e tests (and AI agents) drive the real
    game: read state, perform awaited moves, load levels, query the oracle's
    solution. Active in dev builds or with ?test=1. */
+import { BANNER_COMBOS, BANNER_SIZES, type Variant, renderBannerFrames, renderBannerStatic } from './banners';
 import { ser } from '../engine/core';
 import type { Dir } from '../engine/types';
 import type { Mode, Session } from './session';
 import type { Settings } from './settings';
 import { spriteIcon } from './spriteIcon';
+
+async function blobToBase64(blob: Blob): Promise<string> {
+  const buf = await blob.arrayBuffer();
+  let bin = '';
+  new Uint8Array(buf).forEach((b) => { bin += String.fromCharCode(b); });
+  return btoa(bin);
+}
 
 export interface TestApiDeps {
   s: Session;
@@ -47,6 +55,41 @@ export interface SquishyTestApi {
   waitIdle: () => Promise<Mode>;
   /** data URL of a piece icon drawn by the real SSOT painter (sprite or field) */
   iconURL: (name: string, kind?: 'sprite' | 'field') => string;
+}
+
+export interface SquishyBannerApi {
+  /** every size x variant combo to generate; `animated` follows the variant */
+  combos: () => { size: string; variant: string; animated: boolean }[];
+  /** base64 (no data: prefix) WebP bytes for one static size x variant combo */
+  still: (sizeKey: string, variant: string) => Promise<string>;
+  /** base64 PNG frames + per-frame delay (ms) — only valid where animated:true.
+      The caller muxes these into an animated WebP via the img2webp CLI. */
+  frames: (sizeKey: string, variant: string) => Promise<{ png: string; delay: number }[]>;
+}
+
+declare global {
+  interface Window {
+    __squishBanners?: SquishyBannerApi;
+  }
+}
+
+/** Test/build-time API for generating ad banners — always available (this
+    runs headless via Playwright, never in a player's real session). */
+export function installBannerApi(): void {
+  const findSize = (key: string) => {
+    const s = BANNER_SIZES.find((x) => x.key === key);
+    if (!s) throw new Error(`unknown banner size ${key}`);
+    return s;
+  };
+  window.__squishBanners = {
+    combos: () => BANNER_COMBOS,
+    still: async (sizeKey, variant) =>
+      blobToBase64(await renderBannerStatic(findSize(sizeKey), variant as Variant)),
+    frames: async (sizeKey, variant) => {
+      const frames = await renderBannerFrames(findSize(sizeKey), variant as Variant);
+      return Promise.all(frames.map(async (f) => ({ png: await blobToBase64(f.png), delay: f.delay })));
+    }
+  };
 }
 
 declare global {

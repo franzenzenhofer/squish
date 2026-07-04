@@ -6,9 +6,11 @@ sound-audition
 appstore/out
 appstore/raw
 appstore/store
+banners/out
 
 # test solver/oracle memo (per-environment, rebuilt on demand)
 tests/.solver-cache.json
 .daily-verify-cache.json
 .daily-manifest-cache/
 .levels-manifest-cache/
+.superpowers/
