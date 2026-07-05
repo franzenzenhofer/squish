@@ -59,8 +59,8 @@ const BANNER_DPR = 2;
    density goes up. */
 const OUTPUT_SCALE = 2;
 const PINK = '#FF6D9E';
-const BADGE = 'Free • No Ads';
-const CTA = 'Download now';
+const BADGE = 'Free Game • No Ads';
+const CTA = 'Download now • iOS';
 const NOW0 = 1234;
 /* dense, cute, ice-slide-heavy 6x6 (penguin + bunny + frog) — the board/
    gameplay showcase; the board is packed and pieces slide visibly far */
