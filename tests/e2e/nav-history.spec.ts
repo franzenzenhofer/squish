@@ -6,8 +6,18 @@ import { expect, test } from '@playwright/test';
 
 type Page = import('@playwright/test').Page;
 
+/* These tests are the RETURNING player's contract: the start menu greets anyone
+   with progress to continue, and Back must walk its overlays, never leave the
+   app. A first-time visitor deliberately boots onto the board instead (see
+   flow.bootPlan) — that contract is proven by its own test at the bottom. */
 async function boot(page: Page): Promise<void> {
-  await page.addInitScript(() => localStorage.clear());
+  await page.addInitScript(() => {
+    localStorage.clear();
+    localStorage.setItem('squish-progress-v2', JSON.stringify({
+      v: 2, play: { kind: 'campaign' }, li: 1, def: null,
+      results: { 0: 3 }, hinted: {}, daily: {}
+    }));
+  });
   await page.goto('/?test=1');
   await page.waitForFunction(() => window.__squishy !== undefined);
   await page.evaluate(() => window.__squishy?.setInstantAnims(true));
@@ -98,4 +108,19 @@ test('builder still backs out to the menu (coexistence regression)', async ({ pa
   await page.goBack();
   await expect(page.locator('#builder')).not.toHaveClass(/show/);
   await expect(page.locator('#start')).toHaveClass(/show/);
+});
+
+test('a first-time visitor lands on the board, and Back still reaches the menu', async ({ page }) => {
+  await page.addInitScript(() => localStorage.clear());
+  await page.goto('/?test=1');
+  await page.waitForFunction(() => window.__squishy !== undefined);
+
+  /* no title screen in the way — the game itself is the first thing they see */
+  await expect(page.locator('#start')).not.toHaveClass(/show/);
+  expect((await page.evaluate(() => window.__squishy?.state()))?.li).toBe(0);
+
+  /* and the menu is not lost: Back pops the play entry onto it, never out */
+  await page.goBack();
+  await expect(page.locator('#start')).toHaveClass(/show/);
+  expect(await page.evaluate(() => window.__squishy !== undefined), 'still in the app').toBe(true);
 });

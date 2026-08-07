@@ -46,6 +46,16 @@ test('no phantom start: the title screen fires boot only, Play fires the start',
     return route.fulfill({ status: 204, body: '' });
   });
 
+  /* the phantom start was born on the RETURNING player's path: the menu greets
+     them while boot applies the resumed level behind it. Seed progress so this
+     test exercises exactly that path. */
+  await page.addInitScript(() => {
+    localStorage.clear();
+    localStorage.setItem('squish-progress-v2', JSON.stringify({
+      v: 2, play: { kind: 'campaign' }, li: 1, def: null,
+      results: { 0: 3 }, hinted: {}, daily: {}
+    }));
+  });
   await page.goto('/?test=1');
   await page.waitForFunction(() => window.__squishy !== undefined);
   await page.waitForTimeout(1500);

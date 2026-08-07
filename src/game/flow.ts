@@ -10,6 +10,12 @@ export function hintHidden(hintButton: boolean, play: PlayTag): boolean {
 }
 
 export interface BootPlan {
+  /** show the start menu over the board? A brand-new visitor goes straight to
+      the board instead: measured 2026-08-07, ~33% of visitors left from the
+      title screen without ever tapping Play, while 86% of the players who did
+      reach a board cleared level 01. The menu stays one tap away on the logo,
+      and it still greets everyone who has progress worth continuing. */
+  menu: boolean;
   /** a `#daily` deep-link starts today's daily directly, no menu. */
   daily: boolean;
   /** the campaign level index to resume, fresh (daily is never a resume target). */
@@ -29,14 +35,18 @@ export interface BootPlan {
 
     Order matters: the campaign-share form is checked BEFORE the editor form so a
     short `#level-7-abc` link is never handed to the glyph importer. */
-export function bootPlan(savedLi: number, hash: string): BootPlan {
-  if (hash === '#builder') return { daily: false, li: savedLi, builder: true };
+export function bootPlan(savedLi: number, hash: string, hasProgress = true): BootPlan {
+  const menu = false;
+  if (hash === '#builder') return { menu, daily: false, li: savedLi, builder: true };
   const campaign = parseCampaignShareHash(hash);
-  if (campaign) return { daily: false, li: savedLi, campaignShare: campaign };
+  if (campaign) return { menu, daily: false, li: savedLi, campaignShare: campaign };
   if (hash.startsWith('#z-') || hash.startsWith('#level-')) {
-    return { daily: false, li: savedLi, shared: hash.slice(1) };
+    return { menu, daily: false, li: savedLi, shared: hash.slice(1) };
   }
-  return { daily: hash === '#daily', li: savedLi };
+  if (hash === '#daily') return { menu, daily: true, li: savedLi };
+  /* the plain entry: the menu greets a returning player, a first-timer gets the
+     board itself — nothing to continue, so there is nothing to choose */
+  return { menu: hasProgress, daily: false, li: savedLi };
 }
 
 /** The campaign level index to resume after ANY win. A campaign win steps

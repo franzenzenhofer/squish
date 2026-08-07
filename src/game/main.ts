@@ -951,6 +951,7 @@ installTestApi({
   retry,
   toggleHintMode: () => hints.toggleHintMode(),
   dismissIntro: () => intro.dismiss(),
+  openMenu: () => startMenu.open(),
   closeMenu: () => startMenu.close(),
   tapCell: (x, y) => explainCell(x, y),
   solution: () => hints.solution(),
@@ -1030,7 +1031,10 @@ applySettings();
 /* a #daily deep-link (the daily share link) drops straight into today's daily;
    every other entry resumes the saved CAMPAIGN level — the daily is never a
    resume target, so "Continue" always returns to the real level, fresh. */
-const plan = bootPlan(saved.li, location.hash);
+/* "has progress" = has ever finished a level. A visitor with nothing to continue
+   is shown the board, not a menu (see BootPlan.menu). Someone who opened level
+   01 and never won it reads as fresh here, which is the right answer too. */
+const plan = bootPlan(saved.li, location.hash, Object.keys(saved.results).length > 0);
 /* restore the resume level index BEFORE the menu paints, so the Play/Continue
    button reads the correct level on its very first frame (no "Level 1" flash) */
 s.li = plan.li;
@@ -1050,7 +1054,8 @@ if (plan.daily) {
      load underneath does not fire its intro cards behind the menu. Boot and the
      Continue button use the SAME loader (loadLevel = the single source of truth
      for "campaign level N, fresh"): there is no second code path to drift. */
-  startMenu.open();
+  if (plan.menu) startMenu.open();
+  else nav.enterPlay();
   loadLevel(plan.li);
   /* a reload while an overlay was open restores it (history.state survives) */
   nav.syncToState();

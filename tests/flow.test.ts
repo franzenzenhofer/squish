@@ -19,22 +19,39 @@ describe('hintHidden', () => {
 
 describe('bootPlan', () => {
   it('starts the daily on a #daily deep-link', () => {
-    expect(bootPlan(42, '#daily')).toEqual({ daily: true, li: 42 });
+    expect(bootPlan(42, '#daily')).toEqual({ menu: false, daily: true, li: 42 });
   });
   it('resumes the saved campaign level for any other hash', () => {
-    expect(bootPlan(42, '')).toEqual({ daily: false, li: 42 });
-    expect(bootPlan(7, '#whatever')).toEqual({ daily: false, li: 7 });
+    expect(bootPlan(42, '')).toEqual({ menu: true, daily: false, li: 42 });
+    expect(bootPlan(7, '#whatever')).toEqual({ menu: true, daily: false, li: 7 });
   });
   it('opens the editor on #builder', () => {
-    expect(bootPlan(5, '#builder')).toEqual({ daily: false, li: 5, builder: true });
+    expect(bootPlan(5, '#builder')).toEqual({ menu: false, daily: false, li: 5, builder: true });
   });
   it('carries an editor glyph code on #level-<v>-<w>x<h>-...', () => {
     expect(bootPlan(5, '#level-1-3x3-M00000002.abc'))
-      .toEqual({ daily: false, li: 5, shared: 'level-1-3x3-M00000002.abc' });
+      .toEqual({ menu: false, daily: false, li: 5, shared: 'level-1-3x3-M00000002.abc' });
   });
   it('routes a campaign-share #level-<n>-<key> to campaignShare, not the importer', () => {
     expect(bootPlan(5, '#level-7-abc123'))
-      .toEqual({ daily: false, li: 5, campaignShare: { li: 6, key: 'abc123' } });
+      .toEqual({ menu: false, daily: false, li: 5, campaignShare: { li: 6, key: 'abc123' } });
+  });
+
+  /* The title screen was the single biggest measured loss: ~33% of visitors
+     left without ever tapping Play, while 86% of those who reached a board
+     cleared level 01. A first-timer has nothing to continue, so the menu is
+     not a choice — it is an obstacle. */
+  it('sends a first-time visitor straight to the board, no menu', () => {
+    expect(bootPlan(0, '', false)).toEqual({ menu: false, daily: false, li: 0 });
+  });
+  it('still greets a returning player with the menu, so Continue exists', () => {
+    expect(bootPlan(12, '', true)).toEqual({ menu: true, daily: false, li: 12 });
+  });
+  it('never shows the menu on any deep-link, progress or not', () => {
+    for (const hash of ['#daily', '#builder', '#level-7-abc123', '#z-abc']) {
+      expect(bootPlan(3, hash, true).menu).toBe(false);
+      expect(bootPlan(3, hash, false).menu).toBe(false);
+    }
   });
 });
 

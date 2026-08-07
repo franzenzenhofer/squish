@@ -23,6 +23,10 @@ const seedShared = (page: import('@playwright/test').Page): Promise<void> =>
 test.beforeEach(async ({ page }) => {
   await page.goto('/?test=1');
   await page.waitForFunction(() => window.__squishy !== undefined);
+  /* a fresh visitor now boots onto the board, not the title screen — these are
+     picker tests, so ask for the menu the way the logo does */
+  await page.evaluate(() => window.__squishy?.openMenu());
+  await page.waitForSelector('#start.show');
 });
 
 test('the picker shows a "Shared with you" shelf and the campaign heading', async ({ page }) => {

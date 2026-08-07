@@ -9,10 +9,10 @@ import { HAND_IDLE_MS, HAND_LAST_LI } from '../../src/game/tutorHand';
 const WAIT = HAND_IDLE_MS + 2000;
 
 test('points out the winning swipe when a tutorial player goes quiet', async ({ page }) => {
+  /* a fresh visitor boots straight onto the board (flow.bootPlan) */
+  await page.addInitScript(() => localStorage.clear());
   await page.goto('/?test=1');
   await page.waitForFunction(() => window.__squishy !== undefined);
-  /* boot lands on the title screen — a real player taps Play to reach a board */
-  await page.getByRole('button', { name: /play|continue/i }).first().click();
   await page.evaluate(() => window.__squishy?.loadLevel(0));
 
   expect((await page.evaluate(() => window.__squishy?.state()))?.hintDir).toBeNull();
@@ -30,10 +30,10 @@ test('points out the winning swipe when a tutorial player goes quiet', async ({ 
 });
 
 test('stays silent past the tutorial, where the coach takes over', async ({ page }) => {
+  /* a fresh visitor boots straight onto the board (flow.bootPlan) */
+  await page.addInitScript(() => localStorage.clear());
   await page.goto('/?test=1');
   await page.waitForFunction(() => window.__squishy !== undefined);
-  /* boot lands on the title screen — a real player taps Play to reach a board */
-  await page.getByRole('button', { name: /play|continue/i }).first().click();
   await page.evaluate((li) => window.__squishy?.loadLevel(li), HAND_LAST_LI + 1);
   /* level 04 greets with two first-meet cards (penguin, ice) — clear them all,
      otherwise this test would pass merely because the board was never idle */
