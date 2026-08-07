@@ -38,3 +38,24 @@ test('the game signals readiness for the iOS wrapper', async ({ page }) => {
     { timeout: 15000 }
   );
 });
+
+test('no phantom start: the title screen fires boot only, Play fires the start', async ({ page }) => {
+  const beacons: Record<string, unknown>[] = [];
+  await page.route('**/t', (route) => {
+    beacons.push(JSON.parse(route.request().postData() ?? '{}') as Record<string, unknown>);
+    return route.fulfill({ status: 204, body: '' });
+  });
+
+  await page.goto('/?test=1');
+  await page.waitForFunction(() => window.__squishy !== undefined);
+  await page.waitForTimeout(1500);
+
+  /* the level is applied behind the start menu — that must NOT count as a start */
+  expect(beacons.filter((b) => b.e === 'start')).toHaveLength(0);
+  expect(beacons.filter((b) => b.e === 'boot')).toHaveLength(1);
+
+  /* tapping Play puts a real board in front of the player: exactly one start */
+  await page.getByRole('button', { name: /play|continue/i }).first().click();
+  await page.waitForTimeout(1500);
+  expect(beacons.filter((b) => b.e === 'start')).toHaveLength(1);
+});

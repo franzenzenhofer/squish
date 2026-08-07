@@ -29,6 +29,7 @@ import { createNav, type Nav } from './nav';
 import { mountWordmark } from './logo';
 import { hideToast, toast } from './toast';
 import { drawFrame, type RenderHooks } from './render';
+import { shouldShowHand } from './tutorHand';
 import { CURATED, blankSession, type CustomSource, type Session } from './session';
 import { installBannerApi, installTestApi } from './testapi';
 import { createTracker } from '../lib/track';
@@ -73,15 +74,23 @@ const { track } = createTracker({
 });
 const playKind = (): PlayKind =>
   s.play.kind === 'campaign' ? 'c' : s.play.kind === 'daily' ? 'd' : 'g';
-/* one quit beacon per level attempt: backgrounding mid-level counts once */
+/* one quit beacon per level attempt: backgrounding mid-level counts once.
+   mv is deliberately allowed to be 0 — "opened the board and left without ever
+   swiping" is a DIFFERENT loss from "gave up mid-solve", and telling them apart
+   is the whole point (they are read apart by mv=0 vs mv>0). */
 let quitSent = false;
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState !== 'hidden' || quitSent) return;
-  if ((s.mode === 'idle' || s.mode === 'anim' || s.mode === 'ohno') && s.moves > 0) {
+  if (s.mode === 'idle' || s.mode === 'anim' || s.mode === 'ohno') {
     quitSent = true;
     track('quit', { k: playKind(), li: s.li, mv: s.moves });
   }
 });
+
+/* Tutor hand — see tutorHand.ts. Stamped by every swipe attempt, reset by every
+   level apply; the render loop asks whether to point. */
+let handShown = 0;
+let lastInputAt = 0;
 
 const canvas = document.getElementById('c') as HTMLCanvasElement;
 const ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
@@ -258,6 +267,8 @@ function applyLevel(def: LevelDef): void {
   s.combo = 0;
   s.winFace = false;
   s.hintDir = null;
+  handShown = 0;
+  lastInputAt = performance.now();
   /* hint mode is per-level: each level starts in normal mode, un-peeked */
   s.hintMode = false;
   s.hintUsed = false;
@@ -295,7 +306,14 @@ function applyLevel(def: LevelDef): void {
   if (s.play.kind === 'campaign') assist.prefetch(s.li + 1);
   saveGame(s);
   quitSent = false;
-  track('start', { k: playKind(), li: s.li });
+  /* `start` means "a board was actually put in front of the player". Boot applies
+     the resumed level BEHIND the start menu, so tracking here unconditionally
+     counted a start for everyone who only ever saw the title screen — and Play
+     re-applies the level, so those visitors were double-counted too (level 01 sat
+     at 2.11 starts per player, ~1 of them a phantom). The menu's Play always
+     routes back through applyLevel, so skipping the menu case loses nothing.
+     boot-without-start is now exactly "left on the title screen". */
+  if (!startMenu.isOpen()) track('start', { k: playKind(), li: s.li });
   /* first-meet cards greet new friends/elements only once the player is
      actually in the level — never behind the start menu, where the timed
      auto-dismiss would burn them unseen. The menu fires them on Play.
@@ -396,6 +414,9 @@ function assistAfterMove(): void {
 
 /* ------------------------------ move flow -------------------------------- */
 function doMove(dir: Dir): void {
+  /* every swipe ATTEMPT counts as input, refused ones included — a player
+     pushing at a wall is engaged and must never be handed a tutor arrow */
+  lastInputAt = performance.now();
   if (s.mode !== 'idle' && s.mode !== 'anim') return;
   if (s.ohNoShown || s.ohNoReturn) return;
   if (s.mode === 'anim') {
@@ -604,8 +625,28 @@ const hooks: RenderHooks = {
   onAnimFinished: () => finishMove()
 };
 
+/* The tutor hand: point out the winning swipe when a tutorial player has gone
+   quiet. `hints.solution()` is a pure read of the solved oracle — it does NOT
+   set hintUsed and writes no `hint` event, so the arrow costs the player
+   nothing. Setting hintDir without hintMode makes render fade it out by itself. */
+function maybeTutorHand(now: number): void {
+  const shown = shouldShowHand({
+    li: s.li, playKind: s.play.kind, idleMs: now - lastInputAt, shown: handShown,
+    boardIdle: s.mode === 'idle',
+    blocked: s.hintMode || s.hintDir !== null || intro.isOpen() || startMenu.isOpen()
+  });
+  if (!shown) return;
+  const dir = hints.solution()?.[0];
+  if (!dir) return;
+  s.hintDir = dir;
+  s.hintT0 = now;
+  handShown++;
+  lastInputAt = now;
+}
+
 function render(now: number): void {
   if (s.mode !== 'loading') drawFrame(ctx, s, now, hooks);
+  maybeTutorHand(now);
   requestAnimationFrame(render);
 }
 

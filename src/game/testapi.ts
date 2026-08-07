@@ -34,7 +34,7 @@ export interface TestApiDeps {
 export interface SquishyTestApi {
   state: () => {
     li: number; moves: number; mode: Mode; play: string; line: string;
-    ser: string; winnable: boolean | null; oracleReady: boolean;
+    hintDir: Dir | null; ser: string; winnable: boolean | null; oracleReady: boolean;
   };
   move: (d: Dir) => Promise<{ mode: Mode; moves: number }>;
   solution: () => string[] | null;
@@ -137,6 +137,8 @@ export function installTestApi(d: TestApiDeps): void {
         : s.play.kind === 'debug' ? 'debug:' + s.play.di
           : s.play.kind === 'custom' ? 'custom:' + s.play.source : 'campaign',
       line: s.line.join(''),
+      /* the arrow currently on screen — hint mode OR the tutor hand */
+      hintDir: s.hintDir,
       ser: ser(s.gs),
       winnable: s.oracle
         ? (s.oracle.dist.has(ser(s.gs)) ? true : s.oracle.policy.has(ser(s.gs)) ? false : null)
