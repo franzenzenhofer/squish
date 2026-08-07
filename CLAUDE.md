@@ -33,7 +33,11 @@ npm run deploy       # gates + wrangler deploy to squishy.franzai.com
 npm run daily:verify # verify daily puzzles solvable (SLOW - see memory note)
 npm run levels       # rebuild src/levels.json from authoring scripts
 npm run e2e          # Playwright e2e (excluded from `test`)
+npm run ios:units 30 # real App Store downloads (ASC sales reports, last N days)
 ```
+
+Play stats (anonymous counters) are queried from the Analytics Engine `squish_events`
+dataset - see the `squish-analytics` project memory for the SQL API recipe.
 
 ## Two build targets (one core, SSOT)
 
